@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Integrated Interactive Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "peach": {
+                            50: '#fff4f0',
+                            100: '#ffe6dd',
+                            200: '#ffd0c0',
+                            300: '#ffb299',
+                            400: '#ff8966',
+                            500: '#ff6639', 
+                            600: '#e05025', 
+                        },
+                        "sky": {
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                        },
+                        "terracotta": {
+                             100: '#ffe4d6',
+                             200: '#ffccb8',
+                             500: '#e07a5f',
+                             600: '#c25e42',
+                        },
+                        "lilac": {
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                        },
+                        "cobalt": {
+                            500: '#1e3a8a',
+                            600: '#172554', 
+                            700: '#0f172a',
+                        },
+                        "lime": {
+                            100: '#ecfccb',
+                            400: '#a3e635', 
+                            500: '#84cc16',
+                        },
+                        "background-base": "#fff9f6", 
+                        "card-white": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'bold': '4px 4px 0px 0px',
+                        'bold-sm': '2px 2px 0px 0px',
+                        'soft': '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-base font-display text-gray-900 antialiased min-h-screen flex justify-center selection:bg-lime-400 selection:text-cobalt-700">
+<div class="w-full max-w-md h-screen relative flex flex-col bg-background-base overflow-hidden">
+<div class="h-12 w-full flex items-center justify-between px-6 pt-2 z-40 shrink-0 bg-background-base">
+<span class="text-sm font-bold text-gray-800">9:41</span>
+<div class="flex items-center gap-1.5 text-gray-800">
+<span class="material-icons-round text-sm">signal_cellular_alt</span>
+<span class="material-icons-round text-sm">wifi</span>
+<span class="material-icons-round text-sm">battery_full</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar pb-40">
+<header class="px-6 pt-4 pb-2 shrink-0 z-10">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h1 class="text-4xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
+                            Good Morning,<br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-peach-500 to-terracotta-500 italic">Alex</span>
+</h1>
+<p class="text-sm text-gray-500 mt-2 font-bold tracking-wide uppercase">Ready to seize the week?</p>
+</div>
+<button class="relative p-1.5 rounded-full bg-card-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all border-2 border-black">
+<span class="absolute top-0 right-0 w-3 h-3 bg-lime-400 rounded-full border-2 border-black z-10"></span>
+<img alt="User Profile Picture" class="w-11 h-11 rounded-full object-cover border border-black" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdeDKc5Z9QHZQ9rzKJF1AFc_H-5v4Fti4YcJm4ovVHxxUuChAYy1bhKvS6v87BUD6LDnj7lz1W_zCK8CAyMCB2p3hYHrux3W9Lt5_ohMgCatlmq_I7ad5fGCon68O68Fec9YYXf3ye0mlcwWhf8OONTYpMviYOnNXnMX9Y2yzEBCGqhFQgtdYFgC1EbolTRuyUwyJAhqfw8AtP5G_Ns4Y6wJDbz5_H5G9qe1BSzmVd9YhQb9Oo66Ba0CSDVuDW67blC-s95r2TuxNe"/>
+</button>
+</div>
+<div class="bg-card-white rounded-2xl shadow-[4px_4px_0px_0px_#c084fc] border-2 border-lilac-500 overflow-hidden mb-6">
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 px-4 pt-4 pb-2 bg-card-white border-b border-lilac-100">
+<div class="text-[10px] font-black uppercase text-gray-400 tracking-wider">Date</div>
+<div class="text-[10px] font-black uppercase text-terracotta-500 tracking-wider">Meals</div>
+<div class="text-[10px] font-black uppercase text-lilac-500 tracking-wider">Events</div>
+</div>
+<div class="max-h-[320px] overflow-y-auto no-scrollbar">
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3 border-b border-lilac-50">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-500 uppercase">Mon</span>
+<span class="text-base font-black text-gray-800">21</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-terracotta-200 bg-terracotta-50 flex items-center justify-center text-terracotta-400">
+<span class="material-icons-round text-sm">add</span>
+</div>
+<div class="flex items-center gap-1 bg-lilac-100 text-lilac-600 px-2 py-1.5 rounded-md text-[10px] font-bold border border-lilac-200 truncate">
+<span>Team Sync</span>
+</div>
+</div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3 border-b border-lilac-50">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-500 uppercase">Tue</span>
+<span class="text-base font-black text-gray-800">22</span>
+</div>
+<div class="flex items-center gap-1 bg-terracotta-100 text-terracotta-600 px-2 py-1.5 rounded-lg text-[10px] font-bold border border-terracotta-200 truncate">
+<span>🥗 Salad</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-lilac-100 bg-lilac-50 flex items-center justify-center text-lilac-300">
+<span class="material-icons-round text-sm">add</span>
+</div>
+</div>
+<div class="bg-lime-50/60 relative shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)] py-4 px-4 border-b border-lime-200">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-lime-500 rounded-r-full"></div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-start">
+<div class="flex flex-col leading-none pt-1">
+<span class="text-xs font-bold text-lime-600 uppercase">Today</span>
+<span class="text-2xl font-black text-lime-700">23</span>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center gap-1 bg-terracotta-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold border border-terracotta-600 shadow-sm">
+<span class="truncate">🥞 Pancakes</span>
+<span class="material-symbols-outlined text-[12px] opacity-90 ml-auto">edit</span>
+</div>
+<div class="flex items-center gap-1 bg-terracotta-100 text-terracotta-600 px-2 py-1.5 rounded-lg text-[10px] font-bold border border-terracotta-200 shadow-sm">
+<span class="truncate">🥗 Salad Bowl</span>
+<span class="material-symbols-outlined text-[12px] opacity-60 ml-auto">edit</span>
+</div>
+<div class="flex items-center gap-1 bg-terracotta-100 text-terracotta-600 px-2 py-1.5 rounded-lg text-[10px] font-bold border border-terracotta-200">
+<span class="truncate">🍝 Pasta</span>
+<span class="material-symbols-outlined text-[12px] opacity-60 ml-auto">edit</span>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center gap-1 bg-lilac-500 text-white px-2 py-1.5 rounded-md text-[10px] font-bold border border-lilac-600 shadow-[2px_2px_0px_0px_#9333ea]">
+<span class="truncate">🧘 Pilates</span>
+<span class="material-symbols-outlined text-[12px] opacity-90 ml-auto">edit</span>
+</div>
+<div class="flex items-center gap-1 bg-lilac-100 text-lilac-600 px-2 py-1.5 rounded-md text-[10px] font-bold border border-lilac-200 shadow-sm">
+<span class="truncate">📞 Work Call</span>
+<span class="material-symbols-outlined text-[12px] opacity-60 ml-auto">edit</span>
+</div>
+<div class="flex items-center gap-1 bg-lilac-100 text-lilac-600 px-2 py-1.5 rounded-md text-[10px] font-bold border border-lilac-200">
+<span class="truncate">🛒 Grocery Run</span>
+<span class="material-symbols-outlined text-[12px] opacity-60 ml-auto">edit</span>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3 border-b border-lilac-50">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-500 uppercase">Thu</span>
+<span class="text-base font-black text-gray-800">24</span>
+</div>
+<div class="flex items-center gap-1">
+<div class="h-2 w-2 rounded-full bg-terracotta-500"></div>
+<span class="text-[10px] font-bold text-gray-400">3 meals</span>
+</div>
+<div class="flex items-center gap-1 bg-lilac-100 text-lilac-600 px-2 py-1 rounded-md text-[10px] font-bold border border-lilac-200 truncate">
+<span>Shop</span>
+</div>
+</div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3 border-b border-lilac-50">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-500 uppercase">Fri</span>
+<span class="text-base font-black text-gray-800">25</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-300">
+<span class="material-icons-round text-sm">add</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-100 bg-gray-50"></div>
+</div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3 border-b border-lilac-50">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-400 uppercase">Sat</span>
+<span class="text-base font-black text-gray-400">26</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-100 bg-gray-50"></div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-100 bg-gray-50"></div>
+</div>
+<div class="grid grid-cols-[3.5rem_1fr_1fr] gap-x-3 items-center px-4 py-3">
+<div class="flex flex-col leading-none">
+<span class="text-xs font-bold text-gray-400 uppercase">Sun</span>
+<span class="text-base font-black text-gray-400">27</span>
+</div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-100 bg-gray-50"></div>
+<div class="h-8 rounded-lg border-2 border-dashed border-gray-100 bg-gray-50"></div>
+</div>
+</div>
+</div>
+</header>
+<main class="px-6 space-y-8">
+<section>
+<div class="flex items-end justify-between mb-4">
+<h2 class="text-xl font-extrabold text-gray-900 uppercase tracking-tight">Today's To-Do</h2>
+<button class="text-lilac-600 underline decoration-2 decoration-lilac-300 text-sm font-bold hover:text-lilac-800">Add New</button>
+</div>
+<div class="relative w-full bg-card-white rounded-2xl p-5 shadow-[4px_4px_0px_0px_#e07a5f] border-2 border-terracotta-500">
+<div class="space-y-4">
+<div class="group flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer appearance-none w-6 h-6 border-2 border-terracotta-300 rounded-full checked:bg-terracotta-500 checked:border-terracotta-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 peer-checked:line-through peer-checked:text-gray-400 transition-all">Morning Pilates</span>
+<span class="text-[10px] font-bold text-terracotta-500 uppercase tracking-wide">7:30 AM • Studio</span>
+</div>
+</div>
+<button class="p-1 text-gray-300 hover:text-terracotta-500 transition-colors">
+<span class="material-symbols-outlined text-xl">edit_note</span>
+</button>
+</div>
+<div class="w-full h-px bg-terracotta-100"></div>
+<div class="group flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-terracotta-300 rounded-full checked:bg-terracotta-500 checked:border-terracotta-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 peer-checked:line-through peer-checked:text-gray-400 transition-all">Grocery Run</span>
+<span class="text-[10px] font-bold text-lilac-500 uppercase tracking-wide">Whole Foods</span>
+</div>
+</div>
+<button class="p-1 text-gray-300 hover:text-terracotta-500 transition-colors">
+<span class="material-symbols-outlined text-xl">edit_note</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-between mb-4">
+<h4 class="text-sm font-black text-gray-800 uppercase tracking-wider">Daily Goals</h4>
+<div class="flex items-center bg-black text-white text-[9px] font-black px-2 py-1 rounded-full tracking-widest">
+                            TAP TO LOG • HOLD TO EDIT
+                        </div>
+</div>
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-6 px-1">
+<div class="min-w-[150px] bg-white rounded-3xl p-5 border-2 border-sky-400 shadow-[6px_6px_0px_0px_#38bdf8] flex flex-col items-center text-center group active:scale-95 transition-transform cursor-pointer">
+<div class="relative w-24 h-24 mb-4 flex items-center justify-center">
+<svg class="w-full h-full" viewBox="0 0 100 100">
+<circle class="text-sky-100 stroke-current" cx="50" cy="50" fill="transparent" r="42" stroke-width="8"></circle>
+<circle class="text-sky-500 stroke-current progress-ring-circle" cx="50" cy="50" fill="transparent" r="42" stroke-dasharray="263.89" stroke-dashoffset="65.97" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="material-icons-round text-sky-500 text-2xl">water_drop</span>
+<span class="text-xs font-black text-gray-800">75%</span>
+</div>
+</div>
+<span class="text-lg font-black text-gray-800">1.5<span class="text-xs text-gray-400 ml-0.5">L</span></span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Water</span>
+</div>
+<div class="min-w-[150px] bg-white rounded-3xl p-5 border-2 border-lime-500 shadow-[6px_6px_0px_0px_#84cc16] flex flex-col items-center text-center group active:scale-95 transition-transform cursor-pointer">
+<div class="relative w-24 h-24 mb-4 flex items-center justify-center">
+<svg class="w-full h-full" viewBox="0 0 100 100">
+<circle class="text-lime-100 stroke-current" cx="50" cy="50" fill="transparent" r="42" stroke-width="8"></circle>
+<circle class="text-lime-500 stroke-current progress-ring-circle" cx="50" cy="50" fill="transparent" r="42" stroke-dasharray="263.89" stroke-dashoffset="150.41" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="material-icons-round text-lime-600 text-2xl">directions_walk</span>
+<span class="text-xs font-black text-gray-800">43%</span>
+</div>
+</div>
+<span class="text-lg font-black text-gray-800">4.3k</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Steps</span>
+</div>
+<div class="min-w-[150px] bg-white rounded-3xl p-5 border-2 border-lilac-500 shadow-[6px_6px_0px_0px_#c084fc] flex flex-col items-center text-center group active:scale-95 transition-transform cursor-pointer">
+<div class="relative w-24 h-24 mb-4 flex items-center justify-center">
+<svg class="w-full h-full" viewBox="0 0 100 100">
+<circle class="text-lilac-100 stroke-current" cx="50" cy="50" fill="transparent" r="42" stroke-width="8"></circle>
+<circle class="text-lilac-500 stroke-current progress-ring-circle" cx="50" cy="50" fill="transparent" r="42" stroke-dasharray="263.89" stroke-dashoffset="0" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="material-icons-round text-lilac-600 text-2xl">bedtime</span>
+<span class="text-xs font-black text-gray-800">100%</span>
+</div>
+</div>
+<span class="text-lg font-black text-gray-800">8.2<span class="text-xs text-gray-400 ml-0.5">h</span></span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Sleep</span>
+</div>
+</div>
+</section>
+</main>
+</div>
+<nav class="absolute bottom-0 left-0 w-full bg-card-white border-t-2 border-gray-100 px-6 py-4 z-50 rounded-t-[2.5rem] shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+<div class="flex justify-between items-end px-2">
+<button class="flex flex-col items-center gap-1 group">
+<div class="w-12 h-8 rounded-full bg-lilac-100 flex items-center justify-center text-lilac-600 transition-colors">
+<span class="material-icons-round">home</span>
+</div>
+<span class="text-[10px] font-bold text-lilac-600 uppercase tracking-wider">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600">
+<div class="w-12 h-8 flex items-center justify-center transition-colors">
+<span class="material-icons-round">calendar_today</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center -mt-8">
+<div class="w-14 h-14 rounded-full bg-terracotta-500 border-4 border-white shadow-[0px_4px_15px_rgba(224,122,95,0.4)] flex items-center justify-center text-white transform transition-transform active:scale-90">
+<span class="material-icons-round text-3xl">add</span>
+</div>
+</button>
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600">
+<div class="w-12 h-8 flex items-center justify-center transition-colors">
+<span class="material-icons-round">restaurant</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider">Meals</span>
+</button>
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600">
+<div class="w-12 h-8 flex items-center justify-center transition-colors">
+<span class="material-icons-round">shopping_bag</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider">Shop</span>
+</button>
+</div>
+</nav>
+</div>
+
+</body></html>

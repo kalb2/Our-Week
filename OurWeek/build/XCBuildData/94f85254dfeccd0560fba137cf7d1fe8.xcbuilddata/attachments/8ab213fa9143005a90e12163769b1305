@@ -1,0 +1,241 @@
+{
+  "" : {
+    "const-values" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary.swiftconstvalues",
+    "dependencies" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary.d",
+    "diagnostics" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary.dia",
+    "emit-module-dependencies" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary-emit-module.dia",
+    "pch" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek-primary.swiftdeps"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AIPromptTemplates.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIPromptTemplates.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIPromptTemplates.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIPromptTemplates.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AIResponseCache.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIResponseCache.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIResponseCache.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AIResponseCache.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AISettingsView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AISettingsView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AISettingsView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AISettingsView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AddEventSheet.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddEventSheet.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddEventSheet.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddEventSheet.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AddMealSheet.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddMealSheet.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddMealSheet.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddMealSheet.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AddRecipeView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddRecipeView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddRecipeView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/AddRecipeView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/CalendarSettingsView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSettingsView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSettingsView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSettingsView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/CalendarSyncManager.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSyncManager.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSyncManager.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarSyncManager.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/CalendarView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/ContentView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ContentView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/DataManager.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/DataManager.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/DataManager.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/DataManager.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/EventDetailSheet.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/EventDetailSheet.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/EventDetailSheet.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/EventDetailSheet.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/GeminiError.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiError.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiError.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiError.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/GeminiService.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiService.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiService.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeminiService.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/ImportPreviewView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ImportPreviewView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ImportPreviewView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ImportPreviewView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/KeychainManager.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/KeychainManager.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/KeychainManager.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/KeychainManager.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/MealPlanCarouselView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlanCarouselView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlanCarouselView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlanCarouselView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/OurWeekApp.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeekApp.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeekApp.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeekApp.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/Persistence.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Persistence.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Persistence.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Persistence.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/RateLimiter.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RateLimiter.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RateLimiter.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RateLimiter.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/RecipeCard.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeCard.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeCard.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeCard.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/RecipeDetailView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeDetailView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeDetailView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeDetailView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/RecipeLibraryView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeLibraryView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeLibraryView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeLibraryView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/RecipeScraperService.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeScraperService.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeScraperService.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeScraperService.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/SharingManager.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingManager.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingManager.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingManager.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/SharingSettingsView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingSettingsView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingSettingsView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/SharingSettingsView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/ShoppingListView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingListView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingListView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingListView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/URLImportView.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/URLImportView.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/URLImportView.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/URLImportView.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/CalendarEvent+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/CalendarEvent+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/CalendarEvent+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Household+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Household+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Household+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/MealPlan+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/MealPlan+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/MealPlan+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/OurWeek+CoreDataModel.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek+CoreDataModel.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek+CoreDataModel.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/OurWeek+CoreDataModel.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Recipe+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Recipe+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/Recipe+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeIngredient+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/RecipeInstruction+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingItem+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingItem+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingItem+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingList+CoreDataClass.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataClass.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataClass.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataClass.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingList+CoreDataProperties.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataProperties.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataProperties.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/ShoppingList+CoreDataProperties.o"
+  },
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/x86_64/GeneratedAssetSymbols.o"
+  }
+}

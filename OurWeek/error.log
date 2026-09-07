@@ -1,0 +1,227 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project OurWeek.xcodeproj -scheme OurWeek
+
+2026-04-16 21:26:17.585 xcodebuild[1629:34870] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device }
+{ platform:iOS Simulator, id:dvtdevice-DVTiOSDeviceSimulatorPlaceholder-iphonesimulator:placeholder, name:Any iOS Simulator Device }
+{ platform:iOS Simulator, arch:x86_64, id:BDCDD6BA-906D-4846-B792-463ADB2692D0, OS:26.2, name:iPad (A16) }
+{ platform:iOS Simulator, arch:x86_64, id:734F10E6-81D8-468B-9D9D-89A7FCE3B0D9, OS:26.4, name:iPad (A16) }
+{ platform:iOS Simulator, arch:x86_64, id:ECC26685-3190-4A92-B5D1-B7EB454893B1, OS:26.2, name:iPad Air 11-inch (M3) }
+{ platform:iOS Simulator, arch:x86_64, id:83C2CDDD-9930-40A6-AAC9-07F7A1641351, OS:26.4, name:iPad Air 11-inch (M4) }
+{ platform:iOS Simulator, arch:x86_64, id:3173C758-EBA8-4373-8762-07BBB62E1FDB, OS:26.2, name:iPad Air 13-inch (M3) }
+{ platform:iOS Simulator, arch:x86_64, id:A575F589-A028-4E0A-8195-30A41B4C257A, OS:26.4, name:iPad Air 13-inch (M4) }
+{ platform:iOS Simulator, arch:x86_64, id:D8721F34-1703-46F5-803E-5AA19BBC5666, OS:26.2, name:iPad Pro 11-inch (M5) }
+{ platform:iOS Simulator, arch:x86_64, id:E5816B5F-1A95-48A8-9389-CB1182D34C7B, OS:26.4, name:iPad Pro 11-inch (M5) }
+{ platform:iOS Simulator, arch:x86_64, id:A0B626D7-C15C-4E8E-87F2-6F696E76B247, OS:26.2, name:iPad Pro 13-inch (M5) }
+{ platform:iOS Simulator, arch:x86_64, id:7FB09F2E-2342-4259-A9D2-5D76509AA7EF, OS:26.4, name:iPad Pro 13-inch (M5) }
+{ platform:iOS Simulator, arch:x86_64, id:169EAD10-2AEB-4FE9-8ED3-35DFE53D70F0, OS:26.2, name:iPad mini (A17 Pro) }
+{ platform:iOS Simulator, arch:x86_64, id:27A7528A-5DF6-49DD-ACDB-83637ACA3C83, OS:26.4, name:iPad mini (A17 Pro) }
+{ platform:iOS Simulator, arch:x86_64, id:E42CED71-50AD-41A8-B3E5-686ABC37E65B, OS:26.2, name:iPhone 16e }
+{ platform:iOS Simulator, arch:x86_64, id:24FF0613-4A64-495B-813D-52E7144D669C, OS:26.2, name:iPhone 17 }
+{ platform:iOS Simulator, arch:x86_64, id:20ABCBB6-99F1-4267-BEAE-58027A61AEB1, OS:26.4, name:iPhone 17 }
+{ platform:iOS Simulator, arch:x86_64, id:ED15C37A-0225-4E26-A287-ADEC65365EB5, OS:26.2, name:iPhone 17 Pro }
+{ platform:iOS Simulator, arch:x86_64, id:B3AD590C-1D05-4B3F-B618-BEF4B92BB946, OS:26.4, name:iPhone 17 Pro }
+{ platform:iOS Simulator, arch:x86_64, id:A50797D2-467C-407B-9A20-C4925A9257C1, OS:26.2, name:iPhone 17 Pro Max }
+{ platform:iOS Simulator, arch:x86_64, id:F6A49286-9DF7-4AA2-BA6C-9807156FBA44, OS:26.4, name:iPhone 17 Pro Max }
+{ platform:iOS Simulator, arch:x86_64, id:16998254-49AA-44CF-828B-FBB17B2E41DD, OS:26.4, name:iPhone 17e }
+{ platform:iOS Simulator, arch:x86_64, id:9A86CD84-B121-4942-AE9C-BF9D1FB6368F, OS:26.2, name:iPhone Air }
+{ platform:iOS Simulator, arch:x86_64, id:FB19148B-D520-4E3F-86C4-999005616C9C, OS:26.4, name:iPhone Air }
+{ platform:iOS, arch:arm64, id:00008101-000005A03E39003A, name:Kaleb’s iPhone }
+{ platform:iOS, arch:arm64, id:00008110-000435900181801E, name:Karli’s iPhone }
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'OurWeek' in project 'OurWeek' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/momc --dry-run --action generate --swift-version 5.0 --sdkroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk --iphoneos-deployment-target 26.2 --module OurWeek /Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/OurWeek.xcdatamodeld /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 9f3944ea2333f0f0b2c98185f75d251d
+Build description path: /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/XCBuildData/9f3944ea2333f0f0b2c98185f75d251d.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk /Users/kalebjensen/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos26.4-23E237-68a138bb55de9ba35ce6c8c40d12849e.sdkstatcache
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk -o /Users/kalebjensen/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos26.4-23E237-68a138bb55de9ba35ce6c8c40d12849e.sdkstatcache
+
+CompileAssetCatalogVariant thinned /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos/OurWeek.app /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/Assets.xcassets (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/Assets.xcassets --compile /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.2 --platform iphoneos
+
+SwiftDriver OurWeek normal arm64 com.apple.xcode.tools.swift.compiler (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name OurWeek -Onone @/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek.SwiftFileList -DDEBUG -default-isolation\=MainActor -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk -target arm64-apple-ios26.2 -g -module-cache-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos -F /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64 -c -j16 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos26.4-23E237-68a138bb55de9ba35ce6c8c40d12849e.sdkstatcache -output-file-map /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/kalebjensen/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek_const_extract_protocols.json -Xcc -iquote -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-generated-files.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-own-target-headers.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-all-target-headers.hmap -Xcc -iquote -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-project-headers.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos/include -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources-normal/arm64 -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/arm64 -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek-Swift.h -working-directory /Users/kalebjensen/Desktop/Our\ Week/OurWeek -experimental-emit-module-separately -disable-cmo
+
+SwiftCompile normal arm64 Compiling\ CalendarView.swift,\ ContentView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ContentView.swift (in target 'OurWeek' from project 'OurWeek')
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ContentView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ GeminiService.swift,\ ImportPreviewView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/GeminiService.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ImportPreviewView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/GeminiService.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ImportPreviewView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ KeychainManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/KeychainManager.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/KeychainManager.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ AIResponseCache.swift,\ AISettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIResponseCache.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AISettingsView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIResponseCache.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AISettingsView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ AddEventSheet.swift,\ AddMealSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddEventSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddMealSheet.swift (in target 'OurWeek' from project 'OurWeek')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c -primary-file /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddEventSheet.swift -primary-file /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddMealSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddRecipeView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIPromptTemplates.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIResponseCache.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AISettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSyncManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ContentView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/DataManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/EventDetailSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/GeminiError.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/GeminiService.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ImportPreviewView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/KeychainManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/MealPlanCarouselView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/OurWeekApp.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/PasteImportView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/Persistence.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ProfileMenuSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RateLimiter.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeCard.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeDetailView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeLibraryView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeScraperService.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeTextParser.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/SharingManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/SharingSettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ShoppingListView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/URLImportView.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/CalendarEvent+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/CalendarEvent+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Household+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Household+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/MealPlan+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/MealPlan+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Recipe+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Recipe+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingItem+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingItem+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingList+CoreDataClass.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/ShoppingList+CoreDataProperties.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/OurWeek+CoreDataModel.swift /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/GeneratedAssetSymbols.swift -emit-dependencies-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.d -emit-const-values-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.swiftconstvalues -emit-reference-dependencies-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.swiftdeps -serialize-diagnostics-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.dia -emit-dependencies-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.d -emit-const-values-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.swiftconstvalues -emit-reference-dependencies-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.swiftdeps -serialize-diagnostics-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.dia -emit-localized-strings -emit-localized-strings-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64 -target arm64-apple-ios26.2 -module-can-import-version DeveloperToolsSupport 23.40.26 23.40.26 -module-can-import-version SwiftUI 7.4.27.1 7.4.27 -module-can-import-version UIKit 9126.4.27.1 9126.4.27 -disable-cross-import-overlay-search -swift-module-cross-import CoreData /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/CoreData.framework/Modules/CoreData.swiftcrossimport/CloudKit.swiftoverlay -swift-module-cross-import CoreData /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/CoreData.framework/Modules/CoreData.swiftcrossimport/CloudKit.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/WidgetKit.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/WidgetKit.swiftoverlay -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libObservationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#ObservationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libPreviewsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#PreviewsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftUIMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek-dependencies-1.json -debug-module-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek.swiftmodule -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk -I /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos -F /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -swift-version 5 -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/OurWeek_const_extract_protocols.json -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -default-isolation\=MainActor -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/kalebjensen/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/kalebjensen/Desktop/Our\ Week/OurWeek -enable-anonymous-context-mangled-names -file-compilation-dir /Users/kalebjensen/Desktop/Our\ Week/OurWeek -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos26.4-23E237-68a138bb55de9ba35ce6c8c40d12849e.sdkstatcache -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-generated-files.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-own-target-headers.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-all-target-headers.hmap -Xcc -iquote -Xcc /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/OurWeek-project-headers.hmap -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Products/Debug-iphoneos/include -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources-normal/arm64 -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources/arm64 -Xcc -I/Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/DerivedSources -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name OurWeek -frontend-parseable-output -disable-clang-spi -clang-target arm64-apple-ios26.4 -target-sdk-version 26.4 -target-sdk-name iphoneos26.4 -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -o /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.o -o /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Build/Intermediates.noindex/OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.o -index-unit-output-path /OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddEventSheet.o -index-unit-output-path /OurWeek.build/Debug-iphoneos/OurWeek.build/Objects-normal/arm64/AddMealSheet.o -index-store-path /Users/kalebjensen/Library/Developer/Xcode/DerivedData/OurWeek-fehiyzypcnsglletcbszonlcwimp/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddEventSheet.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddMealSheet.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AddMealSheet.swift:369:23: error: cannot convert value of type '@Sendable (AddMealSheet.MealEntryType?) -> ()' to expected argument type '@MainActor () -> Void'
+                Button(action: saveMeal) {
+                      ^
+
+SwiftCompile normal arm64 Compiling\ CalendarSettingsView.swift,\ CalendarSyncManager.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSyncManager.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSettingsView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/CalendarSyncManager.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ AddRecipeView.swift,\ AIPromptTemplates.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddRecipeView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIPromptTemplates.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddRecipeView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AIPromptTemplates.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ MealPlanCarouselView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/MealPlanCarouselView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/MealPlanCarouselView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ OurWeekApp.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/OurWeekApp.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/OurWeekApp.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ RecipeDetailView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeDetailView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeDetailView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ RecipeLibraryView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeLibraryView.swift (in target 'OurWeek' from project 'OurWeek')
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeLibraryView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ RecipeCard.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeCard.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/RecipeCard.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ SharingSettingsView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/SharingSettingsView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/SharingSettingsView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ PasteImportView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/PasteImportView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/PasteImportView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ OurWeek (in target 'OurWeek' from project 'OurWeek')
+
+EmitSwiftModule normal arm64 (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftCompile normal arm64 Compiling\ ShoppingListView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ShoppingListView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/ShoppingListView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling KeychainManager.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 Compiling\ URLImportView.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/URLImportView.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/URLImportView.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+SwiftDriverJobDiscovery normal arm64 Compiling OurWeekApp.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftDriverJobDiscovery normal arm64 Compiling RecipeCard.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftDriverJobDiscovery normal arm64 Compiling CalendarSettingsView.swift, CalendarSyncManager.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 Compiling\ EventDetailSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/EventDetailSheet.swift (in target 'OurWeek' from project 'OurWeek')
+
+SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/EventDetailSheet.swift (in target 'OurWeek' from project 'OurWeek')
+    cd /Users/kalebjensen/Desktop/Our\ Week/OurWeek
+    
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftCompile normal arm64 Compiling\ AddEventSheet.swift,\ AddMealSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddEventSheet.swift /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddMealSheet.swift (in target 'OurWeek' from project 'OurWeek')
+	SwiftCompile normal arm64 /Users/kalebjensen/Desktop/Our\ Week/OurWeek/OurWeek/AddMealSheet.swift (in target 'OurWeek' from project 'OurWeek')
+	Building project OurWeek with scheme OurWeek
+(3 failures)

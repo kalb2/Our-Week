@@ -1,0 +1,12 @@
+{
+  "/Users/kalebjensen/Desktop/Our Week/OurWeek/OurWeek/AddEventSheet.swift" : {
+    "abi-baseline-json" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek.abi.json",
+    "const-values" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek-primary.swiftconstvalues",
+    "dependencies" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek-primary.d",
+    "diagnostics" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek-primary.dia",
+    "objc-header" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek-Swift.h",
+    "swiftdoc" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek.swiftdoc",
+    "swiftmodule" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek.swiftmodule",
+    "swiftsourceinfo" : "/Users/kalebjensen/Desktop/Our Week/OurWeek/build/OurWeek.build/Release-iphonesimulator/OurWeek.build/Objects-normal/arm64/OurWeek.swiftsourceinfo"
+  }
+}

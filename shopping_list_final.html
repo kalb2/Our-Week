@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Shopping List</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "peach": {
+                            50: '#fff4f0',
+                            100: '#ffe6dd',
+                            200: '#ffd0c0',
+                            300: '#ffb299',
+                            400: '#ff8966',
+                            500: '#ff6639', 
+                            600: '#e05025', 
+                        },
+                        "sky": {
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        },
+                        "terracotta": {
+                             100: '#ffe4d6',
+                             200: '#ffccb8',
+                             300: '#fca5a5',
+                             500: '#e07a5f',
+                             600: '#c25e42',
+                        },
+                        "lilac": {
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                        },
+                        "cobalt": {
+                            500: '#1e3a8a',
+                            600: '#172554', 
+                            700: '#0f172a',
+                        },
+                        "lime": {
+                            100: '#ecfccb',
+                            200: '#d9f99d',
+                            400: '#a3e635', 
+                            500: '#84cc16',
+                            600: '#65a30d',
+                        },
+                        "purple": {
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            300: '#d8b4fe',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                        },
+                        "background-base": "#fff9f6", 
+                        "card-white": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'bold': '4px 4px 0px 0px',
+                        'bold-sm': '2px 2px 0px 0px',
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-base font-display text-gray-900 antialiased min-h-screen flex justify-center selection:bg-lime-400 selection:text-cobalt-700">
+<div class="w-full max-w-md h-screen relative flex flex-col bg-background-base">
+<div class="h-12 w-full flex items-center justify-between px-6 pt-2 z-20 shrink-0 bg-background-base">
+<span class="text-sm font-bold text-gray-800">9:41</span>
+<div class="flex items-center gap-1.5 text-gray-800">
+<span class="material-icons-round text-sm">signal_cellular_alt</span>
+<span class="material-icons-round text-sm">wifi</span>
+<span class="material-icons-round text-sm">battery_full</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar pb-32">
+<header class="px-6 pt-4 pb-2 shrink-0 z-10">
+<div class="flex items-center justify-between mb-6">
+<div>
+<h1 class="text-4xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
+                            Shopping<br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-peach-500 to-terracotta-500 italic">List</span>
+</h1>
+<p class="text-sm text-gray-500 mt-2 font-bold tracking-wide uppercase">Grouped by Store</p>
+</div>
+<button class="relative p-1.5 rounded-full bg-card-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all border-2 border-black">
+<span class="absolute top-0 right-0 w-3 h-3 bg-lime-400 rounded-full border-2 border-black z-10"></span>
+<img alt="User Profile Picture" class="w-11 h-11 rounded-full object-cover border border-black" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdeDKc5Z9QHZQ9rzKJF1AFc_H-5v4Fti4YcJm4ovVHxxUuChAYy1bhKvS6v87BUD6LDnj7lz1W_zCK8CAyMCB2p3hYHrux3W9Lt5_ohMgCatlmq_I7ad5fGCon68O68Fec9YYXf3ye0mlcwWhf8OONTYpMviYOnNXnMX9Y2yzEBCGqhFQgtdYFgC1EbolTRuyUwyJAhqfw8AtP5G_Ns4Y6wJDbz5_H5G9qe1BSzmVd9YhQb9Oo66Ba0CSDVuDW67blC-s95r2TuxNe"/>
+</button>
+</div>
+<div class="mb-6 -mx-6 px-6 overflow-x-auto no-scrollbar flex items-center gap-3">
+<button class="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-sky-100 rounded-full border border-sky-200 text-sky-700 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">sort</span>
+<span class="text-xs font-bold uppercase tracking-wide">Sort</span>
+</button>
+<button class="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-lime-100 rounded-full border border-lime-200 text-lime-700 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+<span class="text-xs font-bold uppercase tracking-wide">Add Section</span>
+</button>
+<button class="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-peach-100 rounded-full border border-peach-200 text-peach-600 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">edit</span>
+<span class="text-xs font-bold uppercase tracking-wide">Edit</span>
+</button>
+<button class="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-lilac-100 rounded-full border border-lilac-200 text-lilac-600 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">sync</span>
+<span class="text-xs font-bold uppercase tracking-wide">Sync</span>
+</button>
+<button class="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-gray-100 rounded-full border border-gray-200 text-gray-600 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">restart_alt</span>
+<span class="text-xs font-bold uppercase tracking-wide">Reset</span>
+</button>
+<div class="w-1 shrink-0"></div>
+</div>
+</header>
+<main class="px-6 pb-6 space-y-6">
+<div class="bg-card-white rounded-2xl shadow-[4px_4px_0px_0px_#84cc16] border-2 border-lime-500 p-5 w-full">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-black uppercase text-lime-600 tracking-wide flex items-center gap-2">
+<span class="material-icons-round">storefront</span>
+                    Grocery Store
+                </h3>
+<span class="text-xs font-bold bg-lime-100 text-lime-700 px-2 py-1 rounded border border-lime-200">3 Items</span>
+</div>
+<div class="space-y-3">
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-lime-400 rounded-full checked:bg-lime-500 checked:border-lime-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Organic Spinach</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">For Smoothies</span>
+</div>
+</div>
+<div class="w-full h-px bg-lime-100"></div>
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-lime-400 rounded-full checked:bg-lime-500 checked:border-lime-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Mixed Berries</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Blueberries &amp; Raspberries</span>
+</div>
+</div>
+<div class="w-full h-px bg-lime-100"></div>
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-lime-400 rounded-full checked:bg-lime-500 checked:border-lime-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Avocados</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Ready to eat</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-card-white rounded-2xl shadow-[4px_4px_0px_0px_#38bdf8] border-2 border-sky-400 p-5 w-full">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-black uppercase text-sky-600 tracking-wide flex items-center gap-2">
+<span class="material-icons-round">local_offer</span>
+                    Costco
+                </h3>
+<span class="text-xs font-bold bg-sky-100 text-sky-700 px-2 py-1 rounded border border-sky-200">2 Items</span>
+</div>
+<div class="space-y-3">
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-sky-300 rounded-full checked:bg-sky-500 checked:border-sky-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Greek Yogurt</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Bulk Pack, 0% Fat</span>
+</div>
+</div>
+<div class="w-full h-px bg-sky-100"></div>
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-sky-300 rounded-full checked:bg-sky-500 checked:border-sky-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Paper Towels</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Kirkland Brand</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-card-white rounded-2xl shadow-[4px_4px_0px_0px_#e07a5f] border-2 border-terracotta-500 p-5 w-full">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-black uppercase text-terracotta-600 tracking-wide flex items-center gap-2">
+<span class="material-icons-round">shopping_basket</span>
+                    Trader Joe's
+                </h3>
+<span class="text-xs font-bold bg-terracotta-100 text-terracotta-700 px-2 py-1 rounded border border-terracotta-200">2 Items</span>
+</div>
+<div class="space-y-3">
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-terracotta-300 rounded-full checked:bg-terracotta-500 checked:border-terracotta-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Everything Bagel Seasoning</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Pantry Essential</span>
+</div>
+</div>
+<div class="w-full h-px bg-terracotta-100"></div>
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-terracotta-300 rounded-full checked:bg-terracotta-500 checked:border-terracotta-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Cauliflower Gnocchi</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Frozen Aisle</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-card-white rounded-2xl shadow-[4px_4px_0px_0px_#a855f7] border-2 border-purple-500 p-5 w-full">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-black uppercase text-purple-600 tracking-wide flex items-center gap-2">
+<span class="material-icons-round">shopping_cart</span>
+                    Walmart
+                </h3>
+<span class="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded border border-purple-200">1 Item</span>
+</div>
+<div class="space-y-3">
+<div class="group flex items-center gap-3">
+<div class="relative flex items-center justify-center">
+<input class="peer appearance-none w-6 h-6 border-2 border-purple-300 rounded-full checked:bg-purple-500 checked:border-purple-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-base font-bold text-gray-800 line-through-offset-2 peer-checked:line-through peer-checked:text-gray-400 transition-all">Cleaning Supplies</span>
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Spray &amp; Wipes</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 pb-20">
+<button class="w-full py-4 rounded-xl bg-gradient-to-r from-peach-400 to-terracotta-500 text-white font-black uppercase tracking-wider text-sm shadow-[4px_4px_0px_0px_#c25e42] border-2 border-terracotta-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all flex items-center justify-center gap-2">
+<span class="material-icons-round">sync</span>
+                    Sync with Meal Plan
+                </button>
+</div>
+</main>
+</div>
+<nav class="absolute bottom-0 left-0 w-full bg-card-white border-t-2 border-gray-100 px-6 py-4 z-30 rounded-t-[2rem] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+<div class="flex justify-between items-end px-2">
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600 transition-colors">
+<div class="w-12 h-8 flex items-center justify-center">
+<span class="material-icons-round">home</span>
+</div>
+<span class="text-[10px] font-bold">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600">
+<div class="w-12 h-8 flex items-center justify-center transition-colors">
+<span class="material-icons-round">calendar_today</span>
+</div>
+<span class="text-[10px] font-bold">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center -mt-8">
+<div class="w-14 h-14 rounded-full bg-terracotta-500 border-4 border-white shadow-[0px_4px_10px_rgba(224,122,95,0.4)] flex items-center justify-center text-white transform transition-transform active:scale-95">
+<span class="material-icons-round text-3xl">add</span>
+</div>
+</button>
+<button class="flex flex-col items-center gap-1 group text-gray-400 hover:text-gray-600">
+<div class="w-12 h-8 flex items-center justify-center transition-colors">
+<span class="material-icons-round">restaurant</span>
+</div>
+<span class="text-[10px] font-bold">Meals</span>
+</button>
+<button class="flex flex-col items-center gap-1 group">
+<div class="w-12 h-8 rounded-full bg-lilac-100 flex items-center justify-center text-lilac-600 transition-colors">
+<span class="material-icons-round">shopping_bag</span>
+</div>
+<span class="text-[10px] font-bold text-lilac-600">Shop</span>
+</button>
+</div>
+</nav>
+</div>
+</body></html>

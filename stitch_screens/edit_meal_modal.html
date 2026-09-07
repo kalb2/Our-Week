@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Edit Meal: Freeform &amp; Ingredients</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "peach": {
+                            50: '#fff4f0',
+                            100: '#ffe6dd',
+                            200: '#ffd0c0',
+                            300: '#ffb299',
+                            400: '#ff8966',
+                            500: '#ff6639', 
+                            600: '#e05025', 
+                        },
+                        "sky": {
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                        },
+                        "terracotta": {
+                             100: '#ffe4d6',
+                             200: '#ffccb8',
+                             500: '#e07a5f',
+                             600: '#c25e42',
+                        },
+                        "lilac": {
+                            100: '#f3e8ff',
+                            200: '#e9d5ff',
+                            400: '#c084fc',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                        },
+                        "cobalt": {
+                            500: '#1e3a8a',
+                            600: '#172554', 
+                            700: '#0f172a',
+                        },
+                        "lime": {
+                            100: '#ecfccb',
+                            400: '#a3e635', 
+                            500: '#84cc16',
+                        },
+                        "background-base": "#fff9f6", 
+                        "card-white": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'bold': '4px 4px 0px 0px',
+                        'bold-sm': '2px 2px 0px 0px',
+                        'soft': '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-base font-display text-gray-900 antialiased min-h-screen flex justify-center selection:bg-lime-400 selection:text-cobalt-700">
+<div class="w-full max-w-md h-screen relative flex flex-col bg-background-base overflow-hidden">
+<div class="h-12 w-full flex items-center justify-between px-6 pt-2 z-50 shrink-0 bg-background-base/80 backdrop-blur-md">
+<span class="text-sm font-bold text-gray-800">9:41</span>
+<div class="flex items-center gap-1.5 text-gray-800">
+<span class="material-icons-round text-sm">signal_cellular_alt</span>
+<span class="material-icons-round text-sm">wifi</span>
+<span class="material-icons-round text-sm">battery_full</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar">
+<div class="px-6 pt-4 flex items-center justify-between mb-8">
+<button class="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all">
+<span class="material-icons-round">close</span>
+</button>
+<h2 class="text-xl font-black uppercase tracking-tight">Edit Meal</h2>
+<div class="w-10"></div>
+</div>
+<main class="px-6 pb-40 space-y-10">
+<section>
+<label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Meal Name</label>
+<div class="relative group">
+<input class="w-full bg-white border-2 border-black rounded-2xl px-5 py-4 text-xl font-extrabold focus:ring-0 focus:border-peach-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all outline-none" placeholder="What are you eating?" type="text" value="Scrambled Eggs"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-peach-500 font-bold">edit</span>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-lg font-black uppercase tracking-tight">List Ingredients</h3>
+<span class="bg-lime-400 px-3 py-1 rounded-full text-[10px] font-black border-2 border-black uppercase">4 Items</span>
+</div>
+<div class="space-y-4">
+<div class="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer appearance-none w-6 h-6 border-2 border-black rounded-lg checked:bg-lilac-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100">check</span>
+</div>
+<div class="flex-1">
+<span class="text-base font-bold text-gray-800">3 Large Eggs</span>
+</div>
+<button class="text-gray-300 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer appearance-none w-6 h-6 border-2 border-black rounded-lg checked:bg-lilac-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100">check</span>
+</div>
+<div class="flex-1">
+<span class="text-base font-bold text-gray-800">Fresh Spinach</span>
+</div>
+<button class="text-gray-300 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer appearance-none w-6 h-6 border-2 border-black rounded-lg checked:bg-lilac-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100">check</span>
+</div>
+<div class="flex-1">
+<span class="text-base font-bold text-gray-800">1/2 Avocado</span>
+</div>
+<button class="text-gray-300 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<div class="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<div class="relative flex items-center justify-center">
+<input checked="" class="peer appearance-none w-6 h-6 border-2 border-black rounded-lg checked:bg-lilac-500 transition-colors cursor-pointer" type="checkbox"/>
+<span class="absolute text-white material-icons-round text-base pointer-events-none opacity-0 peer-checked:opacity-100">check</span>
+</div>
+<div class="flex-1">
+<span class="text-base font-bold text-gray-800">Chili Flakes</span>
+</div>
+<button class="text-gray-300 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<button class="w-full h-16 border-2 border-dashed border-gray-300 rounded-2xl flex items-center justify-center gap-2 text-gray-400 font-bold hover:border-peach-400 hover:text-peach-500 transition-all active:scale-[0.98]">
+<span class="material-icons-round">add</span>
+<span>Add more ingredients</span>
+</button>
+</div>
+</section>
+</main>
+</div>
+<div class="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-background-base via-background-base/90 to-transparent">
+<button class="w-full bg-gradient-to-r from-peach-400 to-peach-600 text-white py-5 rounded-[2rem] text-lg font-black uppercase tracking-widest shadow-[0px_8px_20px_rgba(255,102,57,0.3)] border-2 border-black active:scale-95 transition-all">
+                Save Changes
+            </button>
+<div class="w-32 h-1.5 bg-black rounded-full mx-auto mt-8 opacity-20"></div>
+</div>
+</div>
+
+</body></html>
