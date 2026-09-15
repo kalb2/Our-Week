@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import CoreData
+import UIKit
 
 // MARK: - Recipe Library View (Meals Tab Main)
 
@@ -34,6 +36,13 @@ struct RecipeLibraryView: View {
 
     @State private var showProfileMenu = false
 
+    // Bulk select
+    @State private var isSelectMode = false
+    @State private var selectedRecipeIDs: Set<NSManagedObjectID> = []
+    @State private var showBulkDeleteConfirm = false
+    @State private var showBulkCategories = false
+    @State private var showBulkTags = false
+
     @AppStorage("profileImageData") private var profileImageData: Data?
 
     private let columns = [
@@ -66,7 +75,13 @@ struct RecipeLibraryView: View {
                         ForEach(recipes, id: \.objectID) { recipe in
                             RecipeCard(
                                 recipe: recipe,
-                                onTap: { selectedRecipe = recipe },
+                                onTap: {
+                                    if isSelectMode {
+                                        toggleSelection(recipe)
+                                    } else {
+                                        selectedRecipe = recipe
+                                    }
+                                },
                                 onFavoriteToggle: {
                                     dataManager.toggleRecipeFavorite(recipe)
                                     loadRecipes()
@@ -74,7 +89,9 @@ struct RecipeLibraryView: View {
                                 onDelete: {
                                     dataManager.deleteRecipe(recipe)
                                     loadRecipes()
-                                }
+                                },
+                                isSelectMode: isSelectMode,
+                                isSelected: selectedRecipeIDs.contains(recipe.objectID)
                             )
                         }
                     }
@@ -164,6 +181,46 @@ struct RecipeLibraryView: View {
         } message: {
             Text(packLoadError ?? "")
         }
+        .alert(
+            selectedRecipeIDs.count == 1
+                ? "Delete 1 recipe?"
+                : "Delete \(selectedRecipeIDs.count) recipes?",
+            isPresented: $showBulkDeleteConfirm
+        ) {
+            Button("Delete", role: .destructive) { performBulkDelete() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(selectedRecipeIDs.count == 1
+                 ? "This recipe will be permanently deleted."
+                 : "These recipes will be permanently deleted.")
+        }
+        .sheet(isPresented: $showBulkCategories) {
+            BulkCategoriesSheet(
+                recipeCount: selectedRecipeIDs.count,
+                initialCategories: sharedCategoriesAmongSelection(),
+                onApply: { performBulkSetCategories($0) }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showBulkTags) {
+            BulkTagsSheet(
+                recipeCount: selectedRecipeIDs.count,
+                onReplace: { performBulkReplaceTags($0) },
+                onAdd: { performBulkAddTags($0) }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if isSelectMode {
+                bulkActionBar
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                    .padding(.bottom, 88)
+                    .background(Color.bgBase.opacity(0.96))
+            }
+        }
         .onAppear { consumeIncomingPackIfNeeded() }
         .onReceive(NotificationCenter.default.publisher(for: RecipePackOpenHandler.notification)) { _ in
             consumeIncomingPackIfNeeded()
@@ -186,49 +243,65 @@ struct RecipeLibraryView: View {
                         .font(.system(size: 36, weight: .heavy, design: .rounded))
                         .tracking(-0.5)
                 }
-                Text("\(recipes.count) IN YOUR LIBRARY")
+                Text(isSelectMode
+                     ? "\(selectedRecipeIDs.count) SELECTED"
+                     : "\(recipes.count) IN YOUR LIBRARY")
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(isSelectMode ? Color.terra500 : .gray.opacity(0.5))
                     .padding(.top, 4)
             }
             Spacer()
 
-            // Add button menu
-            Menu {
-                Button(action: { showAddRecipe = true }) {
-                    Label("Add Manually", systemImage: "square.and.pencil")
-                }
-                Button(action: { showURLImport = true }) {
-                    Label("Import from URL", systemImage: "link")
-                }
-                Button(action: { showPasteImport = true }) {
-                    Label("Paste Recipe Text", systemImage: "doc.on.clipboard.fill")
-                }
-                Button(action: { showPackFilePicker = true }) {
-                    Label("Import Recipe Pack", systemImage: "square.stack.3d.up.fill")
-                }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(Color.black)
-                        .frame(width: 44, height: 44)
-                        .offset(x: 3, y: 3)
-
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.terra400, Color.peach500],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 44, height: 44)
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
-
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .bold))
+            if isSelectMode {
+                Button(action: exitSelectMode) {
+                    Text("Done")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.black)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+            } else {
+                // Add button menu
+                Menu {
+                    Button(action: { showAddRecipe = true }) {
+                        Label("Add Manually", systemImage: "square.and.pencil")
+                    }
+                    Button(action: { showURLImport = true }) {
+                        Label("Import from URL", systemImage: "link")
+                    }
+                    Button(action: { showPasteImport = true }) {
+                        Label("Paste Recipe Text", systemImage: "doc.on.clipboard.fill")
+                    }
+                    Button(action: { showPackFilePicker = true }) {
+                        Label("Import Recipe Pack", systemImage: "square.stack.3d.up.fill")
+                    }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 44, height: 44)
+                            .offset(x: 3, y: 3)
+
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.terra400, Color.peach500],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
                 }
             }
 
@@ -292,6 +365,38 @@ struct RecipeLibraryView: View {
                 .overlay(Capsule().stroke(hasActiveFilters ? Color.terra600 : Color.terra200, lineWidth: 1.5))
             }
             .buttonStyle(.plain)
+
+            if isSelectMode {
+                Button(action: selectAllVisible) {
+                    Text(allVisibleSelected ? "Deselect All" : "Select All")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color.terra600)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.terra100)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain)
+                .disabled(recipes.isEmpty)
+            } else {
+                Button(action: enterSelectMode) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("Select")
+                            .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    }
+                    .foregroundStyle(Color.terra600)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.terra100)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain)
+                .disabled(recipes.isEmpty)
+            }
 
             Spacer()
 
@@ -512,10 +617,76 @@ struct RecipeLibraryView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Bulk Action Bar
+
+    private var bulkActionBar: some View {
+        let hasSelection = !selectedRecipeIDs.isEmpty
+        return HStack(spacing: 10) {
+            Button(action: { showBulkDeleteConfirm = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Delete")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                }
+                .foregroundStyle(hasSelection ? .white : .gray.opacity(0.45))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(hasSelection ? Color.red.opacity(0.85) : Color.gray.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(hasSelection ? Color.black : Color.gray.opacity(0.2), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasSelection)
+
+            Button(action: { showBulkCategories = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Categories")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                }
+                .foregroundStyle(hasSelection ? Color.terra600 : .gray.opacity(0.45))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(hasSelection ? Color.terra100 : Color.gray.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(hasSelection ? Color.terra200 : Color.gray.opacity(0.2), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasSelection)
+
+            Button(action: { showBulkTags = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "tag")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Tags")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                }
+                .foregroundStyle(hasSelection ? Color.sky500 : .gray.opacity(0.45))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(hasSelection ? Color.sky100 : Color.gray.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(hasSelection ? Color.sky200 : Color.gray.opacity(0.2), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasSelection)
+        }
+    }
+
     // MARK: - Helpers
 
     private var hasActiveFilters: Bool {
         filterCategory != nil || filterDifficulty != nil || filterFavoritesOnly
+    }
+
+    private var allVisibleSelected: Bool {
+        !recipes.isEmpty && recipes.allSatisfy { selectedRecipeIDs.contains($0.objectID) }
+    }
+
+    private var selectedRecipes: [Recipe] {
+        recipes.filter { selectedRecipeIDs.contains($0.objectID) }
     }
 
     private func loadRecipes() {
@@ -526,6 +697,78 @@ struct RecipeLibraryView: View {
             favoritesOnly: filterFavoritesOnly,
             sortBy: selectedSort
         )
+        let visibleIDs = Set(recipes.map(\.objectID))
+        selectedRecipeIDs.formIntersection(visibleIDs)
+    }
+
+    private func enterSelectMode() {
+        isSelectMode = true
+        selectedRecipeIDs.removeAll()
+    }
+
+    private func exitSelectMode() {
+        isSelectMode = false
+        selectedRecipeIDs.removeAll()
+    }
+
+    private func toggleSelection(_ recipe: Recipe) {
+        if selectedRecipeIDs.contains(recipe.objectID) {
+            selectedRecipeIDs.remove(recipe.objectID)
+        } else {
+            selectedRecipeIDs.insert(recipe.objectID)
+        }
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+
+    private func selectAllVisible() {
+        if allVisibleSelected {
+            selectedRecipeIDs.removeAll()
+        } else {
+            selectedRecipeIDs = Set(recipes.map(\.objectID))
+        }
+    }
+
+    private func sharedCategoriesAmongSelection() -> Set<String> {
+        let selected = selectedRecipes
+        guard let first = selected.first else { return [] }
+        let firstSet = RecipeLabelFormatting.decodeCategories(first.categories)
+        let allMatch = selected.allSatisfy {
+            RecipeLabelFormatting.decodeCategories($0.categories) == firstSet
+        }
+        return allMatch ? firstSet : []
+    }
+
+    private func performBulkDelete() {
+        let targets = selectedRecipes
+        guard !targets.isEmpty else { return }
+        dataManager.deleteRecipes(targets)
+        loadRecipes()
+        exitSelectMode()
+    }
+
+    private func performBulkSetCategories(_ categories: Set<String>) {
+        let targets = selectedRecipes
+        guard !targets.isEmpty else { return }
+        dataManager.setRecipesCategories(targets, categories: RecipeLabelFormatting.encodeCategories(categories))
+        loadRecipes()
+        exitSelectMode()
+    }
+
+    private func performBulkReplaceTags(_ raw: String) {
+        let targets = selectedRecipes
+        guard !targets.isEmpty else { return }
+        dataManager.setRecipesTags(targets, tags: RecipeLabelFormatting.encodeTags(raw))
+        loadRecipes()
+        exitSelectMode()
+    }
+
+    private func performBulkAddTags(_ raw: String) {
+        let targets = selectedRecipes
+        guard !targets.isEmpty else { return }
+        dataManager.addTagsToRecipes(targets, tags: raw)
+        loadRecipes()
+        exitSelectMode()
     }
 
     // MARK: - Recipe Pack File

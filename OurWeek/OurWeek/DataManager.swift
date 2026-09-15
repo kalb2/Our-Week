@@ -621,6 +621,49 @@ class DataManager {
         save()
     }
 
+    /// Delete many recipes in one save so CloudKit gets a single changeset.
+    /// Ingredients/instructions cascade from the Core Data model.
+    func deleteRecipes(_ recipes: [Recipe]) {
+        guard !recipes.isEmpty else { return }
+        for recipe in recipes {
+            viewContext.delete(recipe)
+        }
+        save()
+    }
+
+    /// Replace categories on every selected recipe. Empty / nil clears them.
+    func setRecipesCategories(_ recipes: [Recipe], categories: String?) {
+        guard !recipes.isEmpty else { return }
+        let now = Date()
+        for recipe in recipes {
+            recipe.categories = categories
+            recipe.updatedAt = now
+        }
+        save()
+    }
+
+    /// Replace tags on every selected recipe. Empty / nil clears them.
+    func setRecipesTags(_ recipes: [Recipe], tags: String?) {
+        guard !recipes.isEmpty else { return }
+        let now = Date()
+        for recipe in recipes {
+            recipe.tags = tags
+            recipe.updatedAt = now
+        }
+        save()
+    }
+
+    /// Append tags to every selected recipe, de-duping case-insensitively.
+    func addTagsToRecipes(_ recipes: [Recipe], tags: String) {
+        guard !recipes.isEmpty else { return }
+        let now = Date()
+        for recipe in recipes {
+            recipe.tags = RecipeLabelFormatting.mergedTags(existing: recipe.tags, adding: tags)
+            recipe.updatedAt = now
+        }
+        save()
+    }
+
     func toggleRecipeFavorite(_ recipe: Recipe) {
         recipe.isFavorite.toggle()
         recipe.updatedAt = Date()

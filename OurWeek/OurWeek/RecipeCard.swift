@@ -7,6 +7,8 @@ struct RecipeCard: View {
     let onTap: () -> Void
     let onFavoriteToggle: () -> Void
     var onDelete: (() -> Void)? = nil
+    var isSelectMode: Bool = false
+    var isSelected: Bool = false
 
     @State private var showDeleteConfirm = false
 
@@ -22,6 +24,21 @@ struct RecipeCard: View {
         guard let cats = recipe.categories, !cats.isEmpty else { return randomEmoji }
         let firstCat = cats.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? ""
         return RecipeConstants.categoryEmojis[firstCat] ?? randomEmoji
+    }
+
+    private var selectionBadge: some View {
+        ZStack {
+            Circle()
+                .fill(isSelected ? Color.terra500 : Color.cardWhite)
+                .frame(width: 32, height: 32)
+                .overlay(Circle().stroke(isSelected ? Color.terra600 : Color.black, lineWidth: 2))
+                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+
+            Image(systemName: isSelected ? "checkmark" : "circle")
+                .font(.system(size: 13, weight: .heavy))
+                .foregroundStyle(isSelected ? .white : Color.gray.opacity(0.45))
+        }
+        .accessibilityLabel(isSelected ? "Selected" : "Not selected")
     }
 
     var body: some View {
@@ -49,21 +66,26 @@ struct RecipeCard: View {
                         )
                     }
 
-                    // Favorite star
-                    Button(action: onFavoriteToggle) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.cardWhite)
-                                .frame(width: 32, height: 32)
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    if isSelectMode {
+                        selectionBadge
+                            .padding(8)
+                    } else {
+                        // Favorite star
+                        Button(action: onFavoriteToggle) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.cardWhite)
+                                    .frame(width: 32, height: 32)
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
 
-                            Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(recipe.isFavorite ? Color.terra500 : .gray.opacity(0.5))
+                                Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(recipe.isFavorite ? Color.terra500 : .gray.opacity(0.5))
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .padding(8)
                     }
-                    .buttonStyle(.plain)
-                    .padding(8)
                 }
 
                 // Info section
@@ -107,21 +129,23 @@ struct RecipeCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(isSelected ? Color.terra500 : Color.black, lineWidth: isSelected ? 3 : 2)
             )
-            .boldShadow(.black, size: 3, radius: 16)
+            .boldShadow(isSelected ? Color.terra400 : .black, size: 3, radius: 16)
         }
         .buttonStyle(.plain)
-        .contextMenu {
-            Button(action: onFavoriteToggle) {
-                Label(
-                    recipe.isFavorite ? "Unfavorite" : "Favorite",
-                    systemImage: recipe.isFavorite ? "heart.slash" : "heart.fill"
-                )
-            }
-            if onDelete != nil {
-                Button(role: .destructive, action: { showDeleteConfirm = true }) {
-                    Label("Delete", systemImage: "trash")
+        .if(!isSelectMode) { view in
+            view.contextMenu {
+                Button(action: onFavoriteToggle) {
+                    Label(
+                        recipe.isFavorite ? "Unfavorite" : "Favorite",
+                        systemImage: recipe.isFavorite ? "heart.slash" : "heart.fill"
+                    )
+                }
+                if onDelete != nil {
+                    Button(role: .destructive, action: { showDeleteConfirm = true }) {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }
