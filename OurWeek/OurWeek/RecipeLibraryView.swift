@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import CoreData
+import UIKit
 
 // MARK: - Recipe Library View (Meals Tab Main)
 
