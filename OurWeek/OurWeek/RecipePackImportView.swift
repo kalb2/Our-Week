@@ -262,6 +262,9 @@ struct RecipePackImportView: View {
                     summaryRow(label: "Imported", value: summary.imported, color: Color.lime500)
                     summaryRow(label: "Skipped duplicates", value: summary.skippedDuplicates, color: Color.terra500)
                     summaryRow(label: "Failed", value: summary.failed, color: Color.red)
+                    if summary.imageFailures > 0 {
+                        summaryRow(label: "Imported without photo", value: summary.imageFailures, color: Color.terra400)
+                    }
                 }
                 .padding(16)
                 .background(Color.white)

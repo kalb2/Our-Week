@@ -7,6 +7,8 @@ struct RecipePackImportSummary {
     var skippedDuplicates: Int = 0
     var failed: Int = 0
     var failedTitles: [String] = []
+    /// Recipes that were saved, but whose `imageURL` could not be downloaded/stored.
+    var imageFailures: Int = 0
 }
 
 enum RecipePackImportFailure: Error, LocalizedError {
@@ -32,6 +34,7 @@ enum RecipePackImportFailure: Error, LocalizedError {
 /// matching the save path in `ImportPreviewView`.
 enum RecipePackImporter {
 
+    @MainActor
     static func importPack(
         _ pack: RecipePack,
         dataManager: DataManager,
@@ -61,8 +64,11 @@ enum RecipePackImporter {
             }
 
             do {
-                try createRecipe(from: entry, dataManager: dataManager)
+                let storedImage = try await createRecipe(from: entry, dataManager: dataManager)
                 summary.imported += 1
+                if !storedImage, let url = entry.imageURL, !url.isEmpty {
+                    summary.imageFailures += 1
+                }
                 remember(sourceURL: sourceURL, nameKey: nameKey, seenURLs: &seenURLs, seenNameAndURL: &seenNameAndURL)
             } catch {
                 summary.failed += 1
@@ -76,7 +82,11 @@ enum RecipePackImporter {
     }
 
     /// Same mapping as `ImportPreviewView.saveRecipe`.
-    static func createRecipe(from entry: RecipePackEntry, dataManager: DataManager) throws {
+    /// Downloads `imageURL` when present; image failure does not fail the recipe.
+    /// Returns whether hero image data was stored.
+    @discardableResult
+    @MainActor
+    static func createRecipe(from entry: RecipePackEntry, dataManager: DataManager) async throws -> Bool {
         let name = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw RecipePackImportFailure.missingTitle }
 
@@ -114,6 +124,8 @@ enum RecipePackImporter {
         let categories = entry.categories?.trimmingCharacters(in: .whitespacesAndNewlines)
         let description = entry.description.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let imageData = await downloadHeroImage(from: entry.imageURL)
+
         _ = dataManager.createRecipe(
             name: name,
             recipeDescription: description.isEmpty ? nil : description,
@@ -124,12 +136,19 @@ enum RecipePackImporter {
             categories: (categories?.isEmpty ?? true) ? nil : categories,
             tags: nil,
             notes: nil,
-            imageData: nil,
+            imageData: imageData,
             sourceURL: sourceURL.isEmpty ? nil : sourceURL,
             sourceDomain: sourceDomain.isEmpty ? nil : sourceDomain,
             ingredientInputs: ingInputs,
             instructionInputs: instInputs
         )
+
+        return imageData != nil
+    }
+
+    private static func downloadHeroImage(from imageURL: String?) async -> Data? {
+        guard let imageURL, !imageURL.isEmpty else { return nil }
+        return await RecipeScraperService.downloadImage(from: imageURL)
     }
 
     private static func remember(

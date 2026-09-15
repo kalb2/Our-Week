@@ -25,6 +25,7 @@ struct ImportPreviewView: View {
 
     // State
     @State private var isLoadingImage = false
+    @State private var imageDownloadTask: Task<Data?, Never>?
     @State private var showValidationError = false
     @State private var validationMessage = ""
     @State private var isSaving = false
@@ -548,7 +549,7 @@ struct ImportPreviewView: View {
 
             VStack {
                 Button(action: saveRecipe) {
-                    Text("SAVE RECIPE")
+                    Text(isSaving ? "SAVING…" : "SAVE RECIPE")
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .tracking(2)
                         .foregroundStyle(.white)
@@ -566,6 +567,7 @@ struct ImportPreviewView: View {
                         .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
                 }
                 .buttonStyle(.plain)
+                .disabled(isSaving)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
@@ -615,20 +617,19 @@ struct ImportPreviewView: View {
             instructionRows = [AddRecipeView.InstructionRow()]
         }
 
-        // Download image if available
-        if let imageURL = scrapedRecipe.imageURL {
+        // Download image if available (same helper as pack import)
+        imageDownloadTask?.cancel()
+        imageDownloadTask = nil
+        if let imageURL = scrapedRecipe.imageURL, !imageURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             isLoadingImage = true
-            Task {
-                if let data = await RecipeScraperService.downloadImage(from: imageURL) {
-                    await MainActor.run {
-                        selectedImageData = data
-                        isLoadingImage = false
-                    }
-                } else {
-                    await MainActor.run {
-                        isLoadingImage = false
-                    }
+            imageDownloadTask = Task {
+                let data = await RecipeScraperService.downloadImage(from: imageURL)
+                guard !Task.isCancelled else { return data }
+                await MainActor.run {
+                    selectedImageData = data
+                    isLoadingImage = false
                 }
+                return data
             }
         }
     }
@@ -694,6 +695,7 @@ struct ImportPreviewView: View {
     // MARK: - Save
 
     private func saveRecipe() {
+        guard !isSaving else { return }
         guard !recipeName.trimmingCharacters(in: .whitespaces).isEmpty else {
             validationMessage = "Recipe name is required"
             showValidationError = true
@@ -735,6 +737,35 @@ struct ImportPreviewView: View {
 
         let categoriesString = selectedCategories.sorted().joined(separator: ", ")
 
+        if isLoadingImage {
+            isSaving = true
+            Task {
+                if let data = await imageDownloadTask?.value {
+                    selectedImageData = data
+                }
+                isLoadingImage = false
+                persistRecipe(
+                    ingredientInputs: ingInputs,
+                    instructionInputs: instInputs,
+                    categoriesString: categoriesString
+                )
+                isSaving = false
+            }
+            return
+        }
+
+        persistRecipe(
+            ingredientInputs: ingInputs,
+            instructionInputs: instInputs,
+            categoriesString: categoriesString
+        )
+    }
+
+    private func persistRecipe(
+        ingredientInputs ingInputs: [DataManager.IngredientInput],
+        instructionInputs instInputs: [DataManager.InstructionInput],
+        categoriesString: String
+    ) {
         _ = dataManager.createRecipe(
             name: recipeName,
             recipeDescription: recipeDescription,
