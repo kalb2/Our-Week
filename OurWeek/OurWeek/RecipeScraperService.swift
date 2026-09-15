@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 // MARK: - Scraped Recipe Models
 
@@ -586,8 +587,22 @@ final class RecipeScraperService {
 
     // MARK: - Image Download
 
+    /// Skip payloads larger than this so a single import can't balloon memory.
+    private static let maxDownloadBytes = 8 * 1024 * 1024
+    /// After decode/downscale, don't persist more than this in Core Data.
+    private static let maxStoredBytes = 1_200_000
+    private static let maxPixelDimension: CGFloat = 1600
+
+    /// Downloads a recipe hero image. Returns JPEG/original bytes suitable for `Recipe.imageData`,
+    /// or `nil` if the URL is empty/invalid, the request fails, or the payload is too large.
     static func downloadImage(from urlString: String) async -> Data? {
-        guard let url = URL(string: urlString) else { return nil }
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme) else {
+            return nil
+        }
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
@@ -595,16 +610,67 @@ final class RecipeScraperService {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
             forHTTPHeaderField: "User-Agent"
         )
+        request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
-               (200...299).contains(httpResponse.statusCode) {
-                return data
+               !(200...299).contains(httpResponse.statusCode) {
+                print("Image download failed: HTTP \(httpResponse.statusCode)")
+                return nil
             }
+            if data.count > maxDownloadBytes {
+                print("Image download skipped: payload too large (\(data.count) bytes)")
+                return nil
+            }
+            return preparedHeroImageData(from: data)
         } catch {
             print("Image download failed: \(error)")
         }
         return nil
+    }
+
+    /// Decodes a downloaded payload and downscales/compresses huge photos so imports stay light.
+    private static func preparedHeroImageData(from data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+
+        let pixelWidth = image.size.width * image.scale
+        let pixelHeight = image.size.height * image.scale
+        let longest = max(pixelWidth, pixelHeight)
+        let alreadySmall = data.count <= maxStoredBytes && longest <= maxPixelDimension
+        if alreadySmall {
+            return data
+        }
+
+        let scaled = resizeIfNeeded(image, maxDimension: maxPixelDimension)
+        var quality: CGFloat = 0.82
+        guard var jpeg = scaled.jpegData(compressionQuality: quality) else { return nil }
+        while jpeg.count > maxStoredBytes, quality > 0.45 {
+            quality -= 0.12
+            guard let next = scaled.jpegData(compressionQuality: quality) else { break }
+            jpeg = next
+        }
+        if jpeg.count > maxStoredBytes * 2 {
+            print("Image skipped after compress: still \(jpeg.count) bytes")
+            return nil
+        }
+        return jpeg
+    }
+
+    private static func resizeIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let pixelWidth = image.size.width * image.scale
+        let pixelHeight = image.size.height * image.scale
+        let longest = max(pixelWidth, pixelHeight)
+        guard longest > maxDimension, longest > 0 else { return image }
+
+        let scale = maxDimension / longest
+        let newSize = CGSize(width: pixelWidth * scale, height: pixelHeight * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }
