@@ -542,8 +542,15 @@ struct RecipeLibraryView: View {
             guard let url = urls.first else { return }
             loadPack(from: url)
         case .failure(let error):
+            if isUserCancellation(error) { return }
             packLoadError = error.localizedDescription
         }
+    }
+
+    private func isUserCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
     }
 
     private func loadPack(from url: URL) {
