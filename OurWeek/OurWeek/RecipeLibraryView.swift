@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 // MARK: - Recipe Library View (Meals Tab Main)
 
@@ -25,6 +26,11 @@ struct RecipeLibraryView: View {
     // Paste Import
     @State private var showPasteImport = false
     @State private var pastedRecipe: ScrapedRecipe?
+
+    // Recipe pack (JSON) import
+    @State private var showPackFilePicker = false
+    @State private var loadedPack: LoadedRecipePack?
+    @State private var packLoadError: String?
 
     @State private var showProfileMenu = false
 
@@ -138,6 +144,30 @@ struct RecipeLibraryView: View {
             .presentationDetents([.height(200)])
             .presentationDragIndicator(.visible)
         }
+        .fileImporter(
+            isPresented: $showPackFilePicker,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handlePickedPackFile(result)
+        }
+        .sheet(item: $loadedPack, onDismiss: { loadRecipes() }) { pack in
+            RecipePackImportView(loaded: pack)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .alert("Couldn't Import Pack", isPresented: Binding(
+            get: { packLoadError != nil },
+            set: { if !$0 { packLoadError = nil } }
+        )) {
+            Button("OK", role: .cancel) { packLoadError = nil }
+        } message: {
+            Text(packLoadError ?? "")
+        }
+        .onAppear { consumeIncomingPackIfNeeded() }
+        .onReceive(NotificationCenter.default.publisher(for: RecipePackOpenHandler.notification)) { _ in
+            consumeIncomingPackIfNeeded()
+        }
     }
 
     // MARK: - Header
@@ -174,6 +204,9 @@ struct RecipeLibraryView: View {
                 }
                 Button(action: { showPasteImport = true }) {
                     Label("Paste Recipe Text", systemImage: "doc.on.clipboard.fill")
+                }
+                Button(action: { showPackFilePicker = true }) {
+                    Label("Import Recipe Pack", systemImage: "square.stack.3d.up.fill")
                 }
             } label: {
                 ZStack {
@@ -493,6 +526,44 @@ struct RecipeLibraryView: View {
             favoritesOnly: filterFavoritesOnly,
             sortBy: selectedSort
         )
+    }
+
+    // MARK: - Recipe Pack File
+
+    private func consumeIncomingPackIfNeeded() {
+        if let url = RecipePackOpenHandler.consumePendingURL() {
+            loadPack(from: url)
+        }
+    }
+
+    private func handlePickedPackFile(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            loadPack(from: url)
+        case .failure(let error):
+            if isUserCancellation(error) { return }
+            packLoadError = error.localizedDescription
+        }
+    }
+
+    private func isUserCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let nsError = error as NSError
+        return nsError.domain == NSCocoaErrorDomain && nsError.code == NSUserCancelledError
+    }
+
+    private func loadPack(from url: URL) {
+        do {
+            let pack = try RecipePackParser.parse(url: url)
+            let loaded = LoadedRecipePack(pack: pack, fileName: url.lastPathComponent)
+            // Wait for the document picker (or any other sheet) to finish dismissing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                loadedPack = loaded
+            }
+        } catch {
+            packLoadError = error.localizedDescription
+        }
     }
 }
 

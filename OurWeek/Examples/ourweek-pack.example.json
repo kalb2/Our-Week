@@ -1,0 +1,47 @@
+{
+  "format": "ourweek-recipe-pack",
+  "version": 1,
+  "recipes": [
+    {
+      "title": "Sheet Pan Chicken",
+      "description": "Weeknight chicken and vegetables.",
+      "ingredients": [
+        { "amount": 1.5, "unit": "lb", "name": "chicken thighs", "notes": "bone-in" },
+        { "amount": 2, "unit": "cup", "name": "broccoli florets", "notes": "" },
+        { "amount": 1, "unit": "tbsp", "name": "olive oil", "notes": "" }
+      ],
+      "instructions": [
+        "Heat oven to 425°F.",
+        "Toss chicken and broccoli with oil, salt, and pepper.",
+        "Roast 25–30 minutes until chicken is cooked through."
+      ],
+      "prepTimeMinutes": 10,
+      "cookTimeMinutes": 30,
+      "servings": 4,
+      "imageURL": null,
+      "sourceURL": "https://example.com/sheet-pan-chicken",
+      "sourceDomain": "example.com",
+      "categories": "Dinner"
+    },
+    {
+      "title": "Overnight Oats",
+      "description": "Make-ahead breakfast.",
+      "ingredients": [
+        { "amount": 0.5, "unit": "cup", "name": "rolled oats", "notes": "" },
+        { "amount": 0.5, "unit": "cup", "name": "milk", "notes": "" },
+        { "amount": 1, "unit": "tbsp", "name": "chia seeds", "notes": "" }
+      ],
+      "instructions": [
+        "Stir oats, milk, and chia in a jar.",
+        "Refrigerate overnight.",
+        "Top with fruit in the morning."
+      ],
+      "prepTimeMinutes": 5,
+      "cookTimeMinutes": 0,
+      "servings": 1,
+      "sourceURL": "https://example.com/overnight-oats",
+      "sourceDomain": "example.com",
+      "categories": "Breakfast"
+    }
+  ]
+}

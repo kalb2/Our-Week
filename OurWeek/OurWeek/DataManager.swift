@@ -576,6 +576,46 @@ class DataManager {
         save()
     }
 
+    /// True when the current household already has this recipe.
+    /// Matches a non-empty `sourceURL`, or the same name + sourceURL pair.
+    func hasDuplicateRecipe(sourceURL: String, name: String, in household: Household? = nil) -> Bool {
+        let request: NSFetchRequest<Recipe> = Recipe.fetchRequest()
+        var predicates: [NSPredicate] = []
+
+        if let household = household ?? currentHousehold {
+            predicates.append(NSPredicate(format: "household == %@", household))
+        }
+
+        let trimmedURL = sourceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var matchers: [NSPredicate] = []
+        if !trimmedURL.isEmpty {
+            matchers.append(NSPredicate(format: "sourceURL ==[cd] %@", trimmedURL))
+        }
+        if !trimmedName.isEmpty {
+            let nameMatch = NSPredicate(format: "name ==[cd] %@", trimmedName)
+            if trimmedURL.isEmpty {
+                matchers.append(NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    nameMatch,
+                    NSPredicate(format: "sourceURL == nil OR sourceURL == ''")
+                ]))
+            } else {
+                matchers.append(NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    nameMatch,
+                    NSPredicate(format: "sourceURL ==[cd] %@", trimmedURL)
+                ]))
+            }
+        }
+
+        guard !matchers.isEmpty else { return false }
+        predicates.append(NSCompoundPredicate(orPredicateWithSubpredicates: matchers))
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.fetchLimit = 1
+
+        return ((try? viewContext.count(for: request)) ?? 0) > 0
+    }
+
     func deleteRecipe(_ recipe: Recipe) {
         viewContext.delete(recipe)
         save()

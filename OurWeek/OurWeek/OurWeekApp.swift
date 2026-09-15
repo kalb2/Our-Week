@@ -44,6 +44,23 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        if let url = connectionOptions.urlContexts.first?.url {
+            DispatchQueue.main.async {
+                RecipePackOpenHandler.handle(url: url)
+            }
+        }
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        for context in URLContexts {
+            let url = context.url
+            DispatchQueue.main.async {
+                RecipePackOpenHandler.handle(url: url)
+            }
+        }
+    }
+
     func windowScene(
         _ windowScene: UIWindowScene,
         userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata
