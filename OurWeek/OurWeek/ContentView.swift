@@ -36,6 +36,11 @@ extension Color {
     static let sky200 = Color(red: 0.73, green: 0.90, blue: 0.98)
     static let sky400 = Color(red: 0.220, green: 0.741, blue: 0.973)   // #38bdf8
     static let sky500 = Color(red: 0.055, green: 0.647, blue: 0.914)   // #0ea5e9
+
+    // Readable secondary copy on the cream background (gray-500).
+    static let textSecondary = Color(red: 0.420, green: 0.447, blue: 0.502)
+    // Week-grid hairline (lilac-50).
+    static let lilac50 = Color(red: 0.980, green: 0.961, blue: 1.0)
 }
 
 // MARK: - Bold Shadow Modifier (Neo-Brutalist)
@@ -228,7 +233,7 @@ struct GreetingHeader: View {
 
             Text("READY TO SEIZE THE WEEK?")
                 .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray)
+                .foregroundStyle(Color.textSecondary)
                 .tracking(1)
                 .padding(.bottom, 16)
         }
@@ -377,16 +382,7 @@ struct WeeklyCalendarCard: View {
             // Week Navigation
             HStack(spacing: 12) {
                 Button(action: { weekOffset -= 1 }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
+                    weekNavChevron("chevron.left")
                 }
                 .buttonStyle(.plain)
 
@@ -431,16 +427,7 @@ struct WeeklyCalendarCard: View {
                 }
 
                 Button(action: { weekOffset += 1 }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
+                    weekNavChevron("chevron.right")
                 }
                 .buttonStyle(.plain)
             }
@@ -450,12 +437,17 @@ struct WeeklyCalendarCard: View {
             // Column Headers
             CalendarHeaderRow()
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 10)
+
+            Rectangle()
+                .fill(Color.lilac100)
+                .frame(height: 1)
 
             // Day Rows
-            ForEach(Array(weekDates.enumerated()), id: \.offset) { _, date in
+            ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
                 CalDayRow(
                     date: date,
+                    showsDivider: index < weekDates.count - 1,
                     meals: meals(for: date),
                     events: events(for: date),
                     appleEvents: appleEventsForDate(date),
@@ -547,6 +539,22 @@ struct WeeklyCalendarCard: View {
         weekEvents = dataManager.fetchWeekEvents(from: monday)
         appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
     }
+
+    /// 32pt chevron with a 44pt hit target so week paging is easy to tap.
+    private func weekNavChevron(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 14, weight: .heavy))
+            .foregroundStyle(Color.lilac500)
+            .frame(width: 32, height: 32)
+            .background(Color.lilac100)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.lilac200, lineWidth: 1)
+            )
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+    }
 }
 
 struct CalendarHeaderRow: View {
@@ -554,7 +562,7 @@ struct CalendarHeaderRow: View {
         HStack(spacing: 0) {
             Text("DATE")
                 .frame(width: 56, alignment: .leading)
-                .foregroundStyle(.gray.opacity(0.6))
+                .foregroundStyle(Color.textSecondary)
             Text("MEALS")
                 .frame(maxWidth: .infinity, alignment: .center)
                 .foregroundStyle(Color.terra500)
@@ -573,6 +581,7 @@ struct CalDayRow: View {
     let meals: [MealPlan]
     let events: [CalendarEvent]
     var appleEvents: [AppleCalendarEvent] = []
+    var showsDivider: Bool = true
     let onMealTap: (MealPlan) -> Void
     var onRecipeViewTap: ((Recipe) -> Void)? = nil
     let onAddMealTap: () -> Void
@@ -630,12 +639,13 @@ struct CalDayRow: View {
             // Meal column
             VStack(alignment: .leading, spacing: 6) {
                 if meals.isEmpty {
-                    // Add meal button
+                    // Add meal button. Weekend slots stay tappable but drop the plus so the grid is quieter.
                     Button(action: onAddMealTap) {
                         dashedAddButton(
-                            color1: isToday ? Color.terra200 : Color.gray.opacity(0.2),
-                            fill: isToday ? Color.terra50 : Color.gray.opacity(0.03),
-                            iconColor: isToday ? Color.terra400 : Color.gray.opacity(0.3)
+                            color1: isToday ? Color.terra200 : Color.gray.opacity(isFaded ? 0.22 : 0.32),
+                            fill: isToday ? Color.terra50 : Color.gray.opacity(0.04),
+                            iconColor: isToday ? Color.terra400 : Color.textSecondary,
+                            showsIcon: isToday || !isFaded
                         )
                     }
                     .buttonStyle(.plain)
@@ -692,8 +702,8 @@ struct CalDayRow: View {
                         Circle().fill(Color.terra500)
                             .frame(width: 6, height: 6)
                         Text("+\(meals.count - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray.opacity(0.5))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.textSecondary)
                     }
                 }
             }
@@ -706,9 +716,10 @@ struct CalDayRow: View {
                 if allEventCount == 0 {
                     Button(action: { onAddEventTap?() }) {
                         dashedAddButton(
-                            color1: isToday ? Color.lilac200 : Color.gray.opacity(0.2),
-                            fill: isToday ? Color.lilac100 : Color.gray.opacity(0.03),
-                            iconColor: isToday ? Color.lilac400 : Color.gray.opacity(0.3)
+                            color1: isToday ? Color.lilac200 : Color.gray.opacity(isFaded ? 0.22 : 0.32),
+                            fill: isToday ? Color.lilac100 : Color.gray.opacity(0.04),
+                            iconColor: isToday ? Color.lilac400 : Color.textSecondary,
+                            showsIcon: isToday || !isFaded
                         )
                     }
                     .buttonStyle(.plain)
@@ -754,24 +765,35 @@ struct CalDayRow: View {
                         Circle().fill(Color.lilac500)
                             .frame(width: 6, height: 6)
                         Text("+\(allEventCount - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray.opacity(0.5))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.textSecondary)
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, isToday ? 16 : 8)
+        .padding(.vertical, isToday ? 14 : 10)
         .padding(.horizontal, 16)
         .background {
             if isToday {
-                RoundedRectangle(cornerRadius: 0)
-                    .fill(Color.lime100.opacity(0.6))
+                Color.lime100.opacity(0.72)
                     .overlay(alignment: .leading) {
-                        UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4, bottomTrailingRadius: 0, topTrailingRadius: 0)
-                            .fill(Color.lime500)
-                            .frame(width: 6)
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0,
+                            bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 3,
+                            topTrailingRadius: 3
+                        )
+                        .fill(Color.lime500)
+                        .frame(width: 5)
                     }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showsDivider {
+                Rectangle()
+                    .fill(isToday ? Color.lime500.opacity(0.28) : Color.lilac50)
+                    .frame(height: 1)
             }
         }
     }
@@ -912,7 +934,7 @@ struct CalDayRow: View {
     }
 
     @ViewBuilder
-    func dashedAddButton(color1: Color, fill: Color, iconColor: Color) -> some View {
+    func dashedAddButton(color1: Color, fill: Color, iconColor: Color, showsIcon: Bool = true) -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(
                 style: StrokeStyle(lineWidth: 2, dash: [5, 4])
@@ -923,11 +945,13 @@ struct CalDayRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(fill)
             )
-            .overlay(
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(iconColor)
-            )
+            .overlay {
+                if showsIcon {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(iconColor)
+                }
+            }
     }
 
     @ViewBuilder
@@ -988,18 +1012,29 @@ struct TodoSection: View {
                     }
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(Color.lilac600)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
 
             // Card
             VStack(spacing: 0) {
                 if todos.isEmpty && !isAddingTodo {
-                    Text("No tasks yet. Add one!")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.gray)
-                        .padding(.vertical, 20)
+                    VStack(spacing: 6) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(Color.terra400)
+                        Text("Nothing on the list")
+                            .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        Text("Tap + to add a task for today.")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                 } else {
                     ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
                         TodoItem(
@@ -1145,7 +1180,7 @@ struct TodoItem: View {
 
             // Foreground content
             HStack(spacing: 12) {
-                // Circular checkbox
+                // Circular checkbox — 24pt mark inside a 44pt hit target
                 ZStack {
                     Circle()
                         .stroke(todo.isChecked ? Color.terra500 : Color.terra300, lineWidth: 2)
@@ -1161,6 +1196,8 @@ struct TodoItem: View {
                             .foregroundStyle(.white)
                     }
                 }
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
                 .onTapGesture {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
@@ -1195,7 +1232,7 @@ struct TodoItem: View {
 
                 Spacer()
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 2)
             .padding(.horizontal, 2)
             .background(Color.cardWhite)
             .offset(x: offset)
@@ -1482,11 +1519,13 @@ struct DailyGoalsSection: View {
 
                 // Badge pill
                 Text("TAP TO LOG • HOLD TO EDIT")
-                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                    .tracking(0.5)
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .tracking(0.4)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.vertical, 6)
                     .background(
                         Capsule().fill(Color(red: 0.2, green: 0.2, blue: 0.25))
                     )
@@ -1671,7 +1710,7 @@ struct GoalRingCard: View {
                 if goal.unitShort != "k" {
                     Text(displayUnitSuffix)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(Color.textSecondary)
                 } else if goal.unitShort == "k" { // special case handling similar to old steps logic
                      Text("k")
                         .font(.system(size: 18, weight: .heavy, design: .rounded))
@@ -1682,7 +1721,7 @@ struct GoalRingCard: View {
             // Label
             Text(goal.unit)
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray.opacity(0.5))
+                .foregroundStyle(Color.textSecondary)
                 .tracking(0.5)
                 .textCase(.uppercase)
         }
@@ -2085,8 +2124,8 @@ struct MainTabBar: View {
                 .onTapGesture { selectedTab = .shop }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 0)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
         .background(
             UnevenRoundedRectangle(
                 topLeadingRadius: 28,
@@ -2095,7 +2134,7 @@ struct MainTabBar: View {
                 topTrailingRadius: 28
             )
             .fill(Color.cardWhite)
-            .shadow(color: .black.opacity(0.05), radius: 16, x: 0, y: -4)
+            .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: -4)
             .ignoresSafeArea(edges: .bottom)
         )
     }
@@ -2119,12 +2158,12 @@ struct TabItem: View {
             } else {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                    .foregroundStyle(.gray.opacity(0.45))
+                    .foregroundStyle(Color.textSecondary)
                     .frame(width: 48, height: 32)
             }
             Text(label)
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(isSelected ? Color.lilac600 : .gray.opacity(0.45))
+                .foregroundStyle(isSelected ? Color.lilac600 : Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
     }

@@ -50,7 +50,7 @@ struct MealPlanCarousel: View {
                 Spacer()
                 Text("\(weekMeals.count) planned")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(Color.textSecondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
             }

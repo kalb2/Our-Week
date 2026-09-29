@@ -47,14 +47,7 @@ struct AddMealSheet: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Drag indicator
-            Capsule()
-                .fill(Color.black.opacity(0.12))
-                .frame(width: 36, height: 5)
-                .padding(.top, 10)
-                .padding(.bottom, 14)
-            
-            // Header
+            // Header — system sheet grabber is already shown by presentationDragIndicator
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add a Meal")
@@ -75,16 +68,20 @@ struct AddMealSheet: View {
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.black)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 36, height: 36)
                         .background(Color.white)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.black, lineWidth: 2))
                         .background(Circle().fill(.black).offset(x: 2, y: 2))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
+            .padding(.top, 16)
             .padding(.bottom, 16)
             
             // Search Input — Return key saves immediately
