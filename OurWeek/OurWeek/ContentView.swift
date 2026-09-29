@@ -323,6 +323,7 @@ struct WeeklyCalendarCard: View {
     @State private var selectedAppleEvent: AppleCalendarEvent?
     @State private var viewingRecipe: Recipe?
     @State private var weekOffset: Int = 0
+    @State private var showWeekPlanner = false
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -373,7 +374,10 @@ struct WeeklyCalendarCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
+            planWeekButton
+
+            VStack(spacing: 0) {
             // Week Navigation
             HStack(spacing: 12) {
                 Button(action: { weekOffset -= 1 }) {
@@ -496,6 +500,7 @@ struct WeeklyCalendarCard: View {
                 .stroke(Color.lilac500, lineWidth: 2)
         )
         .boldShadow(Color.lilac400)
+        }
         .padding(.horizontal, 24)
         .onAppear { loadData() }
         .onChange(of: weekOffset) { _, _ in loadData() }
@@ -539,6 +544,57 @@ struct WeeklyCalendarCard: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .fullScreenCover(isPresented: $showWeekPlanner, onDismiss: { loadData() }) {
+            WeekPlannerView(weekStart: weekDates.first ?? Date())
+        }
+    }
+
+    private var planWeekButton: some View {
+        Button {
+            showWeekPlanner = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "hand.draw.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Color.terra600)
+                    .frame(width: 36, height: 36)
+                    .background(Color.terra100)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.black, lineWidth: 1.5)
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(weekOffset == 0 ? "PLAN WEEK" : "PLAN THIS WEEK")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .tracking(0.6)
+                        .foregroundStyle(.black)
+                    Text("Swipe recipes, or mark takeout")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.terra600)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .heavy))
+                    .foregroundStyle(.black)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.cardWhite)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.black, lineWidth: 2)
+            )
+            .boldShadow(Color.terra500, size: 3, radius: 14)
+        }
+        .buttonStyle(.plain)
+        .disabled(weekDates.isEmpty)
+        .accessibilityLabel("Plan week")
+        .accessibilityHint("Swipe through recipes to fill dinners for the week on screen")
     }
 
     private func loadData() {
