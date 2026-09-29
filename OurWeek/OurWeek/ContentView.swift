@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import EventKit
+import CoreData
 
 // MARK: - Design Tokens (from Tailwind config)
 extension Color {

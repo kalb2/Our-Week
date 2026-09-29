@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct CalendarView: View {
     @Environment(DataManager.self) private var dataManager
