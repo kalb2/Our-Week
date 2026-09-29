@@ -62,6 +62,7 @@ struct WeekPlannerView: View {
     @State private var didLoad = false
     @State private var existingMeals: [MealPlan] = []
     @State private var sourceRecipes: [Recipe] = []
+    @State private var libraryHasRecipes = false
     @State private var deck: [Recipe] = []
     @State private var deckIndex = 0
     @State private var assignments: [Int: WeekSlotPlan] = [:]
@@ -356,7 +357,7 @@ struct WeekPlannerView: View {
             .buttonStyle(.plain)
             .disabled(!canRandomize)
             .opacity(canRandomize ? 1 : 0.45)
-            .accessibilityHint("Fills open days with shuffled dinner recipes, then opens Review. Takeout and leftovers are left alone. Nothing is saved yet.")
+            .accessibilityHint("Fills open days with shuffled mains and full meals, then opens Review. Takeout and leftovers are left alone. Nothing is saved yet.")
         }
     }
 
@@ -385,7 +386,7 @@ struct WeekPlannerView: View {
     private var randomizeDetail: String {
         if sourceRecipes.isEmpty { return "Add recipes" }
         if !canRandomize { return "Week is full" }
-        return "Recipes only"
+        return "Mains only"
     }
 
     private var scopeCaption: String {
@@ -591,9 +592,11 @@ struct WeekPlannerView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Color.terra500)
-            Text("No recipes to swipe")
+            Text(libraryHasRecipes ? "No mains to swipe" : "No recipes to swipe")
                 .font(.system(size: 18, weight: .heavy, design: .rounded))
-            Text("Add some in Meals, or mark this day as takeout or leftovers.")
+            Text(libraryHasRecipes
+                 ? "Mark a recipe Main or Full meal, or Dinner without Side, Dessert, Snack, Appetizer, or Drink. Takeout and leftovers still work."
+                 : "Add some in Meals, or mark this day as takeout or leftovers.")
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(.gray.opacity(0.65))
                 .multilineTextAlignment(.center)
@@ -844,7 +847,7 @@ struct WeekPlannerView: View {
         case .randomized:
             reviewBanner(
                 kicker: "WEEK SHUFFLED",
-                message: "Open days got a shuffled mix of dinners, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
+                message: "Open days got a shuffled mix of mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
                 fill: Color.lilac100,
                 accent: Color.lilac500
             )
@@ -989,7 +992,11 @@ struct WeekPlannerView: View {
         guard !didLoad else { return }
         didLoad = true
         existingMeals = dataManager.fetchWeekMealPlans(from: weekStart)
-        sourceRecipes = dataManager.fetchRecipes(sortBy: .favoritesFirst)
+        let library = dataManager.fetchRecipes(sortBy: .favoritesFirst)
+        libraryHasRecipes = !library.isEmpty
+        sourceRecipes = library.filter {
+            RecipePlannerMeals.includes(categories: $0.categories, tags: $0.tags)
+        }
         deck = buildDeck(from: sourceRecipes)
         deckIndex = 0
         if let first = firstOpenIndex() {
