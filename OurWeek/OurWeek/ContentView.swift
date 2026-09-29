@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import EventKit
+import CoreData
 
 // MARK: - Design Tokens (from Tailwind config)
 extension Color {
@@ -447,10 +448,10 @@ struct WeeklyCalendarCard: View {
             ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
                 CalDayRow(
                     date: date,
-                    showsDivider: index < weekDates.count - 1,
                     meals: meals(for: date),
                     events: events(for: date),
                     appleEvents: appleEventsForDate(date),
+                    showsDivider: index < weekDates.count - 1,
                     onMealTap: { meal in
                         selectedMeal = meal
                     },
