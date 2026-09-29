@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 // MARK: - Recipe Detail View
 
@@ -132,10 +133,17 @@ struct RecipeDetailView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.black)
                     .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.9))
+                    .background(Color.white.opacity(0.94))
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .background(
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 36, height: 36)
+                            .offset(x: 2, y: 2)
+                    )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .padding(.leading, 20)

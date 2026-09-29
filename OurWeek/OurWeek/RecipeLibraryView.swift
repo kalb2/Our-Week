@@ -248,7 +248,7 @@ struct RecipeLibraryView: View {
                      : "\(recipes.count) IN YOUR LIBRARY")
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(1)
-                    .foregroundStyle(isSelectMode ? Color.terra500 : .gray.opacity(0.5))
+                    .foregroundStyle(isSelectMode ? Color.terra500 : Color.textSecondary)
                     .padding(.top, 4)
             }
             Spacer()
@@ -450,7 +450,7 @@ struct RecipeLibraryView: View {
                         .font(.system(size: 22, weight: .heavy, design: .rounded))
                     Text("Try adjusting your search or filters")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.6))
+                        .foregroundStyle(Color.textSecondary)
                 } else {
                     Text("Your recipe library")
                         .font(.system(size: 22, weight: .heavy, design: .rounded))
@@ -460,7 +460,7 @@ struct RecipeLibraryView: View {
 
                     Text("Add your first recipe and start building\nyour family cookbook")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.6))
+                        .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
@@ -600,6 +600,8 @@ struct RecipeLibraryView: View {
             .padding(.bottom, 16)
         }
         .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.bgBase.ignoresSafeArea())
     }
 
     @ViewBuilder

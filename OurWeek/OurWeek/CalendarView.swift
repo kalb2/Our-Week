@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct CalendarView: View {
     @Environment(DataManager.self) private var dataManager
@@ -61,10 +62,20 @@ struct CalendarView: View {
                             .padding(.horizontal)
                         
                         if events.isEmpty && meals.isEmpty && appleEvents.isEmpty {
-                            Text("No events or meals")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.gray)
-                                .padding(.horizontal)
+                            VStack(spacing: 8) {
+                                Image(systemName: "calendar.badge.plus")
+                                    .font(.system(size: 28, weight: .semibold))
+                                    .foregroundStyle(Color.lilac400)
+                                Text("Nothing planned")
+                                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                Text("Add a meal from Home, or tap + for an event.")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.textSecondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 28)
                         } else {
                             ForEach(events, id: \.objectID) { event in
                                 EventListItem(event: event)
@@ -117,12 +128,14 @@ struct CalendarView: View {
             } label: {
                 Text("Today")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.terra500)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .foregroundStyle(Color.terra600)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 36)
                     .background(Color.terra100)
                     .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
             }
+            .buttonStyle(.plain)
             
             Button {
                 showAddEventSheet = true
@@ -130,10 +143,12 @@ struct CalendarView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
-                    .padding(8)
+                    .frame(width: 40, height: 40)
                     .background(Color.lilac500)
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
             }
+            .buttonStyle(.plain)
         }
         .padding()
     }

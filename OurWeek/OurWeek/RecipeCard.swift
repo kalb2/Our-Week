@@ -68,23 +68,25 @@ struct RecipeCard: View {
 
                     if isSelectMode {
                         selectionBadge
-                            .padding(8)
+                            .padding(6)
                     } else {
-                        // Favorite star
+                        // Favorite — same hard border as the card, with a 44pt hit target
                         Button(action: onFavoriteToggle) {
                             ZStack {
                                 Circle()
                                     .fill(Color.cardWhite)
                                     .frame(width: 32, height: 32)
-                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
 
                                 Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(recipe.isFavorite ? Color.terra500 : .gray.opacity(0.5))
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(recipe.isFavorite ? Color.terra500 : Color.textSecondary)
                             }
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .padding(8)
+                        .padding(4)
                     }
                 }
 
@@ -114,10 +116,10 @@ struct RecipeCard: View {
                         if let diff = recipe.difficulty, !diff.isEmpty {
                             Text(diff)
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(.gray.opacity(0.6))
+                                .foregroundStyle(Color.textSecondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.gray.opacity(0.08))
+                                .background(Color.black.opacity(0.05))
                                 .clipShape(Capsule())
                         }
                     }

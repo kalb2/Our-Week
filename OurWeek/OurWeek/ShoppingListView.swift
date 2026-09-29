@@ -286,7 +286,7 @@ struct ShoppingListHeader: View {
                 Text("GROUPED BY STORE")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(Color.textSecondary)
                     .padding(.top, 4)
             }
             Spacer()
@@ -295,7 +295,6 @@ struct ShoppingListHeader: View {
                 AvatarButton(imageData: profileImageData)
             }
             .buttonStyle(.plain)
-            .shadow(color: .black.opacity(0.15), radius: 0, x: 4, y: 4)
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -892,27 +891,27 @@ struct InlineAddItemRow: View {
     let onSubmit: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Empty circle (unchecked style)
+        HStack(spacing: 8) {
+            // Empty circle, aligned with the 24pt checkbox above
             Circle()
-                .stroke(checkBorder.opacity(0.4), lineWidth: 1.5)
-                .frame(width: 20, height: 20)
+                .stroke(checkBorder.opacity(0.55), lineWidth: 1.5)
+                .frame(width: 24, height: 24)
                 .overlay(
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(checkBorder.opacity(0.5))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accentColor.opacity(0.7))
                 )
+                .frame(width: 44, height: 44)
 
             TextField("Add item...", text: $text)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .submitLabel(.return)
                 .onSubmit(onSubmit)
                 .onTapGesture { onFocus() }
         }
-        .padding(.vertical, 4)
-        .frame(minHeight: 32)
-        .opacity(text.isEmpty && !isFocused ? 0.5 : 1.0)
+        .frame(minHeight: 44)
+        .opacity(text.isEmpty && !isFocused ? 0.72 : 1.0)
     }
 }
 
@@ -1084,22 +1083,24 @@ struct ShopListEntryRow: View {
     let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Circular checkbox
+        HStack(spacing: 8) {
+            // Circular checkbox — 24pt mark, 44pt hit target (matches the shopping mock)
             Button(action: onToggle) {
                 ZStack {
                     Circle()
                         .stroke(isChecked ? checkFill : checkBorder, lineWidth: 2)
-                        .frame(width: 20, height: 20)
+                        .frame(width: 24, height: 24)
                     if isChecked {
                         Circle()
                             .fill(checkFill)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 24, height: 24)
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -1107,32 +1108,34 @@ struct ShopListEntryRow: View {
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name ?? "Unknown")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(isChecked ? .gray.opacity(0.5) : .primary)
-                        .strikethrough(isChecked, color: .gray.opacity(0.5))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(isChecked ? Color.textSecondary : .primary)
+                        .strikethrough(isChecked, color: Color.textSecondary)
                     
                     if let quantity = item.quantity, !quantity.isEmpty {
                         Text(quantity)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(isChecked ? .gray.opacity(0.3) : .gray)
-                            .strikethrough(isChecked, color: .gray.opacity(0.3))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(isChecked ? Color.textSecondary.opacity(0.6) : Color.textSecondary)
+                            .strikethrough(isChecked, color: Color.textSecondary.opacity(0.6))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-
-            Spacer()
 
             // Edit icon hint
             Button(action: onTap) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.gray.opacity(0.25))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.textSecondary.opacity(0.85))
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 4)
-        .frame(minHeight: 32)
+        .padding(.vertical, 2)
+        .frame(minHeight: 44)
     }
 }
 
