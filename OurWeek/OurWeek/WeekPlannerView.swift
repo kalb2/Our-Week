@@ -10,6 +10,8 @@
 //  Nothing is written until the review screen confirms.
 //  Full week moves forward and opens Review at the end instead of wrapping.
 //  This day keeps swipes on the selected day. Randomize fills open days only.
+//  A committed swipe flies that recipe off-screen. The next recipe is a new
+//  card at rest — the deck does not advance while the card is still moving.
 //
 
 import SwiftUI
@@ -69,6 +71,9 @@ struct WeekPlannerView: View {
     @State private var currentDayIndex = 0
     @State private var showReview = false
     @State private var dragOffset: CGSize = .zero
+    @State private var exitOffset: CGSize = .zero
+    @State private var exitingRecipe: Recipe?
+    @State private var swipeTicket = 0
     @State private var isResolvingSwipe = false
     @State private var isSaving = false
     @State private var showDiscardAlert = false
@@ -460,24 +465,39 @@ struct WeekPlannerView: View {
 
     private var deckStack: some View {
         ZStack {
-            if let upcoming = upcomingRecipe {
+            if exitingRecipe == nil, let upcoming = upcomingRecipe {
                 recipeCard(upcoming, showStamp: false)
                     .scaleEffect(0.95)
                     .offset(y: 12)
                     .allowsHitTesting(false)
             }
 
-            if let recipe = currentRecipe {
+            if exitingRecipe == nil, let recipe = currentRecipe {
                 recipeCard(recipe, showStamp: true)
+                    .id(cardLayerID("live", recipe))
                     .offset(x: dragOffset.width, y: dragOffset.height)
                     .rotationEffect(.degrees(Double(dragOffset.width / 18)))
                     .gesture(deckDrag)
                     .zIndex(1)
-            } else {
+            } else if exitingRecipe == nil {
                 emptyDeckCard
+            }
+
+            if let recipe = exitingRecipe {
+                recipeCard(recipe, showStamp: true)
+                    .id(cardLayerID("exit", recipe))
+                    .offset(x: exitOffset.width, y: exitOffset.height)
+                    .rotationEffect(.degrees(Double(exitOffset.width / 18)))
+                    .allowsHitTesting(false)
+                    .zIndex(2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Live and exit layers stay distinct even when the next card is the same recipe.
+    private func cardLayerID(_ layer: String, _ recipe: Recipe) -> String {
+        "\(layer):\(recipe.objectID.uriRepresentation().absoluteString)"
     }
 
     private func recipeCard(_ recipe: Recipe, showStamp: Bool) -> some View {
@@ -556,7 +576,7 @@ struct WeekPlannerView: View {
     }
 
     private var stampOverlay: some View {
-        let width = dragOffset.width
+        let width = exitingRecipe == nil ? dragOffset.width : exitOffset.width
         return ZStack {
             if width > 16 {
                 stamp("PLAN", color: Color.lime500, rotation: -14)
@@ -1015,43 +1035,97 @@ struct WeekPlannerView: View {
     private func fly(accept: Bool) {
         guard !isResolvingSwipe else { return }
         if accept {
-            guard currentRecipe != nil else { return }
+            guard let recipe = currentRecipe else { return }
+            beginExit(recipe: recipe, accept: true)
         } else if deck.count < 2 {
+            // One recipe left: spring the same card back. Skip does not advance the day.
             withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
                 dragOffset = .zero
             }
             impact(.light)
+        } else if let recipe = currentRecipe {
+            beginExit(recipe: recipe, accept: false)
+        }
+    }
+
+    /// Pins the recipe on its own layer, then animates that layer off-screen.
+    /// The deck updates only after the layer has left, so the next card is born at rest.
+    private func beginExit(recipe: Recipe, accept: Bool) {
+        swipeTicket += 1
+        let ticket = swipeTicket
+        isResolvingSwipe = true
+
+        var seed = Transaction()
+        seed.disablesAnimations = true
+        seed.animation = nil
+        withTransaction(seed) {
+            exitingRecipe = recipe
+            exitOffset = dragOffset
+            dragOffset = .zero
+        }
+
+        let travel = CGSize(width: accept ? 840 : -840, height: accept ? -28 : 28)
+        // Let the exit layer render at the finger position before it moves.
+        // Animating in this same turn would start from zero and retarget the card.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+            guard swipeTicket == ticket else { return }
+            withAnimation(.easeIn(duration: 0.26)) {
+                exitOffset = travel
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                guard swipeTicket == ticket else { return }
+                finishExit(accept: accept)
+            }
+        }
+    }
+
+    private func finishExit(accept: Bool) {
+        var accepted = false
+        var reset = Transaction()
+        reset.disablesAnimations = true
+        reset.animation = nil
+        withTransaction(reset) {
+            if accept {
+                accepted = commitAccept()
+            } else {
+                commitSkip()
+            }
+            exitingRecipe = nil
+            exitOffset = .zero
+            dragOffset = .zero
+            if accepted {
+                advanceAfterSwipe()
+            }
+        }
+        isResolvingSwipe = false
+    }
+
+    /// Applies the day change in the same non-animated transaction as the new card.
+    /// A spring here would retarget the incoming card and replay the rebound.
+    private func advanceAfterSwipe() {
+        if planScope == .day {
+            impact(.medium)
             return
         }
 
-        isResolvingSwipe = true
-        let width: CGFloat = accept ? 560 : -560
-        withAnimation(.easeIn(duration: 0.18)) {
-            dragOffset = CGSize(width: width, height: accept ? -16 : 16)
+        let onLastDay = currentDayIndex >= dayCount - 1
+        if !onLastDay, let next = forwardOpenIndex(after: currentDayIndex) {
+            impact(.medium)
+            currentDayIndex = next
+            return
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            var accepted = false
-            withTransaction(transaction) {
-                if accept {
-                    accepted = commitAccept()
-                } else {
-                    commitSkip()
-                }
-                dragOffset = .zero
-            }
-            if accepted {
-                moveAfterAssign()
-            }
-            isResolvingSwipe = false
+        let reason: ReviewReason = openCount == 0 ? .weekComplete : .endOfWeek
+        DispatchQueue.main.async {
+            presentReview(reason)
         }
     }
 
     @discardableResult
     private func commitAccept() -> Bool {
-        guard isOpen(currentDayIndex), let recipe = currentRecipe else { return false }
+        guard isOpen(currentDayIndex) else { return false }
+        let recipe = exitingRecipe ?? currentRecipe
+        guard let recipe else { return false }
         assignments[currentDayIndex] = .recipe(recipe)
         deck.removeAll { $0.objectID == recipe.objectID }
         if deck.isEmpty {
