@@ -4,6 +4,21 @@ import UniformTypeIdentifiers
 import CoreData
 import UIKit
 
+/// Filter and recipe detail share one sheet so Filter cannot present a recipe.
+private enum RecipeLibrarySheet: Identifiable {
+    case filter
+    case recipe(Recipe)
+
+    var id: String {
+        switch self {
+        case .filter:
+            return "filter"
+        case .recipe(let recipe):
+            return recipe.objectID.uriRepresentation().absoluteString
+        }
+    }
+}
+
 // MARK: - Recipe Library View (Meals Tab Main)
 
 struct RecipeLibraryView: View {
@@ -13,9 +28,8 @@ struct RecipeLibraryView: View {
     @State private var recipes: [Recipe] = []
     @State private var searchText: String = ""
     @State private var selectedSort: DataManager.RecipeSortOption = .recentlyAdded
-    @State private var showFilterSheet = false
     @State private var showAddRecipe = false
-    @State private var selectedRecipe: Recipe?
+    @State private var librarySheet: RecipeLibrarySheet?
     @State private var filterCategory: String? = nil
     @State private var filterDifficulty: String? = nil
     @State private var filterFavoritesOnly = false
@@ -61,10 +75,11 @@ struct RecipeLibraryView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
 
-                // Sort & Filter Toolbar
+                // Sort & Filter Toolbar. Kept above the grid so card overflow cannot steal taps.
                 filterToolbar
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
+                    .zIndex(1)
 
                 // Content
                 if recipes.isEmpty {
@@ -79,7 +94,7 @@ struct RecipeLibraryView: View {
                                     if isSelectMode {
                                         toggleSelection(recipe)
                                     } else {
-                                        selectedRecipe = recipe
+                                        librarySheet = .recipe(recipe)
                                     }
                                 },
                                 onFavoriteToggle: {
@@ -96,6 +111,7 @@ struct RecipeLibraryView: View {
                         }
                     }
                     .padding(.horizontal, 24)
+                    .zIndex(0)
                 }
 
                 Spacer().frame(height: 120)
@@ -108,15 +124,17 @@ struct RecipeLibraryView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $selectedRecipe, onDismiss: { loadRecipes() }) { recipe in
-            RecipeDetailView(recipe: recipe)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showFilterSheet) {
-            filterSheet
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+        .sheet(item: $librarySheet, onDismiss: { loadRecipes() }) { sheet in
+            switch sheet {
+            case .filter:
+                filterSheet
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            case .recipe(let recipe):
+                RecipeDetailView(recipe: recipe)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
         }
         .onChange(of: searchText) { _, _ in loadRecipes() }
         .onChange(of: selectedSort) { _, _ in loadRecipes() }
@@ -350,7 +368,7 @@ struct RecipeLibraryView: View {
     private var filterToolbar: some View {
         HStack(spacing: 10) {
             // Filter button
-            Button(action: { showFilterSheet = true }) {
+            Button(action: { librarySheet = .filter }) {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease")
                         .font(.system(size: 12, weight: .bold))
@@ -567,7 +585,7 @@ struct RecipeLibraryView: View {
                     filterDifficulty = nil
                     filterFavoritesOnly = false
                     loadRecipes()
-                    showFilterSheet = false
+                    librarySheet = nil
                 }) {
                     Text("RESET")
                         .font(.system(size: 13, weight: .heavy, design: .rounded))
@@ -583,7 +601,7 @@ struct RecipeLibraryView: View {
 
                 Button(action: {
                     loadRecipes()
-                    showFilterSheet = false
+                    librarySheet = nil
                 }) {
                     Text("APPLY")
                         .font(.system(size: 13, weight: .heavy, design: .rounded))

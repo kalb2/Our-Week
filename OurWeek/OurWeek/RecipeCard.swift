@@ -46,25 +46,30 @@ struct RecipeCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Image / Placeholder
                 ZStack(alignment: .topTrailing) {
-                    if let data = recipe.imageData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 120)
-                            .clipped()
-                    } else {
-                        // Gradient placeholder with emoji
-                        LinearGradient(
-                            colors: [Color.terra100, Color.terra200],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                    // A clear frame owns the layout. scaledToFill images would
+                    // otherwise expand the button's hit target over the toolbar.
+                    Color.clear
+                        .frame(maxWidth: .infinity)
                         .frame(height: 120)
-                        .overlay(
-                            Text(categoryEmoji)
-                                .font(.system(size: 40))
-                        )
-                    }
+                        .overlay {
+                            if let data = recipe.imageData, let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                LinearGradient(
+                                    colors: [Color.terra100, Color.terra200],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .overlay(
+                                    Text(categoryEmoji)
+                                        .font(.system(size: 40))
+                                )
+                            }
+                        }
+                        .clipped()
+                        .contentShape(Rectangle())
 
                     if isSelectMode {
                         selectionBadge
@@ -127,6 +132,7 @@ struct RecipeCard: View {
             }
             .background(Color.cardWhite)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isSelected ? Color.terra500 : Color.black, lineWidth: isSelected ? 3 : 2)
