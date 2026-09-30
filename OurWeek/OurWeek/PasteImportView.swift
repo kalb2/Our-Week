@@ -40,10 +40,15 @@ struct PasteImportView: View {
                         errorView(error)
                     }
 
-                    Spacer().frame(height: 80)
+                    Color.clear
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { KeyboardDismiss.resign() }
                 }
                 .padding(.horizontal, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.bgBase.ignoresSafeArea())
         .overlay(alignment: .bottom) { parseButton }

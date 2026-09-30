@@ -33,9 +33,11 @@ struct ImportPreviewView: View {
     // State
     @State private var isLoadingImage = false
     @State private var imageDownloadTask: Task<Data?, Never>?
-    @State private var showValidationError = false
-    @State private var validationMessage = ""
     @State private var isSaving = false
+
+    private static let placeholderTitles: Set<String> = [
+        "imported recipe", "ai-parsed recipe", "pasted recipe"
+    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +48,10 @@ struct ImportPreviewView: View {
                 VStack(alignment: .leading, spacing: 32) {
                     // Source attribution
                     sourceAttribution
+
+                    if let saveBlockReason {
+                        missingFieldsNote(saveBlockReason)
+                    }
 
                     // Basic Info
                     basicInfoSection
@@ -65,18 +71,18 @@ struct ImportPreviewView: View {
                     // Notes
                     notesSection
 
-                    Spacer().frame(height: 120)
+                    Color.clear
+                        .frame(height: 120)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { KeyboardDismiss.resign() }
                 }
                 .padding(.horizontal, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.bgBase.ignoresSafeArea())
         .overlay(alignment: .bottom) { saveBar }
-        .alert("Missing Info", isPresented: $showValidationError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(validationMessage)
-        }
         .onAppear {
             hasAIKey = KeychainManager.hasGeminiAPIKey()
             populateFromScrapedRecipe()
@@ -159,6 +165,60 @@ struct ImportPreviewView: View {
         case .paste: return "doc.on.clipboard.fill"
         case .url: return "link.circle.fill"
         }
+    }
+
+    private var nameIsMissing: Bool {
+        let trimmed = recipeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed.isEmpty || Self.placeholderTitles.contains(trimmed)
+    }
+
+    private var ingredientsMissing: Bool {
+        !ingredientRows.contains { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private var stepsMissing: Bool {
+        !instructionRows.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    /// Shown on the preview and above Save. Time and servings stay optional.
+    private var saveBlockReason: String? {
+        var parts: [String] = []
+        if nameIsMissing { parts.append("a name") }
+        if ingredientsMissing { parts.append("ingredients") }
+        if stepsMissing { parts.append("steps") }
+        guard !parts.isEmpty else { return nil }
+        if parts.count == 1 {
+            return "Add \(parts[0]) before saving"
+        }
+        let head = parts.dropLast().joined(separator: ", ")
+        return "Add \(head) and \(parts.last ?? "") before saving"
+    }
+
+    private func missingFieldsNote(_ reason: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("STILL EMPTY")
+                .font(.system(size: 11, weight: .black, design: .rounded))
+                .tracking(1.2)
+                .foregroundStyle(Color.terra600)
+            Text(reason)
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(.black)
+            Text("The fields below are ready to edit.")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.terra600)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+        .boldShadow(Color.terra400, size: 3, radius: 14)
+    }
+
+    private var storedSourceDomain: String? {
+        let domain = scrapedRecipe.sourceDomain.trimmingCharacters(in: .whitespacesAndNewlines)
+        if domain.isEmpty || domain == "Photo" || domain == "Pasted Text" { return nil }
+        return domain
     }
 
     private var sourceTitle: String {
@@ -351,9 +411,11 @@ struct ImportPreviewView: View {
 
             Spacer()
 
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 18))
-                .foregroundStyle(Color.lime500)
+            if saveBlockReason == nil {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color.lime500)
+            }
         }
         .padding(14)
         .background(Color.terra100.opacity(0.4))
@@ -381,8 +443,8 @@ struct ImportPreviewView: View {
                 .padding(.vertical, 14)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-                .boldShadow(.black, size: 3, radius: 14)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(nameIsMissing ? Color.terra500 : Color.black, lineWidth: 2))
+                .boldShadow(nameIsMissing ? Color.terra400 : .black, size: 3, radius: 14)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -715,7 +777,13 @@ struct ImportPreviewView: View {
             LinearGradient(colors: [Color.bgBase.opacity(0), Color.bgBase], startPoint: .top, endPoint: .bottom)
                 .frame(height: 40)
 
-            VStack {
+            VStack(spacing: 10) {
+                if let saveBlockReason {
+                    Text(saveBlockReason)
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color.terra600)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 Button(action: saveRecipe) {
                     Text(isSaving ? "SAVING…" : "SAVE RECIPE")
                         .font(.system(size: 18, weight: .black, design: .rounded))
@@ -735,7 +803,8 @@ struct ImportPreviewView: View {
                         .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
                 }
                 .buttonStyle(.plain)
-                .disabled(isSaving)
+                .disabled(isSaving || saveBlockReason != nil)
+                .opacity(saveBlockReason == nil ? 1 : 0.45)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
@@ -756,11 +825,17 @@ struct ImportPreviewView: View {
     // MARK: - Populate from Scraped Data
 
     private func populateFromScrapedRecipe() {
-        recipeName = scrapedRecipe.title
+        let trimmedTitle = scrapedRecipe.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        recipeName = Self.placeholderTitles.contains(trimmedTitle.lowercased()) ? "" : trimmedTitle
         recipeDescription = scrapedRecipe.description
         prepTime = scrapedRecipe.prepTimeMinutes
         cookTime = scrapedRecipe.cookTimeMinutes
         servings = max(1, scrapedRecipe.servings)
+        if let match = RecipeConstants.difficulties.first(where: {
+            $0.lowercased() == scrapedRecipe.difficulty.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }) {
+            difficulty = match
+        }
 
         // Convert scraped ingredients to rows
         ingredientRows = scrapedRecipe.ingredients.map { ing in
@@ -840,27 +915,11 @@ struct ImportPreviewView: View {
 
     private func saveRecipe() {
         guard !isSaving else { return }
-        guard !recipeName.trimmingCharacters(in: .whitespaces).isEmpty else {
-            validationMessage = "Recipe name is required"
-            showValidationError = true
-            return
-        }
+        guard saveBlockReason == nil else { return }
 
         let validIngredients = ingredientRows.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
-        guard !validIngredients.isEmpty else {
-            validationMessage = "Add at least one ingredient"
-            showValidationError = true
-            return
-        }
-
         let validInstructions = instructionRows.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
-        guard !validInstructions.isEmpty else {
-            validationMessage = "Add at least one instruction step"
-            showValidationError = true
-            return
-        }
-
-        let sourceForDuplicate = sourceKind == .url ? scrapedRecipe.sourceURL : ""
+        let sourceForDuplicate = scrapedRecipe.sourceURL
         if !allowDuplicateSave && dataManager.hasDuplicateRecipe(sourceURL: sourceForDuplicate, name: recipeName) {
             showDuplicatePrompt = true
             return
@@ -927,8 +986,8 @@ struct ImportPreviewView: View {
             tags: tagsText.isEmpty ? nil : tagsText,
             notes: notes.isEmpty ? nil : notes,
             imageData: selectedImageData,
-            sourceURL: sourceKind == .url ? scrapedRecipe.sourceURL : nil,
-            sourceDomain: sourceKind == .url ? scrapedRecipe.sourceDomain : nil,
+            sourceURL: scrapedRecipe.sourceURL.isEmpty ? nil : scrapedRecipe.sourceURL,
+            sourceDomain: storedSourceDomain,
             ingredientInputs: ingInputs,
             instructionInputs: instInputs
         )

@@ -357,45 +357,39 @@ class GeminiService {
     }
 
     /// Parse AI-generated recipe JSON into a ScrapedRecipe.
+    /// Accepts the prompt's object shape and the looser shapes models actually return
+    /// (integer amounts, string amounts, ingredient strings, step objects, label arrays).
     private func parseRecipeJSON(_ jsonString: String, sourceURL: String) throws -> ScrapedRecipe {
-        guard let data = jsonString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let json = jsonObject(from: jsonString) else {
             throw GeminiError.parsingError(message: "Invalid JSON in AI response")
         }
 
-        let title = json["title"] as? String ?? "AI-Parsed Recipe"
-        let description = json["description"] as? String ?? ""
-        let prepTime = json["prepTime"] as? Int ?? 0
-        let cookTime = json["cookTime"] as? Int ?? 0
-        let servings = json["servings"] as? Int ?? 4
-        let imageURL = json["imageURL"] as? String
-        let categories = joinedLabels(json["categories"])
-        let tags = joinedLabels(json["tags"])
-
-        // Parse ingredients
-        var ingredients: [ScrapedIngredient] = []
-        if let ingredientArray = json["ingredients"] as? [[String: Any]] {
-            for ing in ingredientArray {
-                let amount = ing["amount"] as? Double ?? 0
-                let unit = ing["unit"] as? String ?? ""
-                let name = ing["name"] as? String ?? ""
-                let notes = ing["notes"] as? String ?? ""
-                ingredients.append(ScrapedIngredient(
-                    amount: amount,
-                    unit: unit,
-                    name: name,
-                    notes: notes
-                ))
-            }
+        let title = firstText(json, keys: ["title", "name"])
+        let description = firstText(json, keys: ["description"])
+        var prepTime = RecipeScraperService.flexibleMinutes(json["prepTime"] ?? json["prep_time"])
+        var cookTime = RecipeScraperService.flexibleMinutes(json["cookTime"] ?? json["cook_time"])
+        if cookTime == 0 {
+            cookTime = RecipeScraperService.flexibleMinutes(json["performTime"])
         }
-
-        // Parse instructions
-        var instructions: [String] = []
-        if let instrArray = json["instructions"] as? [String] {
-            instructions = instrArray
+        if prepTime == 0 && cookTime == 0 {
+            cookTime = RecipeScraperService.flexibleMinutes(json["totalTime"] ?? json["total_time"])
         }
-
-        // Parse source domain
+        let servings = RecipeScraperService.flexibleServings(
+            json["servings"] ?? json["recipeYield"] ?? json["yield"],
+            fallback: 4
+        )
+        let ingredients = RecipeScraperService.scrapedIngredients(
+            from: json["ingredients"] ?? json["recipeIngredient"]
+        )
+        let instructions = RecipeScraperService.instructionTexts(
+            from: json["instructions"] ?? json["recipeInstructions"] ?? json["steps"]
+        )
+        let categories = RecipeScraperService.joinedLabels(
+            json["categories"] ?? json["category"] ?? json["recipeCategory"]
+        )
+        let tags = RecipeScraperService.joinedLabels(json["tags"] ?? json["keywords"])
+        let difficulty = RecipeScraperService.joinedLabels(json["difficulty"])
+        let imageURL = firstImageURL(json["imageURL"] ?? json["image"])
         let domain = URL(string: sourceURL)?.host?.replacingOccurrences(of: "www.", with: "") ?? ""
 
         return ScrapedRecipe(
@@ -410,20 +404,50 @@ class GeminiService {
             sourceURL: sourceURL,
             sourceDomain: domain,
             categories: categories,
-            tags: tags
+            tags: tags,
+            difficulty: difficulty
         )
     }
 
-    private func joinedLabels(_ value: Any?) -> String {
-        if let text = value as? String {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func jsonObject(from text: String) -> [String: Any]? {
+        let candidates = [text, jsonSlice(from: text)]
+        for candidate in candidates {
+            guard let data = candidate.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) else { continue }
+            if let dict = object as? [String: Any] { return dict }
+            if let list = object as? [Any], let first = list.first as? [String: Any] { return first }
         }
-        if let list = value as? [String] {
-            return list
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-                .joined(separator: ", ")
+        return nil
+    }
+
+    private func jsonSlice(from text: String) -> String {
+        guard let start = text.firstIndex(of: "{"),
+              let end = text.lastIndex(of: "}"),
+              start < end else { return text }
+        return String(text[start...end])
+    }
+
+    private func firstText(_ json: [String: Any], keys: [String]) -> String {
+        for key in keys {
+            let text = RecipeScraperService.joinedLabels(json[key])
+            if !text.isEmpty { return text }
         }
         return ""
+    }
+
+    private func firstImageURL(_ value: Any?) -> String? {
+        if let text = value as? String {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        if let dict = value as? [String: Any] {
+            return firstImageURL(dict["url"] ?? dict["contentUrl"])
+        }
+        if let list = value as? [Any] {
+            for item in list {
+                if let url = firstImageURL(item) { return url }
+            }
+        }
+        return nil
     }
 }

@@ -18,6 +18,8 @@ struct ScrapedRecipe: Identifiable {
     /// Comma-separated labels from the page or the model. Empty when unknown.
     var categories: String = ""
     var tags: String = ""
+    /// Easy, Medium, or Hard when the source says so. Empty when unknown.
+    var difficulty: String = ""
     /// Photo the user attached. Preview uses this when there is no remote image.
     var inlineImageData: Data? = nil
 }
@@ -291,24 +293,22 @@ final class RecipeScraperService {
     // MARK: - Parse Recipe JSON
 
     private static func parseRecipe(from json: [String: Any], sourceURL: String, sourceDomain: String, html: String) -> ScrapedRecipe {
-        let title = json["name"] as? String ?? "Imported Recipe"
+        let title = (json["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let description = json["description"] as? String ?? ""
 
-        // Ingredients
-        let rawIngredients = json["recipeIngredient"] as? [String] ?? []
-        let ingredients = rawIngredients.map { parseIngredientString($0) }
+        let ingredients = scrapedIngredients(from: json["recipeIngredient"])
+        let instructions = instructionTexts(from: json["recipeInstructions"])
 
-        // Instructions
-        let instructions = parseInstructions(from: json)
+        var prepTime = flexibleMinutes(json["prepTime"])
+        var cookTime = flexibleMinutes(json["cookTime"])
+        if cookTime == 0 {
+            cookTime = flexibleMinutes(json["performTime"])
+        }
+        if prepTime == 0 && cookTime == 0 {
+            cookTime = flexibleMinutes(json["totalTime"])
+        }
 
-        // Times
-        let prepTime = parseISO8601Duration(json["prepTime"] as? String)
-        let cookTime = parseISO8601Duration(json["cookTime"] as? String)
-
-        // Servings
-        let servings = parseServings(json["recipeYield"])
-
-        // Image
+        let servings = flexibleServings(json["recipeYield"], fallback: 1)
         let imageURL = parseImageURL(from: json, html: html)
 
         return ScrapedRecipe(
@@ -327,61 +327,217 @@ final class RecipeScraperService {
         )
     }
 
-    private static func joinedLabels(_ value: Any?) -> String {
+    static func joinedLabels(_ value: Any?) -> String {
+        if value is NSNull { return "" }
         if let text = value as? String {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let list = value as? [String] {
+        if let dict = value as? [String: Any] {
+            return joinedLabels(dict["name"] ?? dict["text"])
+        }
+        if let list = value as? [Any] {
             return list
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { joinedLabels($0) }
                 .filter { !$0.isEmpty }
                 .joined(separator: ", ")
         }
         return ""
     }
 
-    // MARK: - Instruction Parsing
-
-    private static func parseInstructions(from json: [String: Any]) -> [String] {
-        // Could be array of HowToStep, array of strings, or a single string
-        if let stepsArray = json["recipeInstructions"] as? [[String: Any]] {
-            return stepsArray.compactMap { step in
-                // HowToStep or HowToSection
-                if let text = step["text"] as? String {
-                    return cleanHTML(text).trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-                // HowToSection with itemListElement
-                if let items = step["itemListElement"] as? [[String: Any]] {
-                    return items.compactMap { $0["text"] as? String }
-                        .map { cleanHTML($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                        .joined(separator: "\n")
-                }
-                return nil
-            }.filter { !$0.isEmpty }
-        }
-
-        if let stepsStrings = json["recipeInstructions"] as? [String] {
-            return stepsStrings.map { cleanHTML($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-        }
-
-        if let singleString = json["recipeInstructions"] as? String {
-            // Split by numbered steps, double newlines, or periods followed by capital letters
-            let cleaned = cleanHTML(singleString)
-            let lines = cleaned.components(separatedBy: "\n")
+    /// Ingredients from a string, a list of strings, or objects (`name`/`amount`/`text`).
+    static func scrapedIngredients(from value: Any?) -> [ScrapedIngredient] {
+        guard let value, !(value is NSNull) else { return [] }
+        if let text = value as? String {
+            return text
+                .components(separatedBy: .newlines)
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
-            if lines.count > 1 {
-                return lines.map { line in
-                    // Remove leading step numbers like "1." or "1)"
-                    line.replacingOccurrences(of: "^\\d+[.)\\s]+", with: "", options: .regularExpression)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                .map { parseIngredientString($0) }
+        }
+        if let dict = value as? [String: Any] {
+            return scrapedIngredients(from: [dict])
+        }
+        guard let list = value as? [Any] else { return [] }
+        return list.compactMap { item -> ScrapedIngredient? in
+            if let text = item as? String {
+                let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return line.isEmpty ? nil : parseIngredientString(line)
+            }
+            if let dict = item as? [String: Any] {
+                return ingredient(from: dict)
+            }
+            return nil
+        }
+    }
+
+    private static func ingredient(from dict: [String: Any]) -> ScrapedIngredient? {
+        let explicitName = firstString(dict, keys: ["name", "item", "ingredient"])
+        let line = firstString(dict, keys: ["text", "raw", "description", "name", "item", "ingredient"])
+        let hasAmount = dict["amount"] != nil || dict["quantity"] != nil || dict["qty"] != nil
+        let unit = firstString(dict, keys: ["unit", "units"]) ?? ""
+        let notes = firstString(dict, keys: ["notes", "note", "comment"]) ?? ""
+
+        if hasAmount || !unit.isEmpty, let explicitName, !explicitName.isEmpty {
+            var ingredient = ScrapedIngredient(
+                amount: flexibleAmount(dict["amount"] ?? dict["quantity"] ?? dict["qty"]),
+                unit: unit,
+                name: explicitName,
+                notes: notes
+            )
+            if ingredient.amount == 0 && ingredient.unit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let parsed = parseIngredientString(explicitName)
+                if parsed.amount > 0 || !parsed.unit.isEmpty {
+                    ingredient.amount = parsed.amount
+                    ingredient.unit = parsed.unit
+                    ingredient.name = parsed.name
+                    if ingredient.notes.isEmpty {
+                        ingredient.notes = parsed.notes
+                    }
                 }
             }
-            return [cleaned]
+            return ingredient
         }
 
-        return []
+        guard let line, !line.isEmpty else { return nil }
+        var parsed = parseIngredientString(line)
+        if parsed.notes.isEmpty, !notes.isEmpty {
+            parsed.notes = notes
+        }
+        return parsed
+    }
+
+    private static func firstString(_ dict: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let text = dict[key] as? String {
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
+            }
+        }
+        return nil
+    }
+
+    /// Steps from a string, a list of strings, or HowToStep / `{text|step}` objects.
+    static func instructionTexts(from value: Any?) -> [String] {
+        guard let value, !(value is NSNull) else { return [] }
+        if let text = value as? String {
+            return splitInstructionBlob(text)
+        }
+        if let dict = value as? [String: Any] {
+            if let items = dict["itemListElement"] {
+                let nested = instructionTexts(from: items)
+                if !nested.isEmpty { return nested }
+            }
+            let line = firstString(dict, keys: ["text", "step", "name", "instruction"])
+            guard let line, !line.isEmpty else { return [] }
+            let cleaned = stripStepPrefix(cleanHTML(line))
+            return cleaned.isEmpty ? [] : [cleaned]
+        }
+        guard let list = value as? [Any] else { return [] }
+        return list.flatMap { instructionTexts(from: $0) }
+    }
+
+    private static func splitInstructionBlob(_ raw: String) -> [String] {
+        let cleaned = cleanHTML(raw)
+        let lines = cleaned
+            .components(separatedBy: .newlines)
+            .map { stripStepPrefix($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            .filter { !$0.isEmpty }
+        if !lines.isEmpty { return lines }
+        let trimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? [] : [trimmed]
+    }
+
+    private static func stripStepPrefix(_ line: String) -> String {
+        line.replacingOccurrences(
+            of: "^\\s*(?:\\d+[.)]|[•\\-–—*])\\s+",
+            with: "",
+            options: .regularExpression
+        )
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Minutes from an ISO duration, a number, a loose phrase, or a Duration object.
+    static func flexibleMinutes(_ value: Any?) -> Int {
+        if value is NSNull || value == nil { return 0 }
+        if let text = value as? String {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { return 0 }
+            if trimmed.uppercased().hasPrefix("P") {
+                return parseISO8601Duration(trimmed)
+            }
+            return parseLooseDuration(trimmed)
+        }
+        if let number = jsonNumber(value) {
+            return max(0, Int(number.rounded()))
+        }
+        if let dict = value as? [String: Any] {
+            return flexibleMinutes(dict["value"] ?? dict["name"] ?? dict["text"])
+        }
+        return 0
+    }
+
+    /// Numeric amount, including integer JSON numbers and fraction strings like "1/2".
+    static func flexibleAmount(_ value: Any?) -> Double {
+        if value is NSNull || value == nil { return 0 }
+        if let text = value as? String {
+            return parseAmount(text)
+        }
+        if let number = jsonNumber(value) {
+            return number
+        }
+        return 0
+    }
+
+    /// JSON integers and decimals. Excludes JSON booleans, which bridge as NSNumber 0/1.
+    private static func jsonNumber(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber else { return nil }
+        if CFGetTypeID(number) == CFBooleanGetTypeID() { return nil }
+        return number.doubleValue
+    }
+
+    static func flexibleServings(_ value: Any?, fallback: Int = 1) -> Int {
+        if value is NSNull || value == nil { return fallback }
+        if let text = value as? String {
+            if let match = text.range(of: "\\d+", options: .regularExpression),
+               let number = Int(text[match]), number > 0 {
+                return number
+            }
+            return fallback
+        }
+        if let number = jsonNumber(value) {
+            let parsed = Int(number.rounded())
+            return parsed > 0 ? parsed : fallback
+        }
+        if let list = value as? [Any], let first = list.first {
+            return flexibleServings(first, fallback: fallback)
+        }
+        if let dict = value as? [String: Any] {
+            return flexibleServings(dict["value"] ?? dict["name"], fallback: fallback)
+        }
+        return fallback
+    }
+
+    private static func parseLooseDuration(_ text: String) -> Int {
+        let lower = text.lowercased()
+        var minutes = 0
+        var matched = false
+        if let hours = firstInt(in: lower, pattern: "(\\d+)\\s*(?:hours?|hrs?)\\b") {
+            minutes += hours * 60
+            matched = true
+        }
+        if let mins = firstInt(in: lower, pattern: "(\\d+)\\s*(?:minutes?|mins?)\\b") {
+            minutes += mins
+            matched = true
+        }
+        if matched { return minutes }
+        return firstInt(in: lower, pattern: "(\\d+)") ?? 0
+    }
+
+    private static func firstInt(in text: String, pattern: String) -> Int? {
+        guard let match = text.range(of: pattern, options: .regularExpression) else { return nil }
+        let slice = String(text[match])
+        guard let digits = slice.range(of: "\\d+", options: .regularExpression) else { return nil }
+        return Int(slice[digits])
     }
 
     // MARK: - ISO 8601 Duration Parsing
@@ -411,22 +567,6 @@ final class RecipeScraperService {
         }
 
         return totalMinutes
-    }
-
-    // MARK: - Servings Parsing
-
-    private static func parseServings(_ value: Any?) -> Int {
-        if let intVal = value as? Int { return max(1, intVal) }
-        if let strVal = value as? String {
-            // Extract first number from string like "4 servings" or "4-6"
-            if let match = strVal.range(of: "\\d+", options: .regularExpression) {
-                return max(1, Int(strVal[match]) ?? 1)
-            }
-        }
-        if let arr = value as? [Any], let first = arr.first {
-            return parseServings(first)
-        }
-        return 1
     }
 
     // MARK: - Image URL Extraction

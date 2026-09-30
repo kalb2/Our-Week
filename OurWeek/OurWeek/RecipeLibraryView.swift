@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 import CoreData
 import UIKit
 
+enum KeyboardDismiss {
+    static func resign() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
 /// Filter and recipe detail share one sheet so Filter cannot present a recipe.
 private enum RecipeLibrarySheet: Identifiable {
     case filter
@@ -32,6 +38,7 @@ struct RecipeLibraryView: View {
 
     @State private var recipes: [Recipe] = []
     @State private var searchText: String = ""
+    @FocusState private var isSearchFocused: Bool
     @State private var selectedSort: DataManager.RecipeSortOption = .recentlyAdded
     @State private var showAddRecipe = false
     @State private var showAddEntry = false
@@ -89,6 +96,7 @@ struct RecipeLibraryView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Header
                 recipeHeader
+                    .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
 
                 // Search Bar
                 searchBar
@@ -100,8 +108,10 @@ struct RecipeLibraryView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
                     .zIndex(1)
+                    .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
 
-                // Content
+                // Content. Taps here dismiss the search keyboard without covering the field.
+                Group {
                 if recipes.isEmpty {
                     emptyState
                         .padding(.top, 40)
@@ -111,6 +121,7 @@ struct RecipeLibraryView: View {
                             RecipeCard(
                                 recipe: recipe,
                                 onTap: {
+                                    isSearchFocused = false
                                     if isSelectMode {
                                         toggleSelection(recipe)
                                     } else {
@@ -133,10 +144,17 @@ struct RecipeLibraryView: View {
                     .padding(.horizontal, 24)
                     .zIndex(0)
                 }
+                }
+                .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
 
-                Spacer().frame(height: 120)
+                Color.clear
+                    .frame(height: 160)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture { isSearchFocused = false }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color.bgBase)
         .onAppear { loadRecipes() }
         .sheet(isPresented: $showAddEntry, onDismiss: {
@@ -548,6 +566,9 @@ struct RecipeLibraryView: View {
             TextField("Search recipes...", text: $searchText)
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundStyle(.black)
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+                .onSubmit { isSearchFocused = false }
 
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
