@@ -85,6 +85,46 @@ struct AIPromptTemplates {
         """
     }
 
+    /// Read a photographed or screenshotted recipe into the same JSON shape as HTML parsing.
+    static func recipeImageParsingPrompt() -> String {
+        """
+        You are a recipe parser. Read the recipe in the attached photo or screenshot.
+
+        Return ONLY valid JSON (no markdown, no explanation, no code fences):
+        {
+          "title": "Recipe Name",
+          "description": "Brief description",
+          "prepTime": 15,
+          "cookTime": 30,
+          "servings": 4,
+          "ingredients": [
+            {
+              "amount": 1.5,
+              "unit": "cups",
+              "name": "flour",
+              "notes": ""
+            }
+          ],
+          "instructions": [
+            "Step 1 description",
+            "Step 2 description"
+          ],
+          "categories": "Dinner",
+          "tags": ""
+        }
+
+        Rules:
+        - Return ONLY the JSON object
+        - Transcribe the recipe you can see. Do not invent a different dish
+        - If prep or cook time is missing, use 0
+        - Default servings to 4 if not specified
+        - amount is a number. If it is not numeric, use 0 and put the words in notes
+        - Split instructions into separate steps
+        - categories is one of: Main, Full meal, Breakfast, Lunch, Dinner, Dessert, Snack, Side, Appetizer, Drink
+        - Use Main or Dinner for a savory meal, and Dessert, Side, Snack, Appetizer, or Drink when that is what the photo shows
+        """
+    }
+
     // MARK: - Food Photography Image Generation
 
     static func foodImagePrompt(

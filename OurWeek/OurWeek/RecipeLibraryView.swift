@@ -29,6 +29,14 @@ struct RecipeLibraryView: View {
     @State private var searchText: String = ""
     @State private var selectedSort: DataManager.RecipeSortOption = .recentlyAdded
     @State private var showAddRecipe = false
+    @State private var showAddEntry = false
+    @State private var addRoute: AddRecipeRoute?
+    @State private var showPhotoImport = false
+    @State private var photoRecipe: ScrapedRecipe?
+    @State private var photoSeed: Data?
+    @State private var photoFollowUp: AddRecipeRoute?
+    @State private var urlImportSeed = ""
+    @State private var isReadingShare = false
     @State private var librarySheet: RecipeLibrarySheet?
     @State private var filterCategory: String? = nil
     @State private var filterDifficulty: String? = nil
@@ -119,6 +127,20 @@ struct RecipeLibraryView: View {
         }
         .background(Color.bgBase)
         .onAppear { loadRecipes() }
+        .sheet(isPresented: $showAddEntry, onDismiss: {
+            guard let route = addRoute else { return }
+            addRoute = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                openAddRoute(route)
+            }
+        }) {
+            AddRecipeEntrySheet { route in
+                addRoute = route
+                showAddEntry = false
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showAddRecipe, onDismiss: { loadRecipes() }) {
             AddRecipeView(recipe: nil)
                 .presentationDetents([.large])
@@ -139,6 +161,7 @@ struct RecipeLibraryView: View {
         .onChange(of: searchText) { _, _ in loadRecipes() }
         .onChange(of: selectedSort) { _, _ in loadRecipes() }
         .sheet(isPresented: $showURLImport, onDismiss: {
+            urlImportSeed = ""
             // Present preview sheet AFTER import sheet fully dismisses to avoid blank screen
             if let recipe = scrapedRecipe {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
@@ -147,7 +170,7 @@ struct RecipeLibraryView: View {
                 }
             }
         }) {
-            URLImportView(scrapedRecipe: $scrapedRecipe, showPreview: .constant(false))
+            URLImportView(scrapedRecipe: $scrapedRecipe, showPreview: .constant(false), initialURL: urlImportSeed)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -163,6 +186,42 @@ struct RecipeLibraryView: View {
             PasteImportView(scrapedRecipe: $pastedRecipe)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPhotoImport, onDismiss: {
+            photoSeed = nil
+            if let recipe = photoRecipe {
+                photoRecipe = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    previewRecipe = recipe
+                }
+            } else if let next = photoFollowUp {
+                photoFollowUp = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    switch next {
+                    case .paste:
+                        showPasteImport = true
+                    case .manual:
+                        showAddRecipe = true
+                    default:
+                        break
+                    }
+                }
+            }
+        }) {
+            PhotoImportView(
+                scrapedRecipe: $photoRecipe,
+                initialImageData: photoSeed,
+                onPaste: {
+                    photoFollowUp = .paste
+                    showPhotoImport = false
+                },
+                onManual: {
+                    photoFollowUp = .manual
+                    showPhotoImport = false
+                }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .background(
             EmptyView()
@@ -239,9 +298,102 @@ struct RecipeLibraryView: View {
                     .background(Color.bgBase.opacity(0.96))
             }
         }
-        .onAppear { consumeIncomingPackIfNeeded() }
+        .onAppear {
+            consumeIncomingPackIfNeeded()
+            consumeShareImport()
+        }
         .onReceive(NotificationCenter.default.publisher(for: RecipePackOpenHandler.notification)) { _ in
             consumeIncomingPackIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
+            consumeShareImport()
+        }
+        .overlay {
+            if isReadingShare {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    VStack(spacing: 14) {
+                        ProgressView()
+                            .tint(Color.terra500)
+                        Text("Reading recipe")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.black)
+                    }
+                    .padding(24)
+                    .background(Color.bgBase)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+                }
+            }
+        }
+    }
+
+    private func openAddRoute(_ route: AddRecipeRoute) {
+        switch route {
+        case .link:
+            showURLImport = true
+        case .paste:
+            showPasteImport = true
+        case .photo:
+            photoSeed = nil
+            showPhotoImport = true
+        case .manual:
+            showAddRecipe = true
+        case .pack:
+            showPackFilePicker = true
+        }
+    }
+
+    private func consumeShareImport() {
+        guard let payload = ShareImportStore.consume() else { return }
+        switch payload.kind {
+        case .url:
+            importSharedURL(payload.text)
+        case .text:
+            let trimmed = payload.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let url = URL(string: trimmed),
+               let scheme = url.scheme?.lowercased(),
+               ["http", "https"].contains(scheme),
+               url.host != nil,
+               !trimmed.contains("\n") {
+                importSharedURL(trimmed)
+            } else {
+                previewRecipe = RecipeTextParser.parse(payload.text)
+            }
+        case .image:
+            if let data = payload.imageData {
+                photoSeed = data
+                showPhotoImport = true
+            }
+        }
+    }
+
+    private func importSharedURL(_ raw: String) {
+        isReadingShare = true
+        Task {
+            do {
+                let recipe = try await RecipeScraperService.importRecipe(from: raw)
+                isReadingShare = false
+                previewRecipe = recipe
+            } catch let error as ScraperError {
+                if case .noRecipeFound(let html) = error, KeychainManager.hasGeminiAPIKey() {
+                    do {
+                        let recipe = try await GeminiService.shared.parseRecipeFromHTML(html: html, sourceUrl: raw)
+                        isReadingShare = false
+                        previewRecipe = recipe
+                        return
+                    } catch {
+                        // The URL form can retry, including its own AI parse.
+                    }
+                }
+                isReadingShare = false
+                urlImportSeed = raw
+                showURLImport = true
+            } catch {
+                isReadingShare = false
+                urlImportSeed = raw
+                showURLImport = true
+            }
         }
     }
 
@@ -284,21 +436,7 @@ struct RecipeLibraryView: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                // Add button menu
-                Menu {
-                    Button(action: { showAddRecipe = true }) {
-                        Label("Add Manually", systemImage: "square.and.pencil")
-                    }
-                    Button(action: { showURLImport = true }) {
-                        Label("Import from URL", systemImage: "link")
-                    }
-                    Button(action: { showPasteImport = true }) {
-                        Label("Paste Recipe Text", systemImage: "doc.on.clipboard.fill")
-                    }
-                    Button(action: { showPackFilePicker = true }) {
-                        Label("Import Recipe Pack", systemImage: "square.stack.3d.up.fill")
-                    }
-                } label: {
+                Button(action: { showAddEntry = true }) {
                     ZStack {
                         Circle()
                             .fill(Color.black)
@@ -321,6 +459,7 @@ struct RecipeLibraryView: View {
                             .foregroundStyle(.white)
                     }
                 }
+                .buttonStyle(.plain)
             }
 
             // Profile avatar
@@ -485,7 +624,7 @@ struct RecipeLibraryView: View {
             }
 
             if searchText.isEmpty && !hasActiveFilters {
-                Button(action: { showAddRecipe = true }) {
+                Button(action: { showAddEntry = true }) {
                     HStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 16, weight: .bold))

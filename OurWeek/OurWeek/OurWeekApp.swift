@@ -47,7 +47,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         if let url = connectionOptions.urlContexts.first?.url {
             DispatchQueue.main.async {
-                RecipePackOpenHandler.handle(url: url)
+                Self.route(url)
             }
         }
     }
@@ -56,9 +56,17 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         for context in URLContexts {
             let url = context.url
             DispatchQueue.main.async {
-                RecipePackOpenHandler.handle(url: url)
+                Self.route(url)
             }
         }
+    }
+
+    private static func route(_ url: URL) {
+        if url.scheme?.lowercased() == "ourweek" {
+            NotificationCenter.default.post(name: ShareImportStore.didArrive, object: nil)
+            return
+        }
+        RecipePackOpenHandler.handle(url: url)
     }
 
     func windowScene(

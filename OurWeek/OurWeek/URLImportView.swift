@@ -7,7 +7,13 @@ struct URLImportView: View {
     @Binding var scrapedRecipe: ScrapedRecipe?
     @Binding var showPreview: Bool
 
-    @State private var urlText: String = ""
+    @State private var urlText: String
+
+    init(scrapedRecipe: Binding<ScrapedRecipe?>, showPreview: Binding<Bool>, initialURL: String = "") {
+        _scrapedRecipe = scrapedRecipe
+        _showPreview = showPreview
+        _urlText = State(initialValue: initialURL)
+    }
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var loadingMessage = "Fetching recipe..."

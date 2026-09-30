@@ -167,6 +167,16 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .preferredColorScheme(.light)
+        .onAppear { openSharedImportIfNeeded() }
+        .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
+            openSharedImportIfNeeded()
+        }
+    }
+
+    private func openSharedImportIfNeeded() {
+        if ShareImportStore.hasPending {
+            selectedTab = .meals
+        }
     }
 }
 

@@ -15,6 +15,11 @@ struct ScrapedRecipe: Identifiable {
     var imageURL: String?
     var sourceURL: String
     var sourceDomain: String
+    /// Comma-separated labels from the page or the model. Empty when unknown.
+    var categories: String = ""
+    var tags: String = ""
+    /// Photo the user attached. Preview uses this when there is no remote image.
+    var inlineImageData: Data? = nil
 }
 
 struct ScrapedIngredient: Identifiable {
@@ -245,8 +250,23 @@ final class RecipeScraperService {
             servings: servings,
             imageURL: imageURL,
             sourceURL: sourceURL,
-            sourceDomain: sourceDomain
+            sourceDomain: sourceDomain,
+            categories: joinedLabels(json["recipeCategory"]),
+            tags: joinedLabels(json["keywords"])
         )
+    }
+
+    private static func joinedLabels(_ value: Any?) -> String {
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let list = value as? [String] {
+            return list
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+        }
+        return ""
     }
 
     // MARK: - Instruction Parsing

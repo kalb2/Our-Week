@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 // MARK: - Import Preview View
 
@@ -18,6 +19,12 @@ struct ImportPreviewView: View {
     @State private var tagsText: String = ""
     @State private var notes: String = ""
     @State private var selectedImageData: Data? = nil
+    @State private var photoItem: PhotosPickerItem?
+    @State private var isGeneratingImage = false
+    @State private var imageMessage: String?
+    @State private var hasAIKey = false
+    @State private var showDuplicatePrompt = false
+    @State private var allowDuplicateSave = false
 
     // Ingredients and Instructions
     @State private var ingredientRows: [AddRecipeView.IngredientRow] = []
@@ -70,7 +77,24 @@ struct ImportPreviewView: View {
         } message: {
             Text(validationMessage)
         }
-        .onAppear { populateFromScrapedRecipe() }
+        .onAppear {
+            hasAIKey = KeychainManager.hasGeminiAPIKey()
+            populateFromScrapedRecipe()
+        }
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let transfer = try? await item.loadTransferable(type: RecipePhotoTransfer.self) {
+                    selectedImageData = transfer.data
+                    imageMessage = nil
+                }
+            }
+        }
+        .overlay {
+            if showDuplicatePrompt {
+                duplicatePrompt
+            }
+        }
     }
 
     // MARK: - Header
@@ -97,7 +121,7 @@ struct ImportPreviewView: View {
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
-                Text(isPastedSource ? "PASTED · VERIFY DETAILS" : "IMPORTED · VERIFY DETAILS")
+                Text(sourceSubtitle)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
@@ -111,26 +135,216 @@ struct ImportPreviewView: View {
         .padding(.bottom, 24)
     }
 
-    /// Whether this recipe was pasted as text rather than imported from a URL
-    private var isPastedSource: Bool {
-        scrapedRecipe.sourceURL.isEmpty || scrapedRecipe.sourceDomain == "Pasted Text"
+    private enum ImportSourceKind {
+        case url, paste, photo
+    }
+
+    private var sourceKind: ImportSourceKind {
+        if scrapedRecipe.sourceDomain == "Photo" { return .photo }
+        if scrapedRecipe.sourceURL.isEmpty || scrapedRecipe.sourceDomain == "Pasted Text" { return .paste }
+        return .url
+    }
+
+    private var sourceSubtitle: String {
+        switch sourceKind {
+        case .photo: return "PHOTO · VERIFY DETAILS"
+        case .paste: return "PASTED · VERIFY DETAILS"
+        case .url: return "IMPORTED · VERIFY DETAILS"
+        }
+    }
+
+    private var sourceIcon: String {
+        switch sourceKind {
+        case .photo: return "camera.fill"
+        case .paste: return "doc.on.clipboard.fill"
+        case .url: return "link.circle.fill"
+        }
+    }
+
+    private var sourceTitle: String {
+        switch sourceKind {
+        case .photo: return "Photo"
+        case .paste: return "Pasted text"
+        case .url: return scrapedRecipe.sourceDomain
+        }
+    }
+
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if isLoadingImage || isGeneratingImage {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(Color.terra400)
+                    Text(isGeneratingImage ? "Making a photo" : "Downloading image...")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.gray)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 80)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                        .foregroundStyle(Color.terra300)
+                )
+            } else if let data = selectedImageData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 140)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.terra400)
+                    Text("No image found")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(.gray)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 80)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                        .foregroundStyle(Color.gray.opacity(0.3))
+                )
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.gray.opacity(0.05)))
+            }
+
+            HStack(spacing: 8) {
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    Text(selectedImageData == nil ? "Add photo" : "Replace")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+
+                if hasAIKey {
+                    Button(action: generateAIPhoto) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 12))
+                            Text("Generate AI photo")
+                                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isGeneratingImage)
+                }
+            }
+
+            if let imageMessage {
+                Text(imageMessage)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.terra600)
+            }
+        }
+    }
+
+    private var duplicatePrompt: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+            VStack(spacing: 18) {
+                Text("Already in your library")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.black)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                VStack(spacing: 10) {
+                    Button {
+                        showDuplicatePrompt = false
+                        allowDuplicateSave = true
+                        saveRecipe()
+                    } label: {
+                        Text("Save anyway")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color.terra500)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .boldShadow(.black, size: 3, radius: 14)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        showDuplicatePrompt = false
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .background(Color.bgBase)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+            .boldShadow(Color.terra500, size: 4, radius: 18)
+            .padding(.horizontal, 28)
+        }
+    }
+
+    private func generateAIPhoto() {
+        guard !isGeneratingImage else { return }
+        isGeneratingImage = true
+        imageMessage = nil
+        let ingredients = ingredientRows
+            .map { $0.name.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        Task {
+            do {
+                let prompt = AIPromptTemplates.foodImagePrompt(
+                    recipeName: recipeName.isEmpty ? scrapedRecipe.title : recipeName,
+                    description: recipeDescription,
+                    ingredients: ingredients,
+                    style: .realistic
+                )
+                let image = try await GeminiService.shared.generateImage(prompt: prompt)
+                selectedImageData = image.jpegData(compressionQuality: 0.8)
+                isGeneratingImage = false
+            } catch {
+                imageMessage = error.localizedDescription
+                isGeneratingImage = false
+            }
+        }
     }
 
     // MARK: - Source Attribution
 
     private var sourceAttribution: some View {
         HStack(spacing: 10) {
-            Image(systemName: isPastedSource ? "doc.on.clipboard.fill" : "link.circle.fill")
+            Image(systemName: sourceIcon)
                 .font(.system(size: 22))
                 .foregroundStyle(Color.terra500)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(isPastedSource ? "Source" : "Imported from")
+                Text(sourceKind == .url ? "Imported from" : "Source")
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(0.5)
                     .foregroundStyle(.gray)
 
-                Text(isPastedSource ? "Pasted text" : scrapedRecipe.sourceDomain)
+                Text(sourceTitle)
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color.terra600)
             }
@@ -187,53 +401,7 @@ struct ImportPreviewView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
             }
 
-            // Photo
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Photo")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray)
-
-                if isLoadingImage {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                            .tint(Color.terra400)
-                        Text("Downloading image...")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 80)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                            .foregroundStyle(Color.terra300)
-                    )
-                } else if let data = selectedImageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 140)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.terra400)
-                        Text("No image found")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 80)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                            .foregroundStyle(Color.gray.opacity(0.3))
-                    )
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.gray.opacity(0.05)))
-                }
-            }
+            photoSection
         }
     }
 
@@ -617,10 +785,20 @@ struct ImportPreviewView: View {
             instructionRows = [AddRecipeView.InstructionRow()]
         }
 
+        selectedCategories = RecipeImportCategories.chips(
+            categories: scrapedRecipe.categories,
+            tags: scrapedRecipe.tags
+        )
+        if !scrapedRecipe.tags.isEmpty {
+            tagsText = scrapedRecipe.tags
+        }
+
         // Download image if available (same helper as pack import)
         imageDownloadTask?.cancel()
         imageDownloadTask = nil
-        if let imageURL = scrapedRecipe.imageURL, !imageURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let inline = scrapedRecipe.inlineImageData {
+            selectedImageData = inline
+        } else if let imageURL = scrapedRecipe.imageURL, !imageURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             isLoadingImage = true
             imageDownloadTask = Task {
                 let data = await RecipeScraperService.downloadImage(from: imageURL)
@@ -716,6 +894,12 @@ struct ImportPreviewView: View {
             return
         }
 
+        let sourceForDuplicate = sourceKind == .url ? scrapedRecipe.sourceURL : ""
+        if !allowDuplicateSave && dataManager.hasDuplicateRecipe(sourceURL: sourceForDuplicate, name: recipeName) {
+            showDuplicatePrompt = true
+            return
+        }
+
         let ingInputs: [DataManager.IngredientInput] = validIngredients.enumerated().map { index, row in
             DataManager.IngredientInput(
                 amount: RecipeScraperService.parseAmount(row.amount),
@@ -777,8 +961,8 @@ struct ImportPreviewView: View {
             tags: tagsText.isEmpty ? nil : tagsText,
             notes: notes.isEmpty ? nil : notes,
             imageData: selectedImageData,
-            sourceURL: isPastedSource ? nil : scrapedRecipe.sourceURL,
-            sourceDomain: isPastedSource ? nil : scrapedRecipe.sourceDomain,
+            sourceURL: sourceKind == .url ? scrapedRecipe.sourceURL : nil,
+            sourceDomain: sourceKind == .url ? scrapedRecipe.sourceDomain : nil,
             ingredientInputs: ingInputs,
             instructionInputs: instInputs
         )

@@ -28,22 +28,39 @@ class GeminiService {
 
     /// Generate text from a prompt using Gemini.
     func generateText(prompt: String, systemInstructions: String? = nil) async throws -> String {
-        // Check cache first
+        try await generateText(prompt: prompt, imageJPEG: nil, systemInstructions: systemInstructions)
+    }
+
+    private func generateText(
+        prompt: String,
+        imageJPEG: Data?,
+        systemInstructions: String?
+    ) async throws -> String {
         let cacheKey = (systemInstructions ?? "") + prompt
-        if let cached = cache.getCachedTextResponse(prompt: cacheKey) {
+        if imageJPEG == nil, let cached = cache.getCachedTextResponse(prompt: cacheKey) {
             return cached
         }
 
         let apiKey = try getAPIKey()
         _ = try rateLimiter.canMakeRequest()
 
+        var parts: [[String: Any]] = [["text": prompt]]
+        if let imageJPEG {
+            parts.append([
+                "inlineData": [
+                    "mimeType": "image/jpeg",
+                    "data": imageJPEG.base64EncodedString()
+                ]
+            ])
+        }
+
         let url = URL(string: "\(baseURL)/models/\(textModel):generateContent?key=\(apiKey)")!
         var body: [String: Any] = [
             "contents": [
-                ["parts": [["text": prompt]]]
+                ["parts": parts]
             ],
             "generationConfig": [
-                "temperature": 0.7,
+                "temperature": imageJPEG == nil ? 0.7 : 0.2,
                 "maxOutputTokens": 4096
             ]
         ]
@@ -54,13 +71,27 @@ class GeminiService {
             ]
         }
 
-        let data = try await makeRequest(url: url, body: body, timeout: 30)
+        let data = try await makeRequest(url: url, body: body, timeout: imageJPEG == nil ? 30 : 60)
         let text = try extractText(from: data)
 
         rateLimiter.recordRequest()
-        cache.cacheTextResponse(prompt: cacheKey, response: text)
+        if imageJPEG == nil {
+            cache.cacheTextResponse(prompt: cacheKey, response: text)
+        }
 
         return text
+    }
+
+    private func jpegData(from image: UIImage, maxDimension: CGFloat = 1600) -> Data? {
+        let size = image.size
+        let longest = max(size.width, size.height)
+        let scale = longest > maxDimension && longest > 0 ? maxDimension / longest : 1
+        let target = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: target)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return resized.jpegData(compressionQuality: 0.7)
     }
 
     // MARK: - Image Generation
@@ -129,6 +160,23 @@ class GeminiService {
         )
 
         return try parseRecipeJSON(responseText, sourceURL: sourceUrl)
+    }
+
+    /// Read a recipe photo or screenshot. Requires a Gemini key.
+    func parseRecipeFromImage(_ image: UIImage) async throws -> ScrapedRecipe {
+        guard let jpeg = jpegData(from: image) else {
+            throw GeminiError.imageDecodingFailed
+        }
+        let prompt = AIPromptTemplates.recipeImageParsingPrompt()
+        let responseText = try await generateText(
+            prompt: prompt,
+            imageJPEG: jpeg,
+            systemInstructions: "You are a recipe extraction assistant. Return only valid JSON, no explanation."
+        )
+        var recipe = try parseRecipeJSON(responseText, sourceURL: "")
+        recipe.sourceDomain = "Photo"
+        recipe.inlineImageData = jpeg
+        return recipe
     }
 
     // MARK: - Connection Test
@@ -321,6 +369,8 @@ class GeminiService {
         let cookTime = json["cookTime"] as? Int ?? 0
         let servings = json["servings"] as? Int ?? 4
         let imageURL = json["imageURL"] as? String
+        let categories = joinedLabels(json["categories"])
+        let tags = joinedLabels(json["tags"])
 
         // Parse ingredients
         var ingredients: [ScrapedIngredient] = []
@@ -358,7 +408,22 @@ class GeminiService {
             servings: servings,
             imageURL: imageURL,
             sourceURL: sourceURL,
-            sourceDomain: domain
+            sourceDomain: domain,
+            categories: categories,
+            tags: tags
         )
+    }
+
+    private func joinedLabels(_ value: Any?) -> String {
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let list = value as? [String] {
+            return list
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+        }
+        return ""
     }
 }

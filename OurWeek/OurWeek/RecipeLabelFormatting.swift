@@ -85,3 +85,65 @@ enum RecipePlannerMeals {
         return labels.contains(where: { mealOccasions.contains($0) })
     }
 }
+
+/// Maps imported category text onto the library chips, then suggests Dinner or Main
+/// when the recipe would otherwise be missing from Plan week.
+enum RecipeImportCategories {
+    static func chips(categories: String, tags: String) -> Set<String> {
+        var chips = mappedChips(categories)
+        chips.formUnion(mappedChips(tags))
+
+        let selected = RecipeLabelFormatting.encodeCategories(chips)
+        if RecipePlannerMeals.includes(categories: selected, tags: tags) {
+            return chips
+        }
+
+        let labels = RecipeLabelFormatting.labelSet(categories: categories, tags: tags)
+        if labels.contains(where: { RecipePlannerMeals.excludedCourses.contains($0) }) {
+            return chips
+        }
+
+        let blob = (categories + " " + tags).lowercased()
+        if blob.contains("full meal") || blob.contains("complete meal") || blob.contains("complete dinner") {
+            chips.insert("Full meal")
+        } else if blob.contains("main") || blob.contains("entree") || blob.contains("entrée") {
+            chips.insert("Main")
+        } else {
+            chips.insert("Dinner")
+        }
+        return chips
+    }
+
+    private static func mappedChips(_ raw: String) -> Set<String> {
+        var result: Set<String> = []
+        for token in RecipeLabelFormatting.decodeCategories(raw) {
+            let lower = token.lowercased()
+            if let exact = RecipeConstants.categories.first(where: { $0.lowercased() == lower }) {
+                result.insert(exact)
+                continue
+            }
+            if lower.contains("full meal") || lower.contains("complete meal") || lower.contains("complete dinner") {
+                result.insert("Full meal")
+            } else if lower.contains("main") || lower.contains("entree") || lower.contains("entrée") {
+                result.insert("Main")
+            } else if lower.contains("breakfast") {
+                result.insert("Breakfast")
+            } else if lower.contains("lunch") {
+                result.insert("Lunch")
+            } else if lower.contains("dinner") || lower.contains("supper") {
+                result.insert("Dinner")
+            } else if lower.contains("dessert") {
+                result.insert("Dessert")
+            } else if lower.contains("snack") {
+                result.insert("Snack")
+            } else if lower.contains("side") {
+                result.insert("Side")
+            } else if lower.contains("appetizer") || lower.contains("starter") {
+                result.insert("Appetizer")
+            } else if lower.contains("drink") || lower.contains("beverage") {
+                result.insert("Drink")
+            }
+        }
+        return result
+    }
+}
