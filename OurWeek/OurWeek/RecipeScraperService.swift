@@ -37,23 +37,19 @@ enum ScraperError: Error, LocalizedError {
     case networkError(String)
     case timeout
     case noRecipeFound(html: String)
-    case paywallDetected
+    case paywallDetected(html: String)
     case parsingFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Please enter a valid URL"
-        case .networkError(let detail):
-            return "Couldn't connect. \(detail)"
-        case .timeout:
-            return "This is taking too long. The website might be slow or blocking us."
-        case .noRecipeFound:
-            return "This website doesn't support automatic import. You can add the recipe manually instead."
-        case .paywallDetected:
-            return "This recipe may require a subscription. Try copying the recipe text manually."
-        case .parsingFailed(let detail):
-            return "Couldn't read the recipe data. \(detail)"
+            return "Enter a full link"
+        case .networkError(_), .timeout:
+            return "Couldn't open that page"
+        case .noRecipeFound(_), .paywallDetected(_):
+            return "Couldn't read a recipe from this page"
+        case .parsingFailed(_):
+            return "Couldn't read that page"
         }
     }
 }
@@ -78,7 +74,7 @@ final class RecipeScraperService {
         // 3. Check for paywall indicators
         if html.contains("subscribe to continue") || html.contains("paywall") ||
            html.contains("subscription required") {
-            throw ScraperError.paywallDetected
+            throw ScraperError.paywallDetected(html: html)
         }
 
         // 4. Extract JSON-LD blocks
@@ -126,7 +122,8 @@ final class RecipeScraperService {
             switch httpResponse.statusCode {
             case 200...299: break
             case 401, 403:
-                throw ScraperError.paywallDetected
+                let page = String(data: data, encoding: .utf8) ?? ""
+                throw ScraperError.paywallDetected(html: page)
             case 404:
                 throw ScraperError.noRecipeFound(html: "")
             default:
@@ -139,6 +136,80 @@ final class RecipeScraperService {
         }
 
         return html
+    }
+
+    /// Page title from common meta tags, for a manual add after import fails.
+    static func suggestedTitle(from html: String) -> String? {
+        let sample = String(html.prefix(120_000))
+        let patterns = [
+            #"(?i)<meta[^>]*property\s*=\s*["']og:title["'][^>]*content\s*=\s*["']([^"']+)["']"#,
+            #"(?i)<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:title["']"#,
+            #"(?i)<meta[^>]*name\s*=\s*["']twitter:title["'][^>]*content\s*=\s*["']([^"']+)["']"#,
+            #"(?i)<title[^>]*>([^<]+)</title>"#
+        ]
+        for pattern in patterns {
+            guard let raw = firstMatch(pattern, in: sample) else { continue }
+            let cleaned = decodeHTML(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty { return cleaned }
+        }
+        return nil
+    }
+
+    /// Text to drop into paste import. Uses the page body when it looks like a recipe, otherwise the title.
+    static func pasteSeed(from html: String, title: String) -> String {
+        let plain = plainText(from: html)
+        if plain.range(of: "ingredient", options: .caseInsensitive) != nil, plain.count >= 80 {
+            return String(plain.prefix(8_000))
+        }
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            return trimmedTitle + "\n\n"
+        }
+        return ""
+    }
+
+    private static func plainText(from html: String) -> String {
+        var text = String(html.prefix(200_000))
+        text = replacing(text, pattern: "(?is)<script\\b[^>]*>.*?</script>", with: " ")
+        text = replacing(text, pattern: "(?is)<style\\b[^>]*>.*?</style>", with: " ")
+        text = replacing(text, pattern: "(?is)<[^>]+>", with: " ")
+        text = decodeHTML(text)
+        let words = text.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        return words.joined(separator: " ")
+    }
+
+    private static func firstMatch(_ pattern: String, in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, range: range),
+              match.numberOfRanges > 1,
+              let capture = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[capture])
+    }
+
+    private static func replacing(_ text: String, pattern: String, with template: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: template)
+    }
+
+    private static func decodeHTML(_ text: String) -> String {
+        var decoded = text
+        let entities = [
+            "&amp;": "&",
+            "&quot;": "\"",
+            "&#39;": "'",
+            "&apos;": "'",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&nbsp;": " "
+        ]
+        for (entity, value) in entities {
+            decoded = decoded.replacingOccurrences(of: entity, with: value)
+        }
+        return decoded
     }
 
     // MARK: - JSON-LD Extraction

@@ -5,11 +5,19 @@ import PhotosUI
 
 struct AddRecipeView: View {
     let recipe: Recipe?
+    /// Kept when manual add is opened from a failed URL import.
+    private let preservedSourceURL: String
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
 
+    init(recipe: Recipe? = nil, initialName: String = "", initialSourceURL: String = "") {
+        self.recipe = recipe
+        self.preservedSourceURL = initialSourceURL
+        _recipeName = State(initialValue: recipe == nil ? initialName : "")
+    }
+
     // Basic Info
-    @State private var recipeName: String = ""
+    @State private var recipeName: String
     @State private var recipeDescription: String = ""
     @State private var selectedImageData: Data? = nil
     @State private var photoItem: PhotosPickerItem? = nil
@@ -40,6 +48,13 @@ struct AddRecipeView: View {
 
     private var isEditing: Bool { recipe != nil }
 
+    private var preservedSourceDomain: String? {
+        guard !preservedSourceURL.isEmpty,
+              let host = URL(string: preservedSourceURL)?.host else { return nil }
+        let trimmed = host.replacingOccurrences(of: "www.", with: "")
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     struct IngredientRow: Identifiable {
         let id = UUID()
         var amount: String = ""
@@ -56,6 +71,7 @@ struct AddRecipeView: View {
 
     private var hasUnsavedChanges: Bool {
         !recipeName.isEmpty || !recipeDescription.isEmpty ||
+        !preservedSourceURL.isEmpty ||
         !ingredientRows.filter({ !$0.name.isEmpty }).isEmpty ||
         !instructionRows.filter({ !$0.text.isEmpty }).isEmpty
     }
@@ -168,6 +184,18 @@ struct AddRecipeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
                 .boldShadow(.black, size: 3, radius: 14)
+
+                if !preservedSourceURL.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "link")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(preservedSourceURL)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .lineLimit(2)
+                    }
+                    .foregroundStyle(Color.terra600)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             // Description
@@ -776,6 +804,8 @@ extension AddRecipeView {
                 tags: tagsText.isEmpty ? nil : tagsText,
                 notes: notes.isEmpty ? nil : notes,
                 imageData: selectedImageData,
+                sourceURL: preservedSourceURL.isEmpty ? nil : preservedSourceURL,
+                sourceDomain: preservedSourceDomain,
                 ingredientInputs: ingInputs,
                 instructionInputs: instInputs
             )
@@ -789,6 +819,9 @@ extension AddRecipeView {
             // Start with one empty ingredient and instruction row
             ingredientRows = [IngredientRow()]
             instructionRows = [InstructionRow()]
+            if !preservedSourceURL.isEmpty {
+                selectedCategories = ["Dinner"]
+            }
             return
         }
 

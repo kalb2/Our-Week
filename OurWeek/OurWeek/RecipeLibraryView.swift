@@ -19,6 +19,11 @@ private enum RecipeLibrarySheet: Identifiable {
     }
 }
 
+private enum URLRecoveryFollowUp {
+    case paste(text: String, url: String)
+    case manual(title: String, url: String)
+}
+
 // MARK: - Recipe Library View (Meals Tab Main)
 
 struct RecipeLibraryView: View {
@@ -36,6 +41,13 @@ struct RecipeLibraryView: View {
     @State private var photoSeed: Data?
     @State private var photoFollowUp: AddRecipeRoute?
     @State private var urlImportSeed = ""
+    @State private var urlFailure: URLImportFailure?
+    @State private var urlImportToken = UUID()
+    @State private var urlFollowUp: URLRecoveryFollowUp?
+    @State private var pasteSeedText = ""
+    @State private var pasteSourceURL = ""
+    @State private var manualSeedName = ""
+    @State private var manualSeedURL = ""
     @State private var isReadingShare = false
     @State private var librarySheet: RecipeLibrarySheet?
     @State private var filterCategory: String? = nil
@@ -141,8 +153,12 @@ struct RecipeLibraryView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showAddRecipe, onDismiss: { loadRecipes() }) {
-            AddRecipeView(recipe: nil)
+        .sheet(isPresented: $showAddRecipe, onDismiss: {
+            manualSeedName = ""
+            manualSeedURL = ""
+            loadRecipes()
+        }) {
+            AddRecipeView(recipe: nil, initialName: manualSeedName, initialSourceURL: manualSeedURL)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -162,20 +178,49 @@ struct RecipeLibraryView: View {
         .onChange(of: selectedSort) { _, _ in loadRecipes() }
         .sheet(isPresented: $showURLImport, onDismiss: {
             urlImportSeed = ""
-            // Present preview sheet AFTER import sheet fully dismisses to avoid blank screen
+            urlFailure = nil
             if let recipe = scrapedRecipe {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     previewRecipe = recipe
-                    scrapedRecipe = nil // reset for next import
+                    scrapedRecipe = nil
+                }
+            } else if let follow = urlFollowUp {
+                urlFollowUp = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    switch follow {
+                    case .paste(let text, let url):
+                        pasteSeedText = text
+                        pasteSourceURL = url
+                        showPasteImport = true
+                    case .manual(let title, let url):
+                        manualSeedName = title
+                        manualSeedURL = url
+                        showAddRecipe = true
+                    }
                 }
             }
         }) {
-            URLImportView(scrapedRecipe: $scrapedRecipe, showPreview: .constant(false), initialURL: urlImportSeed)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+            URLImportView(
+                scrapedRecipe: $scrapedRecipe,
+                showPreview: .constant(false),
+                initialURL: urlImportSeed,
+                initialFailure: urlFailure,
+                onPaste: { url, text in
+                    urlFollowUp = .paste(text: text, url: url)
+                    showURLImport = false
+                },
+                onManual: { url, title in
+                    urlFollowUp = .manual(title: title, url: url)
+                    showURLImport = false
+                }
+            )
+            .id(urlImportToken)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPasteImport, onDismiss: {
-            // Present preview sheet AFTER paste sheet fully dismisses
+            pasteSeedText = ""
+            pasteSourceURL = ""
             if let recipe = pastedRecipe {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     previewRecipe = recipe
@@ -183,7 +228,7 @@ struct RecipeLibraryView: View {
                 }
             }
         }) {
-            PasteImportView(scrapedRecipe: $pastedRecipe)
+            PasteImportView(scrapedRecipe: $pastedRecipe, initialText: pasteSeedText, sourceURL: pasteSourceURL)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -199,8 +244,12 @@ struct RecipeLibraryView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     switch next {
                     case .paste:
+                        pasteSeedText = ""
+                        pasteSourceURL = ""
                         showPasteImport = true
                     case .manual:
+                        manualSeedName = ""
+                        manualSeedURL = ""
                         showAddRecipe = true
                     default:
                         break
@@ -331,13 +380,20 @@ struct RecipeLibraryView: View {
     private func openAddRoute(_ route: AddRecipeRoute) {
         switch route {
         case .link:
+            urlFailure = nil
+            urlImportSeed = ""
+            urlImportToken = UUID()
             showURLImport = true
         case .paste:
+            pasteSeedText = ""
+            pasteSourceURL = ""
             showPasteImport = true
         case .photo:
             photoSeed = nil
             showPhotoImport = true
         case .manual:
+            manualSeedName = ""
+            manualSeedURL = ""
             showAddRecipe = true
         case .pack:
             showPackFilePicker = true
@@ -368,6 +424,15 @@ struct RecipeLibraryView: View {
         }
     }
 
+    private func presentURLRecovery(url: String, error: Error, aiAttempted: Bool) {
+        isReadingShare = false
+        urlImportSeed = url
+        urlFailure = URLImportFailure.from(url: url, error: error, aiAttempted: aiAttempted)
+            ?? URLImportFailure(url: url, html: "", suggestedTitle: "", pasteSeed: "", aiAttempted: aiAttempted)
+        urlImportToken = UUID()
+        showURLImport = true
+    }
+
     private func importSharedURL(_ raw: String) {
         isReadingShare = true
         Task {
@@ -376,23 +441,22 @@ struct RecipeLibraryView: View {
                 isReadingShare = false
                 previewRecipe = recipe
             } catch let error as ScraperError {
-                if case .noRecipeFound(let html) = error, KeychainManager.hasGeminiAPIKey() {
+                if case .noRecipeFound(let html) = error,
+                   !html.isEmpty,
+                   KeychainManager.hasGeminiAPIKey() {
                     do {
                         let recipe = try await GeminiService.shared.parseRecipeFromHTML(html: html, sourceUrl: raw)
                         isReadingShare = false
                         previewRecipe = recipe
                         return
                     } catch {
-                        // The URL form can retry, including its own AI parse.
+                        presentURLRecovery(url: raw, error: ScraperError.noRecipeFound(html: html), aiAttempted: true)
+                        return
                     }
                 }
-                isReadingShare = false
-                urlImportSeed = raw
-                showURLImport = true
+                presentURLRecovery(url: raw, error: error, aiAttempted: false)
             } catch {
-                isReadingShare = false
-                urlImportSeed = raw
-                showURLImport = true
+                presentURLRecovery(url: raw, error: error, aiAttempted: false)
             }
         }
     }

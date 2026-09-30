@@ -5,8 +5,15 @@ import SwiftUI
 struct PasteImportView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var scrapedRecipe: ScrapedRecipe?
+    private let sourceURL: String
 
-    @State private var recipeText: String = ""
+    @State private var recipeText: String
+
+    init(scrapedRecipe: Binding<ScrapedRecipe?>, initialText: String = "", sourceURL: String = "") {
+        _scrapedRecipe = scrapedRecipe
+        self.sourceURL = sourceURL
+        _recipeText = State(initialValue: initialText)
+    }
     @State private var isParsing = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
@@ -50,6 +57,7 @@ struct PasteImportView: View {
     // MARK: - Header
 
     private var header: some View {
+        VStack(spacing: 0) {
         HStack(alignment: .top) {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
@@ -82,7 +90,18 @@ struct PasteImportView: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
-        .padding(.bottom, 24)
+        .padding(.bottom, sourceURL.isEmpty ? 24 : 12)
+
+        if !sourceURL.isEmpty {
+            Text(sourceURL)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.terra600)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+        }
+        }
     }
 
     // MARK: - Text Input Section
@@ -311,7 +330,12 @@ struct PasteImportView: View {
         isParsing = true
 
         let text = recipeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parsed = RecipeTextParser.parse(text)
+        var parsed = RecipeTextParser.parse(text)
+        if !sourceURL.isEmpty {
+            parsed.sourceURL = sourceURL
+            parsed.sourceDomain = URL(string: sourceURL)?.host?
+                .replacingOccurrences(of: "www.", with: "") ?? ""
+        }
 
         // Validate that we got something useful
         if parsed.ingredients.isEmpty && parsed.instructions.isEmpty {
