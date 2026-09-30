@@ -9,7 +9,9 @@
 //  week grid and meal carousel.
 //  Nothing is written until the review screen confirms.
 //  Full week moves forward and opens Review at the end instead of wrapping.
-//  This day keeps swipes on the selected day. Randomize fills open days only.
+//  This day keeps swipes on the selected day.
+//  Randomize is chosen before Plan Week starts. When it is on, open days are
+//  filled up front and Review opens. The swipe deck is the other mode.
 //  A committed swipe flies that recipe off-screen. The next recipe is a new
 //  card at rest — the deck does not advance while the card is still moving.
 //
@@ -22,6 +24,8 @@ import UIKit
 struct WeekPlannerView: View {
     /// First day of the week to plan. Home passes the Monday already used by `weekDates`.
     let weekStart: Date
+    /// When true, open days are shuffled onto Review as soon as planning starts.
+    var startsRandomized: Bool = false
 
     @Environment(DataManager.self) private var dataManager
     @Environment(\.dismiss) private var dismiss
@@ -30,6 +34,8 @@ struct WeekPlannerView: View {
     private static let plannedMealType = "Dinner"
     private static let takeoutTitle = "Take Out"
     private static let leftoversTitle = "Leftovers"
+    /// Dark brown for labels on the light review cards. terra600 is too faint on terra100.
+    private static let reviewInk = Color(red: 0.29, green: 0.17, blue: 0.13)
 
     private enum PlanScope {
         case week
@@ -160,6 +166,7 @@ struct WeekPlannerView: View {
         .frame(maxWidth: 560, maxHeight: .infinity)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgBase.ignoresSafeArea())
+        .preferredColorScheme(.light)
         .allowsHitTesting(!isSaving && !isResolvingSwipe)
     }
 
@@ -277,7 +284,7 @@ struct WeekPlannerView: View {
         if index == currentDayIndex { return Color.terra500 }
         if assignments[index] != nil { return Color.terra300 }
         if existingDinner(on: index) != nil { return Color.lilac400 }
-        return Color.black.opacity(0.08)
+        return Color(red: 0.91, green: 0.86, blue: 0.83)
     }
 
     private func dayChip(_ index: Int) -> some View {
@@ -292,7 +299,7 @@ struct WeekPlannerView: View {
             VStack(spacing: 1) {
                 Text(formatted(date, "EEE"))
                     .font(.system(size: 9, weight: .heavy, design: .rounded))
-                    .foregroundStyle(isCurrent ? Color.terra600 : .gray)
+                    .foregroundStyle(isCurrent ? WeekPlannerView.reviewInk : Color(red: 0.35, green: 0.28, blue: 0.25))
                 Text(formatted(date, "d"))
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(.black)
@@ -314,7 +321,7 @@ struct WeekPlannerView: View {
         if planned { return Color.terra100 }
         if locked { return Color.lilac100 }
         if isCurrent { return Color.white }
-        return Color.white.opacity(0.55)
+        return Color.bgBase
     }
 
     private func chipAccessibility(index: Int, date: Date, planned: Bool, locked: Bool) -> String {
@@ -329,40 +336,13 @@ struct WeekPlannerView: View {
     }
 
     private var planningControls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                scopeButton(title: "THIS DAY", selected: planScope == .day) {
-                    planScope = .day
-                }
-                scopeButton(title: "FULL WEEK", selected: planScope == .week) {
-                    planScope = .week
-                }
+        HStack(spacing: 8) {
+            scopeButton(title: "THIS DAY", selected: planScope == .day) {
+                planScope = .day
             }
-
-            Button(action: randomizeWeek) {
-                HStack(spacing: 8) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 13, weight: .bold))
-                    Text("RANDOMIZE WEEK")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .tracking(0.5)
-                    Spacer(minLength: 0)
-                    Text(randomizeDetail)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.black.opacity(0.55))
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(Color.lime100)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
-                .boldShadowSm(Color.lime500, radius: 12)
+            scopeButton(title: "FULL WEEK", selected: planScope == .week) {
+                planScope = .week
             }
-            .buttonStyle(.plain)
-            .disabled(!canRandomize)
-            .opacity(canRandomize ? 1 : 0.45)
-            .accessibilityHint("Fills open days with shuffled mains and full meals, then opens Review. Takeout and leftovers are left alone. Nothing is saved yet.")
         }
     }
 
@@ -382,16 +362,6 @@ struct WeekPlannerView: View {
                 )
         }
         .buttonStyle(.plain)
-    }
-
-    private var canRandomize: Bool {
-        !sourceRecipes.isEmpty && (0..<dayCount).contains(where: { isOpen($0) })
-    }
-
-    private var randomizeDetail: String {
-        if sourceRecipes.isEmpty { return "Add recipes" }
-        if !canRandomize { return "Week is full" }
-        return "Mains only"
     }
 
     private var scopeCaption: String {
@@ -445,6 +415,7 @@ struct WeekPlannerView: View {
                 message: plannedDayMessage,
                 icon: iconName(for: plan),
                 tint: tint(for: plan),
+                iconFill: surface(for: plan),
                 actionTitle: "Choose again",
                 action: { clearAssignment(at: currentDayIndex) }
             )
@@ -454,6 +425,7 @@ struct WeekPlannerView: View {
                 message: "Dinner is already on this day. Pick another day, or leave it as is.",
                 icon: "checkmark.seal.fill",
                 tint: Color.lilac500,
+                iconFill: Color.lilac100,
                 actionTitle: nextOpenIndex(after: currentDayIndex) == nil ? nil : "Next open day",
                 action: jumpToNextOpen
             )
@@ -637,6 +609,7 @@ struct WeekPlannerView: View {
         message: String,
         icon: String,
         tint: Color,
+        iconFill: Color,
         actionTitle: String?,
         action: @escaping () -> Void
     ) -> some View {
@@ -645,7 +618,7 @@ struct WeekPlannerView: View {
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(tint)
                 .frame(width: 48, height: 48)
-                .background(tint.opacity(0.15))
+                .background(iconFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 1.5))
 
@@ -867,7 +840,7 @@ struct WeekPlannerView: View {
         case .randomized:
             reviewBanner(
                 kicker: "WEEK SHUFFLED",
-                message: "Open days got a shuffled mix of mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
+                message: "Open days were shuffled with mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
                 fill: Color.lilac100,
                 accent: Color.lilac500
             )
@@ -908,7 +881,7 @@ struct WeekPlannerView: View {
             return "Still open"
         }()
         let fill: Color = {
-            if let plan { return tint(for: plan).opacity(0.18) }
+            if let plan { return surface(for: plan) }
             if dinner != nil { return Color.lilac100 }
             return Color.white
         }()
@@ -921,7 +894,7 @@ struct WeekPlannerView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(formatted(date, "EEE"))
                             .font(.system(size: 10, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.terra600)
+                            .foregroundStyle(WeekPlannerView.reviewInk)
                         Text(formatted(date, "d"))
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .foregroundStyle(.black)
@@ -935,7 +908,7 @@ struct WeekPlannerView: View {
                             .lineLimit(1)
                         Text(subtitle)
                             .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray.opacity(0.6))
+                            .foregroundStyle(WeekPlannerView.reviewInk)
                     }
                     Spacer(minLength: 0)
                 }
@@ -983,13 +956,13 @@ struct WeekPlannerView: View {
                 Text(assignments.isEmpty ? "NOTHING NEW TO SAVE" : "SAVE \(assignments.count) DINNER\(assignments.count == 1 ? "" : "S")")
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .tracking(0.6)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(assignments.isEmpty ? WeekPlannerView.reviewInk : .white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(assignments.isEmpty ? Color.gray.opacity(0.45) : Color.terra500)
+                    .background(assignments.isEmpty ? Color.terra100 : Color.terra500)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-                    .boldShadow(assignments.isEmpty ? Color.gray.opacity(0.3) : Color.black, size: 3, radius: 14)
+                    .boldShadow(assignments.isEmpty ? Color.terra200 : Color.black, size: 3, radius: 14)
             }
             .buttonStyle(.plain)
             .disabled(assignments.isEmpty || isSaving)
@@ -1019,7 +992,10 @@ struct WeekPlannerView: View {
         }
         deck = buildDeck(from: sourceRecipes)
         deckIndex = 0
-        if let first = firstOpenIndex() {
+        if startsRandomized, assignRandomDinners() {
+            reviewReason = .randomized
+            showReview = true
+        } else if let first = firstOpenIndex() {
             currentDayIndex = first
         } else {
             showReview = true
@@ -1194,12 +1170,15 @@ struct WeekPlannerView: View {
         }
     }
 
-    private func randomizeWeek() {
+    /// Fills open days only. Takeout and leftovers stay manual. Nothing is saved here.
+    @discardableResult
+    private func assignRandomDinners() -> Bool {
         let targets = (0..<dayCount).filter { isOpen($0) }
-        guard !targets.isEmpty, !sourceRecipes.isEmpty else { return }
+        guard !targets.isEmpty, !sourceRecipes.isEmpty else { return false }
 
         var pool = buildDeck(from: sourceRecipes)
         var cursor = 0
+        var placed = 0
         for index in targets {
             if pool.isEmpty || cursor >= pool.count {
                 pool = buildDeck(from: sourceRecipes)
@@ -1208,11 +1187,12 @@ struct WeekPlannerView: View {
             guard pool.indices.contains(cursor) else { break }
             assignments[index] = .recipe(pool[cursor])
             cursor += 1
+            placed += 1
         }
 
         deck = buildDeck(from: recipesForRefill())
         deckIndex = 0
-        presentReview(.randomized)
+        return placed > 0
     }
 
     private func jumpToNextOpen() {
@@ -1337,6 +1317,15 @@ struct WeekPlannerView: View {
         case .recipe: return Color.terra500
         case .takeout: return Color.lilac500
         case .leftovers: return Color.sky500
+        }
+    }
+
+    /// Opaque light fills. Translucent tints were blending to dark brown on Review.
+    private func surface(for plan: WeekSlotPlan) -> Color {
+        switch plan {
+        case .recipe: return Color.terra100
+        case .takeout: return Color.lilac100
+        case .leftovers: return Color.sky100
         }
     }
 
