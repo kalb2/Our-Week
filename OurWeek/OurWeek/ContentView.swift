@@ -325,7 +325,6 @@ struct WeeklyCalendarCard: View {
     @State private var viewingRecipe: Recipe?
     @State private var weekOffset: Int = 0
     @State private var showWeekPlanner = false
-    @AppStorage("planWeekRandomize") private var planWeekRandomize = false
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -377,9 +376,6 @@ struct WeeklyCalendarCard: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            planWeekButton
-            randomizeSetting
-
             VStack(spacing: 0) {
             // Week Navigation
             HStack(spacing: 12) {
@@ -494,6 +490,10 @@ struct WeeklyCalendarCard: View {
                     }
                 )
             }
+
+            planWeekFooter
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
         }
         .padding(.vertical, 16)
         .background(Color.cardWhite)
@@ -548,101 +548,36 @@ struct WeeklyCalendarCard: View {
                 .presentationDragIndicator(.visible)
         }
         .fullScreenCover(isPresented: $showWeekPlanner, onDismiss: { loadData() }) {
-            WeekPlannerView(
-                weekStart: weekDates.first ?? Date(),
-                startsRandomized: planWeekRandomize
-            )
+            WeekPlannerView(weekStart: weekDates.first ?? Date())
         }
     }
 
-    private var planWeekButton: some View {
+    private var planWeekFooter: some View {
         Button {
             showWeekPlanner = true
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "hand.draw.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(Color.terra600)
-                    .frame(width: 36, height: 36)
-                    .background(Color.terra100)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.black, lineWidth: 1.5)
-                    )
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(weekOffset == 0 ? "PLAN WEEK" : "PLAN THIS WEEK")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(0.6)
-                        .foregroundStyle(.black)
-                    Text(planWeekRandomize ? "Shuffle dinners, then review" : "Swipe recipes, or mark takeout")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.terra600)
-                }
-
-                Spacer(minLength: 8)
-
+                    .font(.system(size: 13, weight: .bold))
+                Text(weekOffset == 0 ? "PLAN WEEK" : "PLAN THIS WEEK")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .tracking(0.5)
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .heavy))
-                    .foregroundStyle(.black)
+                    .font(.system(size: 11, weight: .heavy))
             }
+            .foregroundStyle(.black)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.black, lineWidth: 2)
-            )
-            .boldShadow(Color.terra500, size: 3, radius: 14)
+            .background(Color.terra100)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+            .boldShadow(Color.terra500, size: 3, radius: 12)
         }
         .buttonStyle(.plain)
         .disabled(weekDates.isEmpty)
         .accessibilityLabel("Plan week")
-        .accessibilityHint(planWeekRandomize
-                           ? "Shuffles mains and full meals onto open days, then opens Review. Nothing is saved until you confirm."
-                           : "Swipe through recipes to fill dinners for the week on screen")
-    }
-
-    private var randomizeSetting: some View {
-        Toggle(isOn: $planWeekRandomize) {
-            HStack(spacing: 10) {
-                Image(systemName: "shuffle")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(planWeekRandomize ? Color.terra600 : .black)
-                    .frame(width: 32, height: 32)
-                    .background(planWeekRandomize ? Color.terra100 : Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.black, lineWidth: 1.5)
-                    )
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("RANDOMIZE")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .tracking(0.5)
-                        .foregroundStyle(.black)
-                    Text(planWeekRandomize
-                         ? "On for the next Plan week"
-                         : "Swipe each day when you plan")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(red: 0.29, green: 0.17, blue: 0.13))
-                }
-            }
-        }
-        .tint(Color.terra500)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(planWeekRandomize ? Color.terra50 : Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.black, lineWidth: 2)
-        )
-        .boldShadow(planWeekRandomize ? Color.terra300 : Color.terra200, size: 3, radius: 14)
-        .accessibilityHint("Turn on before Plan week to shuffle dinners onto open days and open Review.")
+        .accessibilityHint("Opens a screen to plan dinners for this week")
     }
 
     private func loadData() {

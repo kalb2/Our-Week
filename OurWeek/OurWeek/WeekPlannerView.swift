@@ -10,8 +10,8 @@
 //  Nothing is written until the review screen confirms.
 //  Full week moves forward and opens Review at the end instead of wrapping.
 //  This day keeps swipes on the selected day.
-//  Randomize is chosen before Plan Week starts. When it is on, open days are
-//  filled up front and Review opens. The swipe deck is the other mode.
+//  Randomize, inside this screen, sends each planned meal to a random open day.
+//  Surprise me fills the open days and opens Review. Nothing is chosen on Home.
 //  A committed swipe flies that recipe off-screen. The next recipe is a new
 //  card at rest — the deck does not advance while the card is still moving.
 //
@@ -24,8 +24,6 @@ import UIKit
 struct WeekPlannerView: View {
     /// First day of the week to plan. Home passes the Monday already used by `weekDates`.
     let weekStart: Date
-    /// When true, open days are shuffled onto Review as soon as planning starts.
-    var startsRandomized: Bool = false
 
     @Environment(DataManager.self) private var dataManager
     @Environment(\.dismiss) private var dismiss
@@ -84,6 +82,7 @@ struct WeekPlannerView: View {
     @State private var isSaving = false
     @State private var showDiscardAlert = false
     @State private var planScope: PlanScope = .week
+    @State private var randomizeDays = false
     @State private var reviewReason: ReviewReason = .browsing
 
     private var weekDates: [Date] {
@@ -235,10 +234,13 @@ struct WeekPlannerView: View {
             case .endOfWeek:
                 return "End of the week · \(counts)"
             case .randomized:
-                return "Shuffled · \(counts)"
+                return "Surprise me · \(counts)"
             case .browsing:
                 return "Review · \(counts)"
             }
+        }
+        if randomizeDays {
+            return "Random day · \(counts)"
         }
         if planScope == .day, weekDates.indices.contains(currentDayIndex) {
             return "\(formatted(weekDates[currentDayIndex], "EEE")) only · \(counts)"
@@ -329,6 +331,7 @@ struct WeekPlannerView: View {
         if planned { return "\(name), planned in this session" }
         if locked { return "\(name), already has dinner" }
         if index == currentDayIndex {
+            if randomizeDays { return "\(name), random open day. The next plan lands here." }
             if planScope == .day { return "\(name), selected. Swipes plan only this day." }
             return "\(name), current day in the week"
         }
@@ -336,14 +339,78 @@ struct WeekPlannerView: View {
     }
 
     private var planningControls: some View {
-        HStack(spacing: 8) {
-            scopeButton(title: "THIS DAY", selected: planScope == .day) {
-                planScope = .day
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                modeButton(
+                    title: "RANDOMIZE",
+                    icon: "shuffle",
+                    selected: randomizeDays,
+                    fill: randomizeDays ? Color.terra500 : Color.white,
+                    foreground: randomizeDays ? .white : .black
+                ) {
+                    setRandomizeDays(!randomizeDays)
+                }
+                .accessibilityHint("Each meal you plan goes to a random open day")
+
+                modeButton(
+                    title: "SURPRISE ME",
+                    icon: "sparkles",
+                    selected: false,
+                    fill: Color.lilac100,
+                    foreground: Color.lilac600
+                ) {
+                    surpriseMe()
+                }
+                .disabled(!canSurprise)
+                .opacity(canSurprise ? 1 : 0.45)
+                .accessibilityHint("Fills open days with shuffled mains and opens Review. Nothing is saved yet.")
             }
-            scopeButton(title: "FULL WEEK", selected: planScope == .week) {
-                planScope = .week
+
+            if !randomizeDays {
+                HStack(spacing: 8) {
+                    scopeButton(title: "THIS DAY", selected: planScope == .day) {
+                        planScope = .day
+                    }
+                    scopeButton(title: "FULL WEEK", selected: planScope == .week) {
+                        planScope = .week
+                    }
+                }
             }
         }
+    }
+
+    private func modeButton(
+        title: String,
+        icon: String,
+        selected: Bool,
+        fill: Color,
+        foreground: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                Text(title)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(0.4)
+            }
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(fill)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.black, lineWidth: selected ? 2 : 1.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var canSurprise: Bool {
+        !sourceRecipes.isEmpty && (0..<dayCount).contains(where: { isOpen($0) })
     }
 
     private func scopeButton(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -365,6 +432,9 @@ struct WeekPlannerView: View {
     }
 
     private var scopeCaption: String {
+        if randomizeDays {
+            return "Each meal you plan lands on a random open day. Tap a day to choose it yourself."
+        }
         if planScope == .day {
             return "Swipes stay on this day. Full week moves you forward again."
         }
@@ -375,6 +445,9 @@ struct WeekPlannerView: View {
     }
 
     private var swipeHint: String {
+        if randomizeDays {
+            return "Swipe right to plan this random day"
+        }
         if planScope == .day {
             return "This day only · right plans it and stays here"
         }
@@ -386,6 +459,9 @@ struct WeekPlannerView: View {
 
     private var plannedDayMessage: String {
         let day = weekDates.indices.contains(currentDayIndex) ? formatted(weekDates[currentDayIndex], "EEEE") : "This day"
+        if randomizeDays {
+            return "\(day) is set. The next open day is chosen at random."
+        }
         if planScope == .day {
             return "\(day) is set. Stay here, pick another day, or review to save."
         }
@@ -839,8 +915,8 @@ struct WeekPlannerView: View {
             )
         case .randomized:
             reviewBanner(
-                kicker: "WEEK SHUFFLED",
-                message: "Open days were shuffled with mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
+                kicker: "SURPRISE ME",
+                message: "Open days got a shuffled mix of mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
                 fill: Color.lilac100,
                 accent: Color.lilac500
             )
@@ -992,10 +1068,7 @@ struct WeekPlannerView: View {
         }
         deck = buildDeck(from: sourceRecipes)
         deckIndex = 0
-        if startsRandomized, assignRandomDinners() {
-            reviewReason = .randomized
-            showReview = true
-        } else if let first = firstOpenIndex() {
+        if let first = firstOpenIndex() {
             currentDayIndex = first
         } else {
             showReview = true
@@ -1079,21 +1152,16 @@ struct WeekPlannerView: View {
     /// Applies the day change in the same non-animated transaction as the new card.
     /// A spring here would retarget the incoming card and replay the rebound.
     private func advanceAfterSwipe() {
-        if planScope == .day {
+        switch advanceForAssign() {
+        case .stay:
             impact(.medium)
-            return
-        }
-
-        let onLastDay = currentDayIndex >= dayCount - 1
-        if !onLastDay, let next = forwardOpenIndex(after: currentDayIndex) {
+        case .day(let next):
             impact(.medium)
             currentDayIndex = next
-            return
-        }
-
-        let reason: ReviewReason = openCount == 0 ? .weekComplete : .endOfWeek
-        DispatchQueue.main.async {
-            presentReview(reason)
+        case .review(let reason):
+            DispatchQueue.main.async {
+                presentReview(reason)
+            }
         }
     }
 
@@ -1135,21 +1203,57 @@ struct WeekPlannerView: View {
     }
 
     private func moveAfterAssign() {
-        if planScope == .day {
+        switch advanceForAssign() {
+        case .stay:
             impact(.medium)
-            return
-        }
-
-        let onLastDay = currentDayIndex >= dayCount - 1
-        if !onLastDay, let next = forwardOpenIndex(after: currentDayIndex) {
+        case .day(let next):
             impact(.medium)
             withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                 currentDayIndex = next
             }
-            return
+        case .review(let reason):
+            presentReview(reason)
         }
+    }
 
-        presentReview(openCount == 0 ? .weekComplete : .endOfWeek)
+    private enum AssignAdvance {
+        case stay
+        case day(Int)
+        case review(ReviewReason)
+    }
+
+    /// Randomize picks any other open day. Full week walks forward. This day stays.
+    private func advanceForAssign() -> AssignAdvance {
+        if randomizeDays {
+            if let next = randomOpenIndex() {
+                return .day(next)
+            }
+            return .review(openCount == 0 ? .weekComplete : .endOfWeek)
+        }
+        if planScope == .day {
+            return .stay
+        }
+        let onLastDay = currentDayIndex >= dayCount - 1
+        if !onLastDay, let next = forwardOpenIndex(after: currentDayIndex) {
+            return .day(next)
+        }
+        return .review(openCount == 0 ? .weekComplete : .endOfWeek)
+    }
+
+    private func randomOpenIndex() -> Int? {
+        (0..<dayCount).filter { isOpen($0) }.randomElement()
+    }
+
+    private func setRandomizeDays(_ on: Bool) {
+        randomizeDays = on
+        guard on, let pick = randomOpenIndex() else { return }
+        planScope = .week
+        currentDayIndex = pick
+    }
+
+    private func surpriseMe() {
+        guard !isResolvingSwipe, assignRandomDinners() else { return }
+        presentReview(.randomized)
     }
 
     private func presentReview(_ reason: ReviewReason) {
@@ -1164,6 +1268,7 @@ struct WeekPlannerView: View {
         guard weekDates.indices.contains(index) else { return }
         currentDayIndex = index
         planScope = .day
+        randomizeDays = false
         reviewReason = .browsing
         withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
             showReview = false
