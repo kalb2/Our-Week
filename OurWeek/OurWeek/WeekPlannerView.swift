@@ -888,10 +888,7 @@ struct WeekPlannerView: View {
 
     private var reviewList: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                reviewIntro
-                    .transition(.move(edge: .top).combined(with: .opacity))
-
+            VStack(spacing: 10) {
                 reviewShuffle
 
                 ForEach(0..<dayCount, id: \.self) { index in
@@ -903,86 +900,29 @@ struct WeekPlannerView: View {
         }
     }
 
-    @ViewBuilder
-    private var reviewIntro: some View {
-        switch reviewReason {
-        case .browsing:
-            Text("Dinner is saved for each new day. Open days stay empty. Tap a day to change it.")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(WeekPlannerView.reviewInk)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .weekComplete:
-            reviewBanner(
-                kicker: "WEEK COMPLETE",
-                message: "You're done planning. Review the dinners below, then save.",
-                fill: Color.lime100,
-                accent: Color.lime500
-            )
-        case .endOfWeek:
-            reviewBanner(
-                kicker: currentDayIndex >= dayCount - 1 ? "END OF THE WEEK" : "NO DAYS AFTER THIS",
-                message: currentDayIndex >= dayCount - 1
-                    ? "That's the last day. Review and save, or jump back to any day you left open. Nothing is saved until you confirm."
-                    : "No open days left after this one. Review and save, or jump back to a day you skipped. Nothing is saved until you confirm.",
-                fill: Color.terra100,
-                accent: Color.terra500
-            )
-        case .randomized:
-            reviewBanner(
-                kicker: "SURPRISE ME",
-                message: "Open days got a shuffled mix of mains and full meals, favorites first. Takeout and leftovers stay manual. Edit any day, then save.",
-                fill: Color.lilac100,
-                accent: Color.lilac500
-            )
-        }
-    }
-
-    private func reviewBanner(kicker: String, message: String, fill: Color, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(kicker)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .tracking(1)
-                .foregroundStyle(accent)
-            Text(message)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(.black)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(fill)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-        .boldShadow(accent, size: 3, radius: 14)
-    }
-
     private var reviewShuffle: some View {
-        Button(action: reshuffleAssignments) {
-            HStack(spacing: 10) {
-                Image(systemName: "shuffle")
-                    .font(.system(size: 16, weight: .bold))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("SHUFFLE DAYS")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .tracking(0.5)
-                    Text(canReshuffle ? "Move these dinners onto different days" : "Needs at least two days to move")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(WeekPlannerView.reviewInk)
+        HStack {
+            Spacer(minLength: 0)
+            Button(action: reshuffleAssignments) {
+                HStack(spacing: 5) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Shuffle")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
                 }
-                Spacer(minLength: 0)
+                .foregroundStyle(.black)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color.black, lineWidth: 1.5))
             }
-            .foregroundStyle(.black)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.lime100)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-            .boldShadow(Color.lime500, size: 3, radius: 14)
+            .buttonStyle(.plain)
+            .disabled(!canReshuffle)
+            .opacity(canReshuffle ? 1 : 0.4)
+            .accessibilityLabel("Shuffle days")
+            .accessibilityHint("Reassigns planned recipes across open days. Takeout and leftovers stay put.")
         }
-        .buttonStyle(.plain)
-        .disabled(!canReshuffle)
-        .opacity(canReshuffle ? 1 : 0.45)
-        .accessibilityHint("Reassigns planned recipes across open days. Takeout and leftovers stay put.")
     }
 
     private func reviewRow(_ index: Int) -> some View {
@@ -1009,35 +949,23 @@ struct WeekPlannerView: View {
                 HStack(alignment: .center, spacing: 14) {
                     reviewThumbnail(plan: plan, dinner: dinner)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text("\(formatted(date, "EEE")) \(formatted(date, "d"))")
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .font(.system(size: 12, weight: .heavy, design: .rounded))
                             .tracking(0.8)
                             .foregroundStyle(.black)
 
                         Text(title)
-                            .font(.system(size: 20, weight: .heavy, design: .rounded))
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .foregroundStyle(.black)
                             .lineLimit(2)
                             .minimumScaleFactor(0.85)
                             .multilineTextAlignment(.leading)
 
                         Text(subtitle)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(WeekPlannerView.reviewInk)
-                            .lineLimit(2)
-
-                        if canEdit {
-                            Text(plan == nil ? "CHOOSE" : "CHANGE")
-                                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                                .tracking(0.6)
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.terra100)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 1.5))
-                        }
+                            .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -1046,23 +974,44 @@ struct WeekPlannerView: View {
             .accessibilityLabel("\(formatted(date, "EEEE")), \(title). \(subtitle)")
             .accessibilityHint(canEdit ? "Opens a list to choose a different dinner for this day" : "This day already has dinner")
 
-            if plan != nil {
-                Button {
-                    clearAssignment(at: index)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 32, height: 32)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+            if canEdit || plan != nil {
+                VStack(spacing: 6) {
+                    if plan != nil {
+                        Button {
+                            clearAssignment(at: index)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.black)
+                                .frame(width: 28, height: 28)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove \(title)")
+                    }
+
+                    if canEdit {
+                        Button {
+                            replacingDay = DayReplacement(index: index)
+                        } label: {
+                            Text(plan == nil ? "Choose" : "Change")
+                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 5)
+                                .background(Color.terra100)
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black, lineWidth: 1.5))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(plan == nil ? "Choose dinner" : "Change dinner")
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(title)")
             }
         }
-        .padding(16)
+        .padding(12)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
@@ -1077,7 +1026,7 @@ struct WeekPlannerView: View {
                 reviewIconTile(plan: plan, dinner: dinner)
             }
         }
-        .frame(width: 76, height: 76)
+        .frame(width: 64, height: 64)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
