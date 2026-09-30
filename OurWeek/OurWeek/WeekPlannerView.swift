@@ -120,20 +120,73 @@ struct WeekPlannerView: View {
     private var filledCount: Int { dayCount - openCount }
 
     var body: some View {
-        Group {
-            if didLoad {
-                plannerContent
-            } else {
-                Color.bgBase
+        ZStack {
+            Group {
+                if didLoad {
+                    plannerContent
+                } else {
+                    Color.bgBase
+                }
+            }
+            if showDiscardAlert {
+                discardPrompt
             }
         }
         .onAppear(perform: load)
-        .alert("Discard this plan?", isPresented: $showDiscardAlert) {
-            Button("Keep planning", role: .cancel) {}
-            Button("Discard", role: .destructive) { dismiss() }
-        } message: {
-            Text("Dinners you just picked won't be saved.")
+    }
+
+    private var discardPrompt: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                Text("Discard this plan?")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.black)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 10) {
+                    Button {
+                        showDiscardAlert = false
+                    } label: {
+                        Text("Keep planning")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.terra500)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .boldShadow(Color.black, size: 3, radius: 14)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Discard")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .boldShadow(Color.terra200, size: 3, radius: 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .background(Color.bgBase)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+            .boldShadow(Color.terra500, size: 4, radius: 18)
+            .padding(.horizontal, 28)
         }
+        .preferredColorScheme(.light)
     }
 
     private var plannerContent: some View {
