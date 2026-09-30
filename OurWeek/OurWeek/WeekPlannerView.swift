@@ -12,7 +12,7 @@
 //  This day keeps swipes on the selected day.
 //  Randomize, inside this screen, sends each planned meal to a random open day.
 //  Surprise me fills the open days and opens Review. Nothing is chosen on Home.
-//  Review shows each dinner's photo, and can shuffle or replace a single day.
+//  Review shows each dinner's photo. Change opens Add a Meal. Shuffle stays on Review.
 //  A committed swipe flies that recipe off-screen. The next recipe is a new
 //  card at rest — the deck does not advance while the card is still moving.
 //
@@ -52,6 +52,7 @@ struct WeekPlannerView: View {
         case recipe(Recipe)
         case takeout
         case leftovers
+        case named(String)
 
         var title: String {
             switch self {
@@ -62,6 +63,8 @@ struct WeekPlannerView: View {
                 return WeekPlannerView.takeoutTitle
             case .leftovers:
                 return WeekPlannerView.leftoversTitle
+            case .named(let title):
+                return title
             }
         }
     }
@@ -175,9 +178,15 @@ struct WeekPlannerView: View {
         .preferredColorScheme(.light)
         .allowsHitTesting(!isSaving && !isResolvingSwipe)
         .sheet(item: $replacingDay) { day in
-            dayReplacementSheet(day.index)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            AddMealSheet(
+                date: weekDates.indices.contains(day.index) ? weekDates[day.index] : weekStart,
+                dataManager: dataManager,
+                onSelect: { title, recipe in
+                    applyMealChoice(title: title, recipe: recipe, to: day.index)
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -240,16 +249,7 @@ struct WeekPlannerView: View {
     private var progressLine: String {
         let counts = "\(filledCount) filled · \(openCount) open"
         if showReview {
-            switch reviewReason {
-            case .weekComplete:
-                return "Week complete · \(counts)"
-            case .endOfWeek:
-                return "End of the week · \(counts)"
-            case .randomized:
-                return "Surprise me · \(counts)"
-            case .browsing:
-                return "Review · \(counts)"
-            }
+            return counts
         }
         if randomizeDays {
             return "Random day · \(counts)"
@@ -929,15 +929,10 @@ struct WeekPlannerView: View {
         let date = weekDates[index]
         let plan = assignments[index]
         let dinner = existingDinner(on: index)
-        let title: String = {
+        let title: String? = {
             if let plan { return plan.title }
-            if let dinner { return dinner.title ?? "Dinner" }
-            return "Nothing planned"
-        }()
-        let subtitle: String = {
-            if let plan { return reviewSubtitle(for: plan) }
-            if dinner != nil { return "Already on the calendar" }
-            return "Tap to choose a dinner"
+            if let dinner { return dinner.title }
+            return nil
         }()
         let canEdit = dinner == nil
 
@@ -955,24 +950,21 @@ struct WeekPlannerView: View {
                             .tracking(0.8)
                             .foregroundStyle(.black)
 
-                        Text(title)
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.black)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                            .multilineTextAlignment(.leading)
-
-                        Text(subtitle)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(WeekPlannerView.reviewInk)
-                            .lineLimit(1)
+                        if let title, !title.isEmpty {
+                            Text(title)
+                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.black)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(formatted(date, "EEEE")), \(title). \(subtitle)")
-            .accessibilityHint(canEdit ? "Opens a list to choose a different dinner for this day" : "This day already has dinner")
+            .accessibilityLabel(title.map { "\(formatted(date, "EEEE")), \($0)" } ?? formatted(date, "EEEE"))
+            .accessibilityHint(canEdit ? "Opens meal search for this day" : "This day already has dinner")
 
             if canEdit || plan != nil {
                 VStack(spacing: 6) {
@@ -989,7 +981,7 @@ struct WeekPlannerView: View {
                                 .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(title)")
+                        .accessibilityLabel("Remove \(title ?? "dinner")")
                     }
 
                     if canEdit {
@@ -1043,7 +1035,7 @@ struct WeekPlannerView: View {
         let foreground: Color
         if let plan {
             switch plan {
-            case .recipe:
+            case .recipe, .named:
                 icon = "fork.knife"
                 fill = Color.terra100
                 foreground = Color.terra600
@@ -1074,192 +1066,6 @@ struct WeekPlannerView: View {
         }
     }
 
-    private func dayReplacementSheet(_ index: Int) -> some View {
-        let date = weekDates.indices.contains(index) ? weekDates[index] : Date()
-        return VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("REPLACE")
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .tracking(1.2)
-                        .foregroundStyle(Color.terra500)
-                    Text(formatted(date, "EEEE"))
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black)
-                }
-                Spacer(minLength: 8)
-                Button {
-                    replacingDay = nil
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 10) {
-                    replacementChoice(
-                        title: Self.takeoutTitle,
-                        subtitle: "No recipe",
-                        icon: "takeoutbag.and.cup.and.straw.fill",
-                        fill: Color.lilac100,
-                        foreground: Color.lilac600,
-                        selected: isCurrentPlan(.takeout, on: index)
-                    ) {
-                        replaceDay(index, with: .takeout)
-                    }
-
-                    replacementChoice(
-                        title: Self.leftoversTitle,
-                        subtitle: "No recipe",
-                        icon: "refrigerator.fill",
-                        fill: Color.sky100,
-                        foreground: Color.sky500,
-                        selected: isCurrentPlan(.leftovers, on: index)
-                    ) {
-                        replaceDay(index, with: .leftovers)
-                    }
-
-                    if pickerRecipes.isEmpty {
-                        Text("No mains or full meals yet. Takeout and leftovers still work.")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(WeekPlannerView.reviewInk)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 4)
-                    } else {
-                        ForEach(pickerRecipes, id: \.objectID) { recipe in
-                            replacementRecipeRow(recipe, index: index)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
-            }
-        }
-        .background(Color.bgBase.ignoresSafeArea())
-        .preferredColorScheme(.light)
-    }
-
-    private var pickerRecipes: [Recipe] {
-        sourceRecipes.sorted { lhs, rhs in
-            if lhs.isFavorite != rhs.isFavorite { return lhs.isFavorite && !rhs.isFavorite }
-            return displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
-        }
-    }
-
-    private func replacementRecipeRow(_ recipe: Recipe, index: Int) -> some View {
-        let selected = isCurrentPlan(.recipe(recipe), on: index)
-        return Button {
-            replaceDay(index, with: .recipe(recipe))
-        } label: {
-            HStack(spacing: 12) {
-                recipeImage(recipe, emojiSize: 22)
-                    .frame(width: 52, height: 52)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 1.5))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(displayName(for: recipe))
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    if recipe.isFavorite {
-                        Text("Favorite")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.terra600)
-                    }
-                }
-                Spacer(minLength: 0)
-                if selected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(Color.terra500)
-                }
-            }
-            .padding(12)
-            .background(selected ? Color.terra50 : Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: selected ? 2 : 1.5))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func replacementChoice(
-        title: String,
-        subtitle: String,
-        icon: String,
-        fill: Color,
-        foreground: Color,
-        selected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(foreground)
-                    .frame(width: 52, height: 52)
-                    .background(fill)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 1.5))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black)
-                    Text(subtitle)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(WeekPlannerView.reviewInk)
-                }
-                Spacer(minLength: 0)
-                if selected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(Color.terra500)
-                }
-            }
-            .padding(12)
-            .background(selected ? Color.terra50 : Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: selected ? 2 : 1.5))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func isCurrentPlan(_ plan: WeekSlotPlan, on index: Int) -> Bool {
-        switch (assignments[index], plan) {
-        case (.takeout, .takeout), (.leftovers, .leftovers):
-            return true
-        case (.recipe(let current), .recipe(let picked)):
-            return current.objectID == picked.objectID
-        default:
-            return false
-        }
-    }
-
-    private func reviewSubtitle(for plan: WeekSlotPlan) -> String {
-        switch plan {
-        case .recipe:
-            return "Planned recipe"
-        case .takeout:
-            return "Takeout"
-        case .leftovers:
-            return "Leftovers"
-        }
-    }
-
     private var saveBar: some View {
         VStack(spacing: 8) {
             Button(action: savePlan) {
@@ -1276,12 +1082,6 @@ struct WeekPlannerView: View {
             }
             .buttonStyle(.plain)
             .disabled(assignments.isEmpty || isSaving)
-
-            if filledCount == dayCount && assignments.isEmpty {
-                Text("Every day already has dinner.")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.6))
-            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
@@ -1584,6 +1384,20 @@ struct WeekPlannerView: View {
         return true
     }
 
+    private func applyMealChoice(title: String, recipe: Recipe?, to index: Int) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if let recipe {
+            replaceDay(index, with: .recipe(recipe))
+        } else if trimmed == Self.takeoutTitle {
+            replaceDay(index, with: .takeout)
+        } else if trimmed == Self.leftoversTitle {
+            replaceDay(index, with: .leftovers)
+        } else {
+            replaceDay(index, with: .named(trimmed))
+        }
+    }
+
     private func replaceDay(_ index: Int, with plan: WeekSlotPlan) {
         guard weekDates.indices.contains(index), existingDinner(on: index) == nil else { return }
         releaseRecipe(at: index)
@@ -1655,6 +1469,12 @@ struct WeekPlannerView: View {
                     date: date,
                     mealType: Self.plannedMealType
                 )
+            case .named(let title):
+                _ = dataManager.createMealPlan(
+                    title: title,
+                    date: date,
+                    mealType: Self.plannedMealType
+                )
             case .none:
                 break
             }
@@ -1722,7 +1542,7 @@ struct WeekPlannerView: View {
 
     private func iconName(for plan: WeekSlotPlan) -> String {
         switch plan {
-        case .recipe: return "fork.knife"
+        case .recipe, .named: return "fork.knife"
         case .takeout: return "takeoutbag.and.cup.and.straw.fill"
         case .leftovers: return "refrigerator.fill"
         }
@@ -1730,7 +1550,7 @@ struct WeekPlannerView: View {
 
     private func tint(for plan: WeekSlotPlan) -> Color {
         switch plan {
-        case .recipe: return Color.terra500
+        case .recipe, .named: return Color.terra500
         case .takeout: return Color.lilac500
         case .leftovers: return Color.sky500
         }
@@ -1739,7 +1559,7 @@ struct WeekPlannerView: View {
     /// Opaque light fills. Translucent tints were blending to dark brown on Review.
     private func surface(for plan: WeekSlotPlan) -> Color {
         switch plan {
-        case .recipe: return Color.terra100
+        case .recipe, .named: return Color.terra100
         case .takeout: return Color.lilac100
         case .leftovers: return Color.sky100
         }

@@ -3,6 +3,8 @@ import CoreData
 
 struct AddMealSheet: View {
     let dataManager: DataManager
+    /// When set, a pick is returned and nothing is written. Plan Week Review uses this so Save stays the confirm.
+    var onSelect: ((String, Recipe?) -> Void)? = nil
     
     @Environment(\.dismiss) private var dismiss
     
@@ -12,8 +14,9 @@ struct AddMealSheet: View {
     @State private var isSaving = false
     @FocusState private var isSearchFocused: Bool
     
-    init(date: Date, dataManager: DataManager) {
+    init(date: Date, dataManager: DataManager, onSelect: ((String, Recipe?) -> Void)? = nil) {
         self.dataManager = dataManager
+        self.onSelect = onSelect
         self._mealDate = State(initialValue: date)
     }
     
@@ -188,7 +191,9 @@ struct AddMealSheet: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .stroke(Color.terra200, lineWidth: 1)
                         )
-                    Text("Press return to save \"\(searchText)\"")
+                    Text(onSelect == nil
+                         ? "Press return to save \"\(searchText)\""
+                         : "Press return to use \"\(searchText)\"")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(.gray.opacity(0.5))
                 }
@@ -313,6 +318,13 @@ struct AddMealSheet: View {
         isSaving = true
         
         let finalTitle = title.trimmingCharacters(in: .whitespaces)
+
+        if let onSelect {
+            onSelect(finalTitle, recipe)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            dismiss()
+            return
+        }
         
         // Build ingredients from recipe if available
         var ingredientString: String? = nil
