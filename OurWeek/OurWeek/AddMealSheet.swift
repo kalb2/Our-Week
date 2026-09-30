@@ -336,11 +336,7 @@ struct AddMealSheet: View {
                 let unit = ing.unit ?? ""
                 var text = name
                 if amount > 0 {
-                    let formatter = NumberFormatter()
-                    formatter.minimumFractionDigits = 0
-                    formatter.maximumFractionDigits = 2
-                    let amtStr = formatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
-                    text = "\(amtStr) \(unit) \(name)".trimmingCharacters(in: .whitespaces)
+                    text = CookingAmount.line(amount: amount, unit: unit, name: name)
                 }
                 return "0|\(text)"
             }

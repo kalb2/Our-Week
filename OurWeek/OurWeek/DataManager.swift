@@ -479,14 +479,16 @@ class DataManager {
         recipe.household = household ?? currentHousehold
 
         // Build legacy string fields for backward compat
-        recipe.ingredients = ingredientInputs.map { "\($0.amount) \($0.unit) \($0.name)".trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        recipe.ingredients = ingredientInputs.map {
+            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name)
+        }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
         // Create structured ingredients
         for input in ingredientInputs {
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = input.amount
+            ing.amount = CookingAmount.storedValue(input.amount, unit: input.unit)
             ing.unit = input.unit
             ing.name = input.name
             ing.notes = input.notes
@@ -541,7 +543,9 @@ class DataManager {
         recipe.updatedAt = Date()
 
         // Update legacy strings
-        recipe.ingredients = ingredientInputs.map { "\($0.amount) \($0.unit) \($0.name)".trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        recipe.ingredients = ingredientInputs.map {
+            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name)
+        }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
         // Replace ingredients
@@ -551,7 +555,7 @@ class DataManager {
         for input in ingredientInputs {
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = input.amount
+            ing.amount = CookingAmount.storedValue(input.amount, unit: input.unit)
             ing.unit = input.unit
             ing.name = input.name
             ing.notes = input.notes
@@ -879,11 +883,7 @@ class DataManager {
                     
                     var text = name
                     if amount > 0 {
-                        let amountFormatter = NumberFormatter()
-                        amountFormatter.minimumFractionDigits = 0
-                        amountFormatter.maximumFractionDigits = 2
-                        let amountStr = amountFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
-                        text = "\(amountStr) \(unit) \(name)".trimmingCharacters(in: .whitespaces)
+                        text = CookingAmount.line(amount: amount, unit: unit, name: name)
                     }
                     if !text.isEmpty {
                         newItems.append(text)

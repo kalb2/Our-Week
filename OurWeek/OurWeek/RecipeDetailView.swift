@@ -484,7 +484,7 @@ struct RecipeDetailView: View {
                             // Amount + unit
                             if ing.amount > 0 {
                                 let scaledAmount = ing.amount * servingMultiplier
-                                Text("\(formatScaledAmount(scaledAmount)) \(ing.unit ?? "")")
+                                Text("\(CookingAmount.format(scaledAmount, unit: ing.unit ?? "")) \(ing.unit ?? "")")
                                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }
@@ -755,14 +755,5 @@ struct RecipeDetailView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    // MARK: - Helpers
-
-    private func formatScaledAmount(_ amount: Double) -> String {
-        if amount == floor(amount) {
-            return "\(Int(amount))"
-        }
-        return String(format: "%.1f", amount)
     }
 }

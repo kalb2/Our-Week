@@ -1624,11 +1624,7 @@ struct WeekPlannerView: View {
             let unit = ingredient.unit ?? ""
             var text = name
             if amount > 0 {
-                let formatter = NumberFormatter()
-                formatter.minimumFractionDigits = 0
-                formatter.maximumFractionDigits = 2
-                let amountString = formatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
-                text = "\(amountString) \(unit) \(name)".trimmingCharacters(in: .whitespaces)
+                text = CookingAmount.line(amount: amount, unit: unit, name: name)
             }
             return "0|\(text)"
         }

@@ -846,7 +846,7 @@ extension AddRecipeView {
         } else {
             ingredientRows = ings.map { ing in
                 IngredientRow(
-                    amount: ing.amount > 0 ? formatAmount(ing.amount) : "",
+                    amount: ing.amount > 0 ? CookingAmount.format(ing.amount, unit: ing.unit ?? "") : "",
                     unit: ing.unit ?? "",
                     name: ing.name ?? "",
                     notes: ing.notes ?? ""
@@ -868,39 +868,6 @@ extension AddRecipeView {
         }
     }
 
-    private func formatAmount(_ amount: Double) -> String {
-        let tolerance = 0.01
-        if abs(amount - round(amount)) < tolerance {
-            return "\(Int(round(amount)))"
-        }
-        
-        let whole = Int(amount)
-        let remainder = amount - Double(whole)
-        
-        let fractions: [(Double, String)] = [
-            (1.0/2.0, "1/2"),
-            (1.0/3.0, "1/3"),
-            (2.0/3.0, "2/3"),
-            (1.0/4.0, "1/4"),
-            (3.0/4.0, "3/4"),
-            (1.0/8.0, "1/8"),
-            (3.0/8.0, "3/8"),
-            (5.0/8.0, "5/8"),
-            (7.0/8.0, "7/8")
-        ]
-        
-        for (value, string) in fractions {
-            if abs(remainder - value) < tolerance {
-                if whole > 0 {
-                    return "\(whole) \(string)"
-                } else {
-                    return string
-                }
-            }
-        }
-        
-        return String(format: "%.2f", amount).replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
-    }
 }
 
 // MARK: - Flow Layout (for category chips)
