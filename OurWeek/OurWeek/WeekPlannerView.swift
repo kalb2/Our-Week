@@ -889,39 +889,12 @@ struct WeekPlannerView: View {
     private var reviewList: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 10) {
-                reviewShuffle
-
                 ForEach(0..<dayCount, id: \.self) { index in
                     reviewRow(index)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
-        }
-    }
-
-    private var reviewShuffle: some View {
-        HStack {
-            Spacer(minLength: 0)
-            Button(action: reshuffleAssignments) {
-                HStack(spacing: 5) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 11, weight: .bold))
-                    Text("Shuffle")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.white)
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.black, lineWidth: 1.5))
-            }
-            .buttonStyle(.plain)
-            .disabled(!canReshuffle)
-            .opacity(canReshuffle ? 1 : 0.4)
-            .accessibilityLabel("Shuffle days")
-            .accessibilityHint("Reassigns planned recipes across open days. Takeout and leftovers stay put.")
         }
     }
 
@@ -1067,12 +1040,35 @@ struct WeekPlannerView: View {
     }
 
     private var saveBar: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 10) {
+            Button(action: reshuffleAssignments) {
+                HStack(spacing: 6) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Shuffle")
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                }
+                .foregroundStyle(.black)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .boldShadow(Color.terra200, size: 3, radius: 14)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canReshuffle || isSaving)
+            .opacity(canReshuffle ? 1 : 0.4)
+            .accessibilityLabel("Shuffle days")
+            .accessibilityHint("Reassigns planned recipes across open days. Takeout and leftovers stay put.")
+
             Button(action: savePlan) {
-                Text(assignments.isEmpty ? "NOTHING NEW TO SAVE" : "SAVE \(assignments.count) DINNER\(assignments.count == 1 ? "" : "S")")
+                Text(assignments.isEmpty ? "Save" : (assignments.count == 1 ? "Save dinner" : "Save dinners"))
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .tracking(0.6)
                     .foregroundStyle(assignments.isEmpty ? WeekPlannerView.reviewInk : .white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(assignments.isEmpty ? Color.terra100 : Color.terra500)
@@ -1082,6 +1078,7 @@ struct WeekPlannerView: View {
             }
             .buttonStyle(.plain)
             .disabled(assignments.isEmpty || isSaving)
+            .accessibilityLabel(assignments.isEmpty ? "Save" : "Save \(assignments.count) dinners")
         }
         .padding(.horizontal, 20)
         .padding(.top, 8)
