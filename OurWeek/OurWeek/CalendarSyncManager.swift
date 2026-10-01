@@ -64,8 +64,59 @@ class CalendarSyncManager {
         set { UserDefaults.standard.set(newValue, forKey: "appleCalendarSyncEnabled") }
     }
 
+    private var restoreTask: Task<Void, Never>?
+
     init() {
         refreshAuthorizationStatus()
+    }
+
+    /// Reconnect EventKit from the saved sync toggle and calendar selection.
+    /// Does not clear `selectedAppleCalendarIDs` or `writeBackCalendarID`.
+    /// Asks for access only when sync was already turned on and iOS still
+    /// reports `.notDetermined` (one prompt). An existing full-access grant
+    /// is reused with no prompt.
+    func restoreSavedAccess() async {
+        if let restoreTask {
+            await restoreTask.value
+            return
+        }
+        let task = Task { @MainActor in
+            await self.performRestore()
+        }
+        restoreTask = task
+        await task.value
+        restoreTask = nil
+    }
+
+    private func performRestore() async {
+        refreshAuthorizationStatus()
+        guard isSyncEnabled else { return }
+
+        if authorizationStatus == .notDetermined {
+            _ = await requestAccess()
+            return
+        }
+
+        guard authorizationStatus == .fullAccess else { return }
+
+        loadCalendars()
+        // After an upgrade the store can come up empty even though the saved
+        // identifiers and the system grant are still there. Reset once and
+        // re-request access (no prompt when iOS already has a grant). Leave
+        // the saved selection in place either way.
+        if savedSelectionMissingFromStore() {
+            eventStore.reset()
+            refreshAuthorizationStatus()
+            guard authorizationStatus == .fullAccess || authorizationStatus == .notDetermined else { return }
+            _ = await requestAccess()
+        }
+    }
+
+    private func savedSelectionMissingFromStore() -> Bool {
+        let selected = selectedCalendarIDs
+        guard !selected.isEmpty else { return false }
+        let known = Set(eventStore.calendars(for: .event).map(\.calendarIdentifier))
+        return selected.isDisjoint(with: known)
     }
 
     // MARK: - Authorization

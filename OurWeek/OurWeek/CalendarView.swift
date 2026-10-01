@@ -4,6 +4,7 @@ import CoreData
 struct CalendarView: View {
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @State private var monthOffset: Int = 0
     @State private var showAddEventSheet = false
@@ -94,7 +95,14 @@ struct CalendarView: View {
             }
             .navigationBarHidden(true)
             .background(Color.bgBase)
-            .onAppear(perform: loadData)
+            .onAppear {
+                loadData()
+                refreshAppleEvents()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                refreshAppleEvents()
+            }
             .onChange(of: selectedDate, loadData)
             .sheet(isPresented: $showAddEventSheet, onDismiss: loadData) {
                 AddEventSheet(date: selectedDate, dataManager: dataManager)
@@ -192,6 +200,15 @@ struct CalendarView: View {
         let start = Calendar.current.startOfDay(for: selectedDate)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
         appleEvents = calendarSyncManager.fetchEvents(from: start, to: end)
+    }
+
+    private func refreshAppleEvents() {
+        Task {
+            await calendarSyncManager.restoreSavedAccess()
+            let start = Calendar.current.startOfDay(for: selectedDate)
+            let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
+            appleEvents = calendarSyncManager.fetchEvents(from: start, to: end)
+        }
     }
 }
 

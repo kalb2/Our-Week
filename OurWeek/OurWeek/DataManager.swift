@@ -208,16 +208,43 @@ class DataManager {
         loadOrCreateHousehold()
     }
 
-    /// Create a new Household
+    /// Create a new Household. Does not rename an existing household.
+    /// A blank owner is stored as nil — never a placeholder name.
     func createHousehold(name: String, ownerName: String) -> Household {
         let household = Household(context: viewContext)
         household.id = UUID()
         household.name = name
-        household.ownerName = ownerName
+        let trimmedOwner = ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        household.ownerName = trimmedOwner.isEmpty ? nil : trimmedOwner
         household.createdAt = Date()
         save()
         currentHousehold = household
         return household
+    }
+
+    /// Keep the device profile and the owned household from being stuck on the
+    /// old preview name. Never writes a placeholder over a name that is already
+    /// saved, and never edits a household this device does not own.
+    func replaceDemoOwnerNameIfNeeded() {
+        let profileKey = "userProfileName"
+        var profile = UserDefaults.standard.string(forKey: profileKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if profile.isEmpty,
+           let owned = allHouseholds.first(where: { isOwner(of: $0) }) {
+            let owner = owned.ownerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !owner.isEmpty, owner.caseInsensitiveCompare("Alex") != .orderedSame {
+                UserDefaults.standard.set(owner, forKey: profileKey)
+                profile = owner
+            }
+        }
+
+        guard let household = currentHousehold, isOwner(of: household) else { return }
+        let owner = household.ownerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard owner.caseInsensitiveCompare("Alex") == .orderedSame else { return }
+        guard !profile.isEmpty, profile.caseInsensitiveCompare("Alex") != .orderedSame else { return }
+        household.ownerName = profile
+        save()
     }
 
     // MARK: - Sync Notifications

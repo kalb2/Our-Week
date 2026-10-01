@@ -238,27 +238,40 @@ struct GreetingHeader: View {
     @Environment(DataManager.self) var dataManager
     
     @AppStorage("profileImageData") private var profileImageData: Data?
+    @AppStorage("userProfileName") private var profileName = ""
     @State private var showCalendarSettings = false
     @State private var showProfileMenu = false
+
+    /// The person holding the phone. Local profile wins. Household owner is only a
+    /// fallback. Never invent a demo name when both are empty.
+    private var greetingName: String? {
+        let profile = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !profile.isEmpty { return profile }
+        let owner = dataManager.currentHousehold?.ownerName?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !owner.isEmpty { return owner }
+        return nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Good Morning,")
+                    Text(greetingName == nil ? "Good Morning" : "Good Morning,")
                         .font(.system(size: 34, weight: .heavy, design: .rounded))
                         .tracking(-0.5)
-                    // Gradient text: peach-500 → terra-500
-                    Text(dataManager.currentHousehold?.ownerName ?? "Alex")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .italic()
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.peach500, Color.terra500],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                    if let greetingName {
+                        Text(greetingName)
+                            .font(.system(size: 34, weight: .heavy, design: .rounded))
+                            .italic()
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color.peach500, Color.terra500],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
+                    }
                 }
                 Spacer()
                 Button(action: { showProfileMenu = true }) {
@@ -367,6 +380,7 @@ struct WeeklyCalendarCard: View {
 
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var weekMeals: [MealPlan] = []
     @State private var weekEvents: [CalendarEvent] = []
     @State private var appleEvents: [AppleCalendarEvent] = []
@@ -448,13 +462,22 @@ struct WeeklyCalendarCard: View {
     var body: some View {
         weekCard
             .padding(.horizontal, 24)
-            .onAppear { loadData() }
+            .onAppear {
+                dataManager.replaceDemoOwnerNameIfNeeded()
+                loadData()
+                refreshAppleEvents()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                refreshAppleEvents()
+            }
             .onChange(of: weekOffset) { _, _ in
                 if case .line(let day, let id) = focusedField {
                     commitLine(day: day, lineID: id)
                 }
                 focusedField = nil
                 loadData()
+                refreshAppleEvents()
             }
             .onChange(of: focusedField) { old, new in
                 if case .line(let day, let id) = old {
@@ -1012,6 +1035,16 @@ struct WeeklyCalendarCard: View {
         weekEvents = dataManager.fetchWeekEvents(from: monday)
         appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
         syncLines()
+    }
+
+    /// Reload Apple events after the saved EventKit grant and calendar
+    /// selection are applied. Does not rebuild dinner lines.
+    private func refreshAppleEvents() {
+        Task {
+            await calendarSyncManager.restoreSavedAccess()
+            guard let monday = weekDates.first else { return }
+            appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
+        }
     }
 
     private func reloadMeals() {
