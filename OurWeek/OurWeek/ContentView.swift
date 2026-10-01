@@ -279,13 +279,7 @@ struct GreetingHeader: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, 8)
-
-            Text("READY TO SEIZE THE WEEK?")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray)
-                .tracking(1)
-                .padding(.bottom, 16)
+            .padding(.bottom, 16)
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
