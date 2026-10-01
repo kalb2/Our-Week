@@ -19,8 +19,7 @@ struct CalendarSettingsView: View {
                 syncStatusSection
 
                 // Calendar selection
-                if syncManager.isSyncEnabled &&
-                   syncManager.authorizationStatus == .fullAccess {
+                if syncManager.isSyncEnabled && syncManager.canReadEvents {
                     calendarSelectionSection
                     writeBackSection
                 }
@@ -36,10 +35,7 @@ struct CalendarSettingsView: View {
             }
         }
         .onAppear {
-            syncManager.refreshAuthorizationStatus()
-            if syncManager.authorizationStatus == .fullAccess {
-                syncManager.loadCalendars()
-            }
+            Task { await syncManager.prepareForReading() }
         }
     }
 
@@ -89,13 +85,7 @@ struct CalendarSettingsView: View {
     private var permissionStatusRow: some View {
         switch syncManager.authorizationStatus {
         case .fullAccess:
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.lime500)
-                Text("Calendar access granted")
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
+            accessGrantedRow
 
         case .denied, .restricted:
             HStack(spacing: 8) {
@@ -152,7 +142,19 @@ struct CalendarSettingsView: View {
             }
 
         @unknown default:
-            EmptyView()
+            if syncManager.canReadEvents {
+                accessGrantedRow
+            }
+        }
+    }
+
+    private var accessGrantedRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.lime500)
+            Text("Calendar access granted")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundStyle(.secondary)
         }
     }
 

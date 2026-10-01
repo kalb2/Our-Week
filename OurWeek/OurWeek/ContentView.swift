@@ -394,6 +394,7 @@ struct WeeklyCalendarCard: View {
     @State private var linesByDay: [Date: [DinnerLine]] = [:]
     @State private var skipNextCommitID: String?
     @State private var suppressBlankEcho: [Date: String] = [:]
+    @State private var showCalendarSettings = false
     @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
@@ -446,17 +447,19 @@ struct WeeklyCalendarCard: View {
 
     private func events(for date: Date) -> [CalendarEvent] {
         let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return [] }
         return weekEvents.filter { event in
-            guard let d = event.date else { return false }
-            return calendar.isDate(d, inSameDayAs: date)
+            guard let eventStart = event.date else { return false }
+            if let eventEnd = event.endDate, eventEnd > eventStart {
+                return eventStart < end && eventEnd > start
+            }
+            return calendar.isDate(eventStart, inSameDayAs: date)
         }
     }
 
     private func appleEventsForDate(_ date: Date) -> [AppleCalendarEvent] {
-        let calendar = Calendar.current
-        return appleEvents.filter { ev in
-            calendar.isDate(ev.startDate, inSameDayAs: date)
-        }
+        appleEvents.filter { $0.occurs(on: date) }
     }
 
     var body: some View {
@@ -470,6 +473,14 @@ struct WeeklyCalendarCard: View {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 refreshAppleEvents()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                refreshAppleEvents()
+            }
+            .sheet(isPresented: $showCalendarSettings, onDismiss: { refreshAppleEvents() }) {
+                CalendarSettingsView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .onChange(of: weekOffset) { _, _ in
                 if case .line(let day, let id) = focusedField {
@@ -494,7 +505,10 @@ struct WeeklyCalendarCard: View {
                     commitLine(day: day, lineID: id)
                 }
             }
-            .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
+            .sheet(isPresented: $showEventSheet, onDismiss: {
+                loadData()
+                refreshAppleEvents()
+            }) {
             AddEventSheet(
                 date: addingEventDate ?? Date(),
                 dataManager: dataManager
@@ -502,17 +516,26 @@ struct WeeklyCalendarCard: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: $selectedEvent, onDismiss: { loadData() }) { event in
+        .sheet(item: $selectedEvent, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) { event in
             EventDetailSheet(event: event)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $selectedAppleEvent, onDismiss: { loadData() }) { appleEvent in
+        .sheet(item: $selectedAppleEvent, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) { appleEvent in
             AppleEventDetailSheet(event: appleEvent)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-        .fullScreenCover(isPresented: $showWeekPlanner, onDismiss: { loadData() }) {
+        .fullScreenCover(isPresented: $showWeekPlanner, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) {
             WeekPlannerView(weekStart: weekDates.first ?? Date())
         }
     }
@@ -526,6 +549,21 @@ struct WeeklyCalendarCard: View {
             CalendarHeaderRow()
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
+
+            if let cue = calendarSyncManager.calendarSelectionCue {
+                Button {
+                    showCalendarSettings = true
+                } label: {
+                    Text(cue)
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color.lilac600)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
+                .accessibilityLabel("Choose calendars")
+            }
 
             ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
                 dayRow(date)
@@ -646,11 +684,11 @@ struct WeeklyCalendarCard: View {
                         .id(scrollID(day: key, lineID: line.id))
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
 
             if !dayFocused {
                 eventColumn(events: dayEvents, apple: dayApple)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
         }
@@ -1033,7 +1071,6 @@ struct WeeklyCalendarCard: View {
         recipes = dataManager.fetchRecipes()
         weekMeals = dataManager.fetchWeekMealPlans(from: monday)
         weekEvents = dataManager.fetchWeekEvents(from: monday)
-        appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
         syncLines()
     }
 
@@ -1041,7 +1078,7 @@ struct WeeklyCalendarCard: View {
     /// selection are applied. Does not rebuild dinner lines.
     private func refreshAppleEvents() {
         Task {
-            await calendarSyncManager.restoreSavedAccess()
+            await calendarSyncManager.prepareForReading()
             guard let monday = weekDates.first else { return }
             appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
         }

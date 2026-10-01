@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import EventKit
 
 struct CalendarView: View {
     @Environment(DataManager.self) private var dataManager
@@ -104,6 +105,9 @@ struct CalendarView: View {
                 refreshAppleEvents()
             }
             .onChange(of: selectedDate, loadData)
+            .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                refreshAppleEvents()
+            }
             .sheet(isPresented: $showAddEventSheet, onDismiss: loadData) {
                 AddEventSheet(date: selectedDate, dataManager: dataManager)
                     .presentationDetents([.medium, .large])
@@ -204,7 +208,7 @@ struct CalendarView: View {
 
     private func refreshAppleEvents() {
         Task {
-            await calendarSyncManager.restoreSavedAccess()
+            await calendarSyncManager.prepareForReading()
             let start = Calendar.current.startOfDay(for: selectedDate)
             let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
             appleEvents = calendarSyncManager.fetchEvents(from: start, to: end)

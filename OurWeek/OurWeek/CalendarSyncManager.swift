@@ -11,13 +11,35 @@ import SwiftUI
 // MARK: - Lightweight model for Apple Calendar events
 
 struct AppleCalendarEvent: Identifiable {
-    let id: String                // EKEvent.eventIdentifier
+    let id: String
     let title: String
     let startDate: Date
     let endDate: Date
     let isAllDay: Bool
     let calendarColor: UIColor
     let calendarTitle: String
+
+    /// True when this event should appear on the given local calendar day.
+    /// All-day EventKit dates are floating GMT days, so they are matched by
+    /// year/month/day instead of the local instant of `startDate`.
+    func occurs(on day: Date, calendar: Calendar = .current) -> Bool {
+        let dayStart = calendar.startOfDay(for: day)
+        guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { return false }
+
+        if isAllDay {
+            var gmt = Calendar(identifier: .gregorian)
+            gmt.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+            let startParts = gmt.dateComponents([.year, .month, .day], from: startDate)
+            let endParts = gmt.dateComponents([.year, .month, .day], from: endDate)
+            let dayParts = calendar.dateComponents([.year, .month, .day], from: day)
+            guard let startDay = gmt.date(from: startParts),
+                  let endDay = gmt.date(from: endParts),
+                  let localDay = gmt.date(from: dayParts) else { return false }
+            return localDay >= startDay && localDay < endDay
+        }
+
+        return startDate < dayEnd && endDate > dayStart
+    }
 }
 
 // MARK: - Selectable calendar wrapper
@@ -33,7 +55,9 @@ struct SelectableCalendar: Identifiable {
 
 @Observable
 class CalendarSyncManager {
-    private let eventStore = EKEventStore()
+    /// Replaced after access is granted. A store created before full access
+    /// keeps returning an empty calendar list, which made every fetch bail out.
+    private var eventStore = EKEventStore()
 
     // Authorization
     var authorizationStatus: EKAuthorizationStatus = .notDetermined
@@ -64,59 +88,96 @@ class CalendarSyncManager {
         set { UserDefaults.standard.set(newValue, forKey: "appleCalendarSyncEnabled") }
     }
 
-    private var restoreTask: Task<Void, Never>?
+    /// Full access, including a legacy `.authorized` grant that shares that raw value.
+    var canReadEvents: Bool {
+        switch authorizationStatus {
+        case .denied, .restricted, .notDetermined, .writeOnly:
+            return false
+        case .fullAccess:
+            return true
+        @unknown default:
+            return authorizationStatus.rawValue == EKAuthorizationStatus.fullAccess.rawValue
+        }
+    }
+
+    /// Shown on the home week when calendar access exists but events cannot be read yet.
+    var calendarSelectionCue: String? {
+        guard canReadEvents else { return nil }
+        if !isSyncEnabled { return "Turn on calendar sync" }
+        if selectedCalendarIDs.isEmpty && availableCalendars.isEmpty { return "Turn on calendar sync" }
+        if selectedCalendarIDs.isEmpty { return "Choose calendars" }
+        return nil
+    }
+
+    private var syncPreferenceExists: Bool {
+        UserDefaults.standard.object(forKey: "appleCalendarSyncEnabled") != nil
+    }
+
+    private var selectionPreferenceExists: Bool {
+        UserDefaults.standard.object(forKey: "selectedAppleCalendarIDs") != nil
+    }
 
     init() {
         refreshAuthorizationStatus()
     }
 
-    /// Reconnect EventKit from the saved sync toggle and calendar selection.
-    /// Does not clear `selectedAppleCalendarIDs` or `writeBackCalendarID`.
-    /// Asks for access only when sync was already turned on and iOS still
-    /// reports `.notDetermined` (one prompt). An existing full-access grant
-    /// is reused with no prompt.
-    func restoreSavedAccess() async {
-        if let restoreTask {
-            await restoreTask.value
-            return
-        }
-        let task = Task { @MainActor in
-            await self.performRestore()
-        }
-        restoreTask = task
-        await task.value
-        restoreTask = nil
-    }
-
-    private func performRestore() async {
+    /// Prime EventKit from the system grant and the saved calendar selection.
+    /// Does not clear a selection that still matches a calendar, and does not
+    /// turn sync back on when it was explicitly switched off.
+    /// A permission prompt happens only when sync is already on and iOS still
+    /// reports `.notDetermined`. An existing full-access grant is reused.
+    func prepareForReading() async {
         refreshAuthorizationStatus()
-        guard isSyncEnabled else { return }
 
-        if authorizationStatus == .notDetermined {
-            _ = await requestAccess()
+        if syncPreferenceExists && !isSyncEnabled {
             return
         }
 
-        guard authorizationStatus == .fullAccess else { return }
-
-        loadCalendars()
-        // After an upgrade the store can come up empty even though the saved
-        // identifiers and the system grant are still there. Reset once and
-        // re-request access (no prompt when iOS already has a grant). Leave
-        // the saved selection in place either way.
-        if savedSelectionMissingFromStore() {
-            eventStore.reset()
-            refreshAuthorizationStatus()
-            guard authorizationStatus == .fullAccess || authorizationStatus == .notDetermined else { return }
+        switch authorizationStatus {
+        case .denied, .restricted, .writeOnly:
+            return
+        case .notDetermined:
+            guard isSyncEnabled else { return }
+            _ = await requestAccess()
+        case .fullAccess:
+            // Returns immediately and does not prompt when access is already granted.
+            _ = await requestAccess()
+        @unknown default:
+            guard authorizationStatus.rawValue == EKAuthorizationStatus.fullAccess.rawValue else { return }
             _ = await requestAccess()
         }
+
+        refreshAuthorizationStatus()
+        guard canReadEvents else { return }
+
+        if !syncPreferenceExists {
+            isSyncEnabled = true
+        }
+        guard isSyncEnabled else { return }
+        recoverCalendarSelectionIfNeeded()
     }
 
-    private func savedSelectionMissingFromStore() -> Bool {
+    /// Keep a saved selection that still matches. When nothing was ever saved,
+    /// or every saved id is stale, select the calendars EventKit can read so
+    /// the week is not left blank. An explicit empty selection is left empty.
+    private func recoverCalendarSelectionIfNeeded() {
+        let knownIDs = Set(eventStore.calendars(for: .event).map(\.calendarIdentifier))
+        guard !knownIDs.isEmpty else { return }
+
         let selected = selectedCalendarIDs
-        guard !selected.isEmpty else { return false }
-        let known = Set(eventStore.calendars(for: .event).map(\.calendarIdentifier))
-        return selected.isDisjoint(with: known)
+        let matched = selected.intersection(knownIDs)
+        if !matched.isEmpty {
+            if matched != selected {
+                selectedCalendarIDs = matched
+            }
+            return
+        }
+
+        if selectionPreferenceExists && selected.isEmpty {
+            return
+        }
+
+        selectedCalendarIDs = knownIDs
     }
 
     // MARK: - Authorization
@@ -130,18 +191,32 @@ class CalendarSyncManager {
     }
 
     func requestAccess() async -> Bool {
+        let granted = await askForAccess(on: eventStore)
+        refreshAuthorizationStatus()
+        guard granted || canReadEvents else { return false }
+
+        eventStore.refreshSourcesIfNecessary()
+        loadCalendars()
+
+        // calendars(for:) stays empty on a store that was created before access.
+        // reset() does not fix that. A new store, asked again, does not re-prompt.
+        if availableCalendars.isEmpty {
+            eventStore = EKEventStore()
+            _ = await askForAccess(on: eventStore)
+            refreshAuthorizationStatus()
+            eventStore.refreshSourcesIfNecessary()
+            loadCalendars()
+        }
+        return canReadEvents
+    }
+
+    private func askForAccess(on store: EKEventStore) async -> Bool {
         do {
-            let granted: Bool
             if #available(iOS 17.0, *) {
-                granted = try await eventStore.requestFullAccessToEvents()
+                return try await store.requestFullAccessToEvents()
             } else {
-                granted = try await eventStore.requestAccess(to: .event)
+                return try await store.requestAccess(to: .event)
             }
-            await MainActor.run {
-                refreshAuthorizationStatus()
-                if granted { loadCalendars() }
-            }
-            return granted
         } catch {
             print("EventKit access error: \(error)")
             return false
@@ -166,29 +241,29 @@ class CalendarSyncManager {
     // MARK: - Read: Fetch Apple Calendar Events
 
     func fetchEvents(from startDate: Date, to endDate: Date) -> [AppleCalendarEvent] {
-        guard isSyncEnabled,
-              authorizationStatus == .fullAccess else {
-            return []
-        }
+        refreshAuthorizationStatus()
+        guard isSyncEnabled, canReadEvents, startDate < endDate else { return [] }
 
         let selectedIDs = selectedCalendarIDs
-        guard !selectedIDs.isEmpty else { return [] }
+        if selectionPreferenceExists && selectedIDs.isEmpty { return [] }
 
-        let ekCalendars = eventStore.calendars(for: .event)
-            .filter { selectedIDs.contains($0.calendarIdentifier) }
-        guard !ekCalendars.isEmpty else { return [] }
+        let allCalendars = eventStore.calendars(for: .event)
+        let matched = allCalendars.filter { selectedIDs.contains($0.calendarIdentifier) }
+        // nil means every calendar EventKit can read. An empty filter used to
+        // discard the whole result when the calendar list was stale.
+        let calendars: [EKCalendar]? = matched.isEmpty ? nil : matched
 
         let predicate = eventStore.predicateForEvents(
             withStart: startDate,
             end: endDate,
-            calendars: ekCalendars
+            calendars: calendars
         )
 
-        let ekEvents = eventStore.events(matching: predicate)
-
-        return ekEvents.map { ev in
-            AppleCalendarEvent(
-                id: ev.eventIdentifier,
+        return eventStore.events(matching: predicate).map { ev in
+            let stamp = String(ev.startDate.timeIntervalSince1970)
+            let rawID = ev.eventIdentifier
+            return AppleCalendarEvent(
+                id: rawID.isEmpty ? stamp : "\(rawID)-\(stamp)",
                 title: ev.title ?? "Untitled",
                 startDate: ev.startDate,
                 endDate: ev.endDate,
@@ -199,12 +274,16 @@ class CalendarSyncManager {
         }
     }
 
-    /// Fetch Apple Calendar events for a week starting at the given date
+    /// Fetch Apple Calendar events for a week starting at the given date.
+    /// The range is padded by a day so all-day events, which EventKit stores
+    /// as GMT midnights, are still returned for the home week to place.
     func fetchWeekEvents(from monday: Date) -> [AppleCalendarEvent] {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: monday)
-        guard let end = calendar.date(byAdding: .day, value: 7, to: start) else { return [] }
-        return fetchEvents(from: start, to: end)
+        guard let end = calendar.date(byAdding: .day, value: 7, to: start),
+              let paddedStart = calendar.date(byAdding: .day, value: -1, to: start),
+              let paddedEnd = calendar.date(byAdding: .day, value: 1, to: end) else { return [] }
+        return fetchEvents(from: paddedStart, to: paddedEnd)
     }
 
     // MARK: - Write: Push OurWeek event to Apple Calendar

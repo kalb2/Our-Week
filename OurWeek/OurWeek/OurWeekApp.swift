@@ -14,6 +14,7 @@ struct OurWeekApp: App {
     let persistenceController = PersistenceController.shared
 
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @State private var calendarSyncManager = CalendarSyncManager()
 
     var body: some Scene {
         WindowGroup {
@@ -21,7 +22,7 @@ struct OurWeekApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environment(SharingManager(persistenceController: persistenceController))
                 .environment(DataManager(persistenceController: persistenceController))
-                .environment(CalendarSyncManager())
+                .environment(calendarSyncManager)
         }
     }
 }
