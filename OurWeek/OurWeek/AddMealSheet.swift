@@ -5,6 +5,8 @@ struct AddMealSheet: View {
     let dataManager: DataManager
     /// When set, a pick is returned and nothing is written. Plan Week Review uses this so Save stays the confirm.
     var onSelect: ((String, Recipe?) -> Void)? = nil
+    /// Home day planning uses the library only. Takeout is typed as a dinner line, not a separate button.
+    var showsQuickAdds: Bool = true
     
     @Environment(\.dismiss) private var dismiss
     
@@ -14,9 +16,10 @@ struct AddMealSheet: View {
     @State private var isSaving = false
     @FocusState private var isSearchFocused: Bool
     
-    init(date: Date, dataManager: DataManager, onSelect: ((String, Recipe?) -> Void)? = nil) {
+    init(date: Date, dataManager: DataManager, showsQuickAdds: Bool = true, onSelect: ((String, Recipe?) -> Void)? = nil) {
         self.dataManager = dataManager
         self.onSelect = onSelect
+        self.showsQuickAdds = showsQuickAdds
         self._mealDate = State(initialValue: date)
     }
     
@@ -130,7 +133,7 @@ struct AddMealSheet: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                     
-                    // Quick-Add Buttons
+                    if showsQuickAdds {
                     HStack(spacing: 10) {
                         quickAddButton(
                             title: "Takeout",
@@ -154,6 +157,7 @@ struct AddMealSheet: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
+                    }
                     
                     // Recipe Suggestions
                     if !allRecipes.isEmpty {

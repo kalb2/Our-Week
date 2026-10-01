@@ -197,6 +197,7 @@ struct HomeView: View {
                 Spacer().frame(height: 120)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color.bgBase)
     }
 }
@@ -325,16 +326,16 @@ struct WeeklyCalendarCard: View {
     @State private var weekMeals: [MealPlan] = []
     @State private var weekEvents: [CalendarEvent] = []
     @State private var appleEvents: [AppleCalendarEvent] = []
-    @State private var selectedMeal: MealPlan?
-    @State private var addingMealDate: Date?
-    @State private var showAddMealSheet = false
     @State private var addingEventDate: Date?
     @State private var showEventSheet = false
     @State private var selectedEvent: CalendarEvent?
     @State private var selectedAppleEvent: AppleCalendarEvent?
-    @State private var viewingRecipe: Recipe?
     @State private var weekOffset: Int = 0
     @State private var showWeekPlanner = false
+    @State private var planningDay: DayPlanTarget?
+    @State private var newIdea = ""
+    @FocusState private var ideaFieldFocused: Bool
+    @AppStorage("dinnerIdeaTitles") private var ideaBlob = DayDinnerStore.starterBlob
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -361,12 +362,20 @@ struct WeeklyCalendarCard: View {
         return "\(firstStr) – \(df.string(from: last))"
     }
 
+    private var ideaTitles: [String] {
+        DayDinnerStore.titles(from: ideaBlob)
+    }
+
     private func meals(for date: Date) -> [MealPlan] {
         let calendar = Calendar.current
         return weekMeals.filter { meal in
             guard let d = meal.date else { return false }
             return calendar.isDate(d, inSameDayAs: date)
         }
+    }
+
+    private func dinners(for date: Date) -> [MealPlan] {
+        meals(for: date).filter { ($0.mealType ?? "dinner").lowercased() == "dinner" }
     }
 
     private func events(for date: Date) -> [CalendarEvent] {
@@ -385,159 +394,20 @@ struct WeeklyCalendarCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 0) {
-            // Week Navigation
-            HStack(spacing: 12) {
-                Button(action: { weekOffset -= 1 }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                VStack(spacing: 2) {
-                    HStack(spacing: 4) {
-                        if let hh = dataManager.currentHousehold, dataManager.persistenceController.isShared(object: hh) {
-                            Image(systemName: "cloud.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.sky500)
-                        }
-                        Text(weekRangeLabel)
-                            .font(.system(size: 15, weight: .heavy, design: .rounded))
-                            .tracking(-0.3)
-                    }
-                    if weekOffset == 0 {
-                        Text("THIS WEEK")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.lime500)
-                            .tracking(1)
-                    }
-                }
-
-                Spacer()
-
-                if weekOffset != 0 {
-                    Button(action: { weekOffset = 0 }) {
-                        Text("Today")
-                            .font(.system(size: 11, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.lime500)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.lime100)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.lime400, lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button(action: { weekOffset += 1 }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
-
-            // Column Headers
-            CalendarHeaderRow()
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-
-            // Day Rows
-            ForEach(Array(weekDates.enumerated()), id: \.offset) { _, date in
-                CalDayRow(
-                    date: date,
-                    meals: meals(for: date),
-                    events: events(for: date),
-                    appleEvents: appleEventsForDate(date),
-                    onMealTap: { meal in
-                        selectedMeal = meal
-                    },
-                    onRecipeViewTap: { recipe in
-                        viewingRecipe = recipe
-                    },
-                    onAddMealTap: {
-                        addingMealDate = date
-                        showAddMealSheet = true
-                    },
-                    onMealDelete: { meal in
-                        dataManager.deleteMealPlan(meal)
-                        loadData()
-                    },
-                    onEventTap: { event in
-                        selectedAppleEvent = nil
-                        selectedEvent = event
-                    },
-                    onAddEventTap: {
-                        addingEventDate = date
-                        showEventSheet = true
-                    },
-                    onAppleEventTap: { appleEvent in
-                        selectedEvent = nil
-                        selectedAppleEvent = appleEvent
-                    }
-                )
-            }
-
-            planWeekFooter
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-        }
-        .padding(.vertical, 16)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.lilac500, lineWidth: 2)
-        )
-        .boldShadow(Color.lilac400)
+        VStack(alignment: .leading, spacing: 16) {
+            weekCard
+            ideasSection
         }
         .padding(.horizontal, 24)
         .onAppear { loadData() }
         .onChange(of: weekOffset) { _, _ in loadData() }
-        .sheet(item: $selectedMeal, onDismiss: { loadData() }) { meal in
-            MealEditSheet(
-                meal: meal,
-                date: meal.date ?? Date(),
-                dataManager: dataManager
-            )
+        .sheet(item: $planningDay, onDismiss: { loadData() }) { day in
+            DayDinnerSheet(date: day.date, ideas: ideaTitles) {
+                planningDay = nil
+            }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showAddMealSheet, onDismiss: { loadData() }) {
-            AddMealSheet(
-                date: addingMealDate ?? Date(),
-                dataManager: dataManager
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(item: $viewingRecipe) { recipe in
-            RecipeDetailView(recipe: recipe)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
         }
         .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
             AddEventSheet(
@@ -562,33 +432,256 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private var planWeekFooter: some View {
+    private var weekCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            weekHeader
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+            ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
+                dayRow(date)
+                if index < weekDates.count - 1 {
+                    Rectangle()
+                        .fill(Color.black)
+                        .frame(height: 2)
+                }
+            }
+
+            planWeekLink
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+        }
+        .padding(.vertical, 16)
+        .background(Color.cardWhite)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+        .boldShadow(.black)
+    }
+
+    private var weekHeader: some View {
+        HStack(spacing: 12) {
+            Button(action: { weekOffset -= 1 }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                HStack(spacing: 4) {
+                    if let household = dataManager.currentHousehold, dataManager.persistenceController.isShared(object: household) {
+                        Image(systemName: "cloud.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.sky500)
+                    }
+                    Text(weekOffset == 0 ? "This week" : weekRangeLabel)
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                }
+                if weekOffset == 0 {
+                    Text(weekRangeLabel)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.gray)
+                }
+            }
+
+            Spacer()
+
+            if weekOffset != 0 {
+                Button(action: { weekOffset = 0 }) {
+                    Text("Today")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.lime100)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button(action: { weekOffset += 1 }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func dayRow(_ date: Date) -> some View {
+        let calendar = Calendar.current
+        let isToday = calendar.isDateInToday(date)
+        let dinners = dinners(for: date)
+        let dayEvents = events(for: date)
+        let dayApple = appleEventsForDate(date)
+        let dayName: String = {
+            if isToday { return "Today" }
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE"
+            return formatter.string(from: date)
+        }()
+        let dayNumber: String = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "d"
+            return formatter.string(from: date)
+        }()
+
+        return HStack(alignment: .top, spacing: 12) {
+            Button {
+                planningDay = DayPlanTarget(date: date)
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(dayName)
+                            .font(.system(size: 12, weight: .heavy, design: .rounded))
+                            .textCase(.uppercase)
+                            .foregroundStyle(isToday ? Color.terra600 : .gray)
+                        Text(dayNumber)
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.black)
+                    }
+                    .frame(width: 64, alignment: .leading)
+
+                    if dinners.isEmpty {
+                        Text("tap to plan")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(.gray.opacity(0.55))
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(dinners, id: \.objectID) { meal in
+                                Text(meal.title ?? "Dinner")
+                                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if !dayEvents.isEmpty || !dayApple.isEmpty {
+                VStack(alignment: .trailing, spacing: 4) {
+                    ForEach(dayEvents, id: \.objectID) { event in
+                        Button {
+                            selectedAppleEvent = nil
+                            selectedEvent = event
+                        } label: {
+                            Text(event.title ?? "Event")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.lilac600)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ForEach(dayApple) { event in
+                        Button {
+                            selectedEvent = nil
+                            selectedAppleEvent = event
+                        } label: {
+                            Text(event.title)
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.lilac600)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(maxWidth: 90, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(isToday ? Color.terra50 : Color.white)
+    }
+
+    private var planWeekLink: some View {
         Button {
             showWeekPlanner = true
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "hand.draw.fill")
-                    .font(.system(size: 13, weight: .bold))
-                Text(weekOffset == 0 ? "PLAN WEEK" : "PLAN THIS WEEK")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(0.5)
-                Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                Text("Plan week")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .heavy))
             }
-            .foregroundStyle(.black)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.terra100)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
-            .boldShadow(Color.terra500, size: 3, radius: 12)
+            .foregroundStyle(Color.terra600)
         }
         .buttonStyle(.plain)
         .disabled(weekDates.isEmpty)
         .accessibilityLabel("Plan week")
-        .accessibilityHint("Opens a screen to plan dinners for this week")
     }
+
+    private var ideasSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Ideas")
+                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .foregroundStyle(.black)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(ideaTitles, id: \.self) { idea in
+                        Button {
+                            assignIdea(idea)
+                        } label: {
+                            Text(idea)
+                                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.terra100)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            TextField("Add an idea", text: $newIdea)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .focused($ideaFieldFocused)
+                .submitLabel(.done)
+                .onSubmit { addIdea() }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+        }
+    }
+
+    private func assignIdea(_ title: String) {
+        guard let date = weekDates.first(where: { dinners(for: $0).isEmpty }) else { return }
+        DayDinnerStore.setDinner(on: date, title: title, recipe: nil, dataManager: dataManager)
+        loadData()
+    }
+
+    private func addIdea() {
+        let trimmed = newIdea.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var titles = ideaTitles
+        if !titles.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            titles.append(trimmed)
+            ideaBlob = titles.joined(separator: "\n")
+        }
+        newIdea = ""
+        ideaFieldFocused = false
+    }
+
 
     private func loadData() {
         guard let monday = weekDates.first else { return }
