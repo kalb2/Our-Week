@@ -566,7 +566,7 @@ struct WeeklyCalendarCard: View {
             }
 
             ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
-                dayRow(date)
+                dayRow(date, index: index)
                 if index < weekDates.count - 1 {
                     Rectangle()
                         .fill(Color.black)
@@ -574,9 +574,10 @@ struct WeeklyCalendarCard: View {
                 }
             }
 
-            weekFooterLinks
+            weekFooterActions
                 .padding(.horizontal, 16)
-                .padding(.top, 14)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
         }
         .padding(.vertical, 16)
         .background(Color.cardWhite)
@@ -646,35 +647,61 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private var weekFooterLinks: some View {
-        HStack(spacing: 18) {
-            Button {
+    private var weekFooterActions: some View {
+        HStack(alignment: .top, spacing: 12) {
+            weekActionButton(
+                title: "Swipe to plan",
+                fill: Color.terra500,
+                ink: .white
+            ) {
                 showWeekPlanner = true
-            } label: {
-                Text("Swipe to plan")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color.terra600)
             }
-            .buttonStyle(.plain)
             .disabled(weekDates.isEmpty)
-            .accessibilityLabel("Swipe to plan")
+            .opacity(weekDates.isEmpty ? 0.45 : 1)
 
             if !weekMeals.isEmpty {
-                Button {
+                weekActionButton(
+                    title: "Clear week",
+                    fill: Color.peach500,
+                    ink: .black
+                ) {
                     showClearWeek = true
-                } label: {
-                    Text("Clear week")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black.opacity(0.45))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear week")
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func dayRow(_ date: Date) -> some View {
+    private func weekActionButton(
+        title: String,
+        fill: Color,
+        ink: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .foregroundStyle(ink)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(fill)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+                .boldShadow(.black, size: 3, radius: 12)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    private func dayStripe(index: Int, isToday: Bool) -> Color {
+        let even = index.isMultiple(of: 2)
+        if isToday {
+            return even ? Color.terra100 : Color.sky200
+        }
+        return even ? Color.terra50 : Color.sky100
+    }
+
+    private func dayRow(_ date: Date, index: Int) -> some View {
         let calendar = Calendar.current
         let key = dayKey(date)
         let isToday = calendar.isDateInToday(date)
@@ -722,7 +749,7 @@ struct WeeklyCalendarCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(isToday ? Color.terra50 : Color.white)
+        .background(dayStripe(index: index, isToday: isToday))
         .animation(.easeInOut(duration: 0.22), value: dayFocused)
     }
 
