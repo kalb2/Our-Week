@@ -322,7 +322,56 @@ struct AvatarButton: View {
 // MARK: - Weekly Calendar Card
 
 private enum DinnerField: Hashable {
-    case day(Date)
+    case line(day: Date, id: String)
+}
+
+private struct DinnerLine: Identifiable {
+    var id: String
+    var mealID: NSManagedObjectID?
+    var text: String
+    var recipeID: NSManagedObjectID?
+}
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? 0
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+        return CGSize(width: maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+    }
 }
 
 struct WeeklyCalendarCard: View {
@@ -338,8 +387,8 @@ struct WeeklyCalendarCard: View {
     @State private var weekOffset: Int = 0
     @State private var showWeekPlanner = false
     @State private var recipes: [Recipe] = []
-    @State private var drafts: [Date: String] = [:]
-    @State private var linkedRecipeByDay: [Date: NSManagedObjectID] = [:]
+    @State private var linesByDay: [Date: [DinnerLine]] = [:]
+    @State private var skipNextCommitID: String?
     @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
@@ -380,7 +429,14 @@ struct WeeklyCalendarCard: View {
     }
 
     private func dinners(for date: Date) -> [MealPlan] {
-        meals(for: date).filter { ($0.mealType ?? "dinner").lowercased() == "dinner" }
+        meals(for: date)
+            .filter { ($0.mealType ?? "dinner").lowercased() == "dinner" }
+            .sorted { lhs, rhs in
+                let left = lhs.date ?? .distantPast
+                let right = rhs.date ?? .distantPast
+                if left != right { return left < right }
+                return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+            }
     }
 
     private func events(for date: Date) -> [CalendarEvent] {
@@ -403,21 +459,21 @@ struct WeeklyCalendarCard: View {
             .padding(.horizontal, 24)
             .onAppear { loadData() }
             .onChange(of: weekOffset) { _, _ in
-                if case .day(let date) = focusedField {
-                    commitDraft(for: date)
+                if case .line(let day, let id) = focusedField {
+                    commitLine(day: day, lineID: id)
                 }
                 focusedField = nil
                 loadData()
             }
             .onChange(of: focusedField) { old, _ in
-                guard case .day(let date) = old else { return }
+                guard case .line(let day, let id) = old else { return }
                 DispatchQueue.main.async {
-                    commitDraft(for: date)
+                    commitLine(day: day, lineID: id)
                 }
             }
             .onDisappear {
-                if case .day(let date) = focusedField {
-                    commitDraft(for: date)
+                if case .line(let day, let id) = focusedField {
+                    commitLine(day: day, lineID: id)
                 }
             }
             .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
@@ -534,12 +590,11 @@ struct WeeklyCalendarCard: View {
         let calendar = Calendar.current
         let key = dayKey(date)
         let isToday = calendar.isDateInToday(date)
-        let isFocused = focusedField == .day(key)
-        let text = drafts[key] ?? dinners(for: date).first?.title ?? ""
-        let linked = linkedRecipe(matching: text, on: key)
-        let matches = suggestions(for: date)
+        let dayFocused = isDayFocused(key)
+        let lines = linesByDay[key] ?? [blankLine(for: key)]
         let dayEvents = events(for: date)
         let dayApple = appleEventsForDate(date)
+        let showsEvents = !dayFocused && (!dayEvents.isEmpty || !dayApple.isEmpty)
         let dayName: String = {
             if isToday { return "Today" }
             let formatter = DateFormatter()
@@ -552,34 +607,61 @@ struct WeeklyCalendarCard: View {
             return formatter.string(from: date)
         }()
 
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(dayName)
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .textCase(.uppercase)
-                        .foregroundStyle(isToday ? Color.terra600 : .gray)
-                    Text(dayNumber)
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black)
-                }
-                .frame(width: 64, alignment: .leading)
+        return HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(dayName)
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .textCase(.uppercase)
+                    .foregroundStyle(isToday ? Color.terra600 : .gray)
+                Text(dayNumber)
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.black)
+            }
+            .frame(width: 64, alignment: .leading)
 
-                TextField("", text: draftBinding(for: date))
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(lines) { line in
+                    dinnerLine(line, on: key, dayName: dayName)
+                }
+
+                if showsEvents {
+                    eventChips(events: dayEvents, apple: dayApple)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(isToday ? Color.terra50 : Color.white)
+        .animation(.easeInOut(duration: 0.22), value: dayFocused)
+    }
+
+    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String) -> some View {
+        let focused = focusedField == .line(day: day, id: line.id)
+        let linked = linkedRecipe(for: line)
+        let text = line.text
+        let matches = focused ? suggestions(matching: text, excluding: linked?.objectID) : []
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(linked == nil ? Color.black : Color.terra600)
                     .textFieldStyle(.plain)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(1...6)
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled(true)
-                    .focused($focusedField, equals: .day(key))
-                    .submitLabel(isLastWeekDay(date) ? .done : .next)
-                    .onSubmit { focusNext(after: date) }
+                    .focused($focusedField, equals: .line(day: day, id: line.id))
+                    .submitLabel(submitLabel(for: line, on: day))
+                    .onSubmit { submitLine(day: day, lineID: line.id) }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("\(dayName) dinner")
 
-                if isFocused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button {
-                        drafts[key] = ""
-                        clearDinnerIfNeeded(on: key)
+                        clearLine(day: day, lineID: line.id)
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .heavy))
@@ -595,15 +677,14 @@ struct WeeklyCalendarCard: View {
             }
 
             Rectangle()
-                .fill(isFocused ? Color.black : Color.black.opacity(0.12))
-                .frame(height: isFocused ? 2 : 1)
-                .padding(.leading, 76)
+                .fill(focused ? Color.black : Color.black.opacity(0.12))
+                .frame(height: focused ? 2 : 1)
 
             if !matches.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(matches, id: \.objectID) { recipe in
                         Button {
-                            applyRecipe(recipe, on: date)
+                            applyRecipe(recipe, on: day, lineID: line.id)
                         } label: {
                             HStack(spacing: 8) {
                                 if let data = recipe.imageData, let uiImage = UIImage(data: data) {
@@ -629,43 +710,67 @@ struct WeeklyCalendarCard: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.leading, 76)
-            }
-
-            if !dayEvents.isEmpty || !dayApple.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(dayEvents, id: \.objectID) { event in
-                        Button {
-                            selectedAppleEvent = nil
-                            selectedEvent = event
-                        } label: {
-                            Text(event.title ?? "Event")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.lilac600)
-                                .lineLimit(1)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    ForEach(dayApple) { event in
-                        Button {
-                            selectedEvent = nil
-                            selectedAppleEvent = event
-                        } label: {
-                            Text(event.title)
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.lilac600)
-                                .lineLimit(1)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, 76)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(isToday ? Color.terra50 : Color.white)
+    }
+
+    private func eventChips(events: [CalendarEvent], apple: [AppleCalendarEvent]) -> some View {
+        FlowLayout(spacing: 6) {
+            ForEach(events, id: \.objectID) { event in
+                Button {
+                    selectedAppleEvent = nil
+                    selectedEvent = event
+                } label: {
+                    eventChip(
+                        title: event.title ?? "Event",
+                        time: eventTime(event.date, allDay: event.isAllDay),
+                        fill: Color.lilac100
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            ForEach(apple) { event in
+                Button {
+                    selectedEvent = nil
+                    selectedAppleEvent = event
+                } label: {
+                    eventChip(
+                        title: event.title,
+                        time: eventTime(event.startDate, allDay: event.isAllDay),
+                        fill: Color(uiColor: event.calendarColor).opacity(0.18)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func eventChip(title: String, time: String?, fill: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .lineLimit(1)
+            if let time {
+                Text(time)
+                    .foregroundStyle(.black.opacity(0.55))
+                    .lineLimit(1)
+            }
+        }
+        .font(.system(size: 12, weight: .heavy, design: .rounded))
+        .foregroundStyle(.black)
+        .lineLimit(1)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(maxWidth: 220, alignment: .leading)
+        .background(fill)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+    }
+
+    private func eventTime(_ date: Date?, allDay: Bool) -> String? {
+        guard let date, !allDay else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
 
     private var planWeekLink: some View {
@@ -685,26 +790,35 @@ struct WeeklyCalendarCard: View {
         .accessibilityLabel("Plan week")
     }
 
-    private func draftBinding(for date: Date) -> Binding<String> {
-        let key = dayKey(date)
-        return Binding(
-            get: { drafts[key] ?? dinners(for: date).first?.title ?? "" },
+    private func lineBinding(day: Date, lineID: String) -> Binding<String> {
+        Binding(
+            get: { linesByDay[day]?.first { $0.id == lineID }?.text ?? "" },
             set: { newValue in
-                drafts[key] = newValue
-                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    clearDinnerIfNeeded(on: key)
+                guard var lines = linesByDay[day],
+                      let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+                lines[index].text = newValue
+                if let recipeID = lines[index].recipeID,
+                   let recipe = recipes.first(where: { $0.objectID == recipeID }),
+                   !namesMatch(recipe.name, newValue) {
+                    lines[index].recipeID = nil
                 }
+                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    lines[index].recipeID = nil
+                    if let mealID = lines[index].mealID,
+                       let meal = meal(mealID, on: day) {
+                        lines[index].mealID = nil
+                        DayDinnerStore.remove(meal, dataManager: dataManager)
+                    }
+                }
+                linesByDay[day] = lines
             }
         )
     }
 
-    private func suggestions(for date: Date) -> [Recipe] {
-        let key = dayKey(date)
-        guard focusedField == .day(key) else { return [] }
-        let query = (drafts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    private func suggestions(matching text: String, excluding linkedID: NSManagedObjectID?) -> [Recipe] {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         let needle = query.lowercased()
-        let linkedID = linkedRecipe(matching: query, on: key)?.objectID
         return recipes
             .filter { recipe in
                 let name = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -731,18 +845,11 @@ struct WeeklyCalendarCard: View {
         return 3
     }
 
-    private func linkedRecipe(matching text: String, on key: Date) -> Recipe? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if let id = linkedRecipeByDay[key],
-           let recipe = recipes.first(where: { $0.objectID == id }),
-           namesMatch(recipe.name, trimmed) {
-            return recipe
-        }
-        if let recipe = dinners(for: key).first?.recipe, namesMatch(recipe.name, trimmed) {
-            return recipe
-        }
-        return nil
+    private func linkedRecipe(for line: DinnerLine) -> Recipe? {
+        let trimmed = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let id = line.recipeID else { return nil }
+        guard let recipe = recipes.first(where: { $0.objectID == id }) else { return nil }
+        return namesMatch(recipe.name, trimmed) ? recipe : nil
     }
 
     private func namesMatch(_ name: String?, _ text: String) -> Bool {
@@ -754,77 +861,133 @@ struct WeeklyCalendarCard: View {
         return title.isEmpty ? nil : title
     }
 
+    private func blankID(for day: Date) -> String {
+        "blank-\(day.timeIntervalSince1970)"
+    }
+
+    private func blankLine(for day: Date) -> DinnerLine {
+        DinnerLine(id: blankID(for: day), mealID: nil, text: "", recipeID: nil)
+    }
+
+    private func lineID(for meal: MealPlan) -> String {
+        meal.objectID.uriRepresentation().absoluteString
+    }
+
+    private func isDayFocused(_ day: Date) -> Bool {
+        if case .line(let focusedDay, _) = focusedField {
+            return focusedDay == day
+        }
+        return false
+    }
+
+    private func meal(_ id: NSManagedObjectID, on day: Date) -> MealPlan? {
+        dinners(for: day).first { $0.objectID == id }
+            ?? DayDinnerStore.dinners(on: day, dataManager: dataManager).first { $0.objectID == id }
+    }
+
+    private func submitLabel(for line: DinnerLine, on day: Date) -> SubmitLabel {
+        let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty, isLastWeekDay(day) { return .done }
+        return .next
+    }
+
     private func isLastWeekDay(_ date: Date) -> Bool {
         guard let last = weekDates.last else { return true }
         return Calendar.current.isDate(date, inSameDayAs: last)
     }
 
-    private func focusNext(after date: Date) {
-        guard let index = weekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: date) }),
+    private func submitLine(day: Date, lineID: String) {
+        let text = (linesByDay[day]?.first { $0.id == lineID }?.text ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty {
+            focusNextDay(after: day)
+            return
+        }
+        commitLine(day: day, lineID: lineID)
+        focusedField = .line(day: day, id: blankID(for: day))
+    }
+
+    private func focusNextDay(after day: Date) {
+        guard let index = weekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: day) }),
               index + 1 < weekDates.count else {
             focusedField = nil
             return
         }
-        focusedField = .day(dayKey(weekDates[index + 1]))
+        let next = dayKey(weekDates[index + 1])
+        let id = linesByDay[next]?.first?.id ?? blankID(for: next)
+        focusedField = .line(day: next, id: id)
     }
 
-    private func applyRecipe(_ recipe: Recipe, on date: Date) {
-        let key = dayKey(date)
-        let title = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        drafts[key] = title
-        linkedRecipeByDay[key] = recipe.objectID
-        DayDinnerStore.setDinner(on: key, title: title, recipe: recipe, dataManager: dataManager)
+    private func applyRecipe(_ recipe: Recipe, on day: Date, lineID: String) {
+        guard let title = savedTitle(of: recipe) else { return }
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        lines[index].text = title
+        lines[index].recipeID = recipe.objectID
+        linesByDay[day] = lines
+        skipNextCommitID = lineID
+        let meal = lines[index].mealID.flatMap { meal($0, on: day) }
+        if let meal {
+            DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
+        } else {
+            DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+        }
         focusedField = nil
         reloadMeals()
     }
 
-    private func clearDinnerIfNeeded(on key: Date) {
-        let existing = DayDinnerStore.dinners(on: key, dataManager: dataManager)
-        guard !existing.isEmpty else {
-            linkedRecipeByDay[key] = nil
-            return
+    private func clearLine(day: Date, lineID: String) {
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        if let mealID = lines[index].mealID, let meal = meal(mealID, on: day) {
+            DayDinnerStore.remove(meal, dataManager: dataManager)
         }
-        DayDinnerStore.clearDinner(on: key, dataManager: dataManager)
-        linkedRecipeByDay[key] = nil
+        lines[index].text = ""
+        lines[index].recipeID = nil
+        lines[index].mealID = nil
+        linesByDay[day] = lines
+        skipNextCommitID = lineID
+        focusedField = nil
         reloadMeals()
     }
 
-    private func commitDraft(for date: Date) {
-        let key = dayKey(date)
-        guard let typed = drafts[key] else { return }
-        let text = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        let existing = DayDinnerStore.dinners(on: key, dataManager: dataManager)
+    private func commitLine(day: Date, lineID: String) {
+        if skipNextCommitID == lineID {
+            skipNextCommitID = nil
+            return
+        }
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        let line = lines[index]
+        let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty {
-            guard !existing.isEmpty else { return }
-            DayDinnerStore.clearDinner(on: key, dataManager: dataManager)
-            linkedRecipeByDay[key] = nil
-            drafts[key] = ""
-            reloadMeals()
+            if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+                DayDinnerStore.remove(meal, dataManager: dataManager)
+            }
+            if lineID != blankID(for: day) {
+                reloadMeals()
+            }
             return
         }
-        let recipe = recipeKeepingLink(for: text, on: key, existing: existing)
+        let recipe = linkedRecipe(for: line)
         let title = recipe.flatMap { savedTitle(of: $0) } ?? text
-        let current = existing.first
-        let sameTitle = (current?.title ?? "") == title
-        let sameRecipe = current?.recipe?.objectID == recipe?.objectID
-        linkedRecipeByDay[key] = recipe?.objectID
-        drafts[key] = title
-        if current != nil && sameTitle && sameRecipe { return }
-        DayDinnerStore.setDinner(on: key, title: title, recipe: recipe, dataManager: dataManager)
+        lines[index].text = title
+        lines[index].recipeID = recipe?.objectID
+        linesByDay[day] = lines
+        if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+            let sameTitle = (meal.title ?? "") == title
+            let sameRecipe = meal.recipe?.objectID == recipe?.objectID
+            if sameTitle && sameRecipe { return }
+            DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
+        } else {
+            if var fresh = linesByDay[day], let blankIndex = fresh.firstIndex(where: { $0.id == lineID }) {
+                fresh[blankIndex].text = ""
+                fresh[blankIndex].recipeID = nil
+                linesByDay[day] = fresh
+            }
+            DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+        }
         reloadMeals()
-    }
-
-    private func recipeKeepingLink(for text: String, on key: Date, existing: [MealPlan]) -> Recipe? {
-        if let id = linkedRecipeByDay[key],
-           let recipe = recipes.first(where: { $0.objectID == id }),
-           namesMatch(recipe.name, text) {
-            return recipe
-        }
-        if let recipe = existing.first?.recipe, namesMatch(recipe.name, text) {
-            return recipe
-        }
-        return nil
     }
 
     private func loadData() {
@@ -833,28 +996,54 @@ struct WeeklyCalendarCard: View {
         weekMeals = dataManager.fetchWeekMealPlans(from: monday)
         weekEvents = dataManager.fetchWeekEvents(from: monday)
         appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
-        syncDrafts()
+        syncLines()
     }
 
     private func reloadMeals() {
         guard let monday = weekDates.first else { return }
         let focus = focusedField
         weekMeals = dataManager.fetchWeekMealPlans(from: monday)
-        syncDrafts(keeping: focus)
+        syncLines(keeping: focus)
         if focusedField != focus {
             focusedField = focus
         }
     }
 
-    private func syncDrafts(keeping focus: DinnerField? = nil) {
+    private func syncLines(keeping focus: DinnerField? = nil) {
         let protected = focus ?? focusedField
+        var next: [Date: [DinnerLine]] = [:]
         for date in weekDates {
             let key = dayKey(date)
-            if protected == .day(key) { continue }
-            let dinner = dinners(for: date).first
-            drafts[key] = dinner?.title ?? ""
-            linkedRecipeByDay[key] = dinner?.recipe?.objectID
+            var lines = dinners(for: date).map { meal in
+                DinnerLine(
+                    id: lineID(for: meal),
+                    mealID: meal.objectID,
+                    text: meal.title ?? "",
+                    recipeID: meal.recipe?.objectID
+                )
+            }
+            if case .line(let focusedDay, let lineID) = protected, focusedDay == key,
+               let draft = linesByDay[key]?.first(where: { $0.id == lineID }),
+               let index = lines.firstIndex(where: { $0.id == lineID }) {
+                lines[index].text = draft.text
+                lines[index].recipeID = draft.recipeID
+            }
+            let lastHasText = lines.last.map {
+                !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            } ?? false
+            if lines.isEmpty || lastHasText {
+                var blank = blankLine(for: key)
+                if case .line(let focusedDay, let lineID) = protected,
+                   focusedDay == key, lineID == blank.id,
+                   let draft = linesByDay[key]?.first(where: { $0.id == lineID }) {
+                    blank.text = draft.text
+                    blank.recipeID = draft.recipeID
+                }
+                lines.append(blank)
+            }
+            next[key] = lines
         }
+        linesByDay = next
     }
 }
 
