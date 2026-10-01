@@ -574,6 +574,9 @@ struct WeeklyCalendarCard: View {
                 }
             }
 
+            weekFooterLinks
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
         }
         .padding(.vertical, 16)
         .background(Color.cardWhite)
@@ -583,51 +586,46 @@ struct WeeklyCalendarCard: View {
     }
 
     private var weekHeader: some View {
-        HStack(alignment: .center, spacing: 6) {
-            weekStepButton(systemName: "chevron.left") { weekOffset -= 1 }
+        HStack(spacing: 12) {
+            Button(action: { weekOffset -= 1 }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 2) {
                 HStack(spacing: 4) {
                     if let household = dataManager.currentHousehold, dataManager.persistenceController.isShared(object: household) {
                         Image(systemName: "cloud.fill")
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .foregroundStyle(Color.sky500)
                     }
                     Text(weekOffset == 0 ? "This week" : weekRangeLabel)
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
                 }
                 if weekOffset == 0 {
                     Text(weekRangeLabel)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.gray)
-                        .lineLimit(1)
                 }
             }
 
-            headerChip("Swipe to plan", fill: Color.terra500, ink: .white, shadow: .black) {
-                showWeekPlanner = true
-            }
-            .disabled(weekDates.isEmpty)
-            .accessibilityLabel("Swipe to plan")
-
-            if !weekMeals.isEmpty {
-                headerChip("Clear week", fill: .white, ink: .black, shadow: Color.terra200) {
-                    showClearWeek = true
-                }
-                .accessibilityLabel("Clear week")
-            }
-
-            Spacer(minLength: 4)
+            Spacer()
 
             if weekOffset != 0 {
                 Button(action: { weekOffset = 0 }) {
                     Text("Today")
                         .font(.system(size: 11, weight: .heavy, design: .rounded))
                         .foregroundStyle(.black)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(Color.lime100)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
@@ -635,44 +633,45 @@ struct WeeklyCalendarCard: View {
                 .buttonStyle(.plain)
             }
 
-            weekStepButton(systemName: "chevron.right") { weekOffset += 1 }
+            Button(action: { weekOffset += 1 }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private func weekStepButton(systemName: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 13, weight: .heavy))
-                .foregroundStyle(.black)
-                .frame(width: 28, height: 28)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
-        }
-        .buttonStyle(.plain)
-    }
+    private var weekFooterLinks: some View {
+        HStack(spacing: 18) {
+            Button {
+                showWeekPlanner = true
+            } label: {
+                Text("Swipe to plan")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color.terra600)
+            }
+            .buttonStyle(.plain)
+            .disabled(weekDates.isEmpty)
+            .accessibilityLabel("Swipe to plan")
 
-    private func headerChip(
-        _ title: String,
-        fill: Color,
-        ink: Color,
-        shadow: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundStyle(ink)
-                .lineLimit(1)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(fill)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 1.5))
-                .boldShadowSm(shadow, radius: 8)
+            if !weekMeals.isEmpty {
+                Button {
+                    showClearWeek = true
+                } label: {
+                    Text("Clear week")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black.opacity(0.45))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear week")
+            }
         }
-        .buttonStyle(.plain)
-        .fixedSize(horizontal: true, vertical: true)
+        .frame(maxWidth: .infinity)
     }
 
     private func dayRow(_ date: Date) -> some View {
