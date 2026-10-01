@@ -65,16 +65,10 @@ class CalendarSyncManager {
     // Available calendars
     var availableCalendars: [SelectableCalendar] = []
 
-    // User-selected source calendar IDs (persisted separately via AppStorage in the view)
-    var selectedCalendarIDs: Set<String> {
-        get {
-            let raw = UserDefaults.standard.stringArray(forKey: "selectedAppleCalendarIDs") ?? []
-            return Set(raw)
-        }
-        set {
-            UserDefaults.standard.set(Array(newValue), forKey: "selectedAppleCalendarIDs")
-        }
-    }
+    static let selectedCalendarsKey = "selectedAppleCalendarIDs"
+
+    /// Calendars the user checked in Calendar Sync.
+    var selectedCalendarIDs: Set<String> = []
 
     // Write-back target calendar ID
     var writeBackCalendarID: String? {
@@ -114,10 +108,13 @@ class CalendarSyncManager {
     }
 
     private var selectionPreferenceExists: Bool {
-        UserDefaults.standard.object(forKey: "selectedAppleCalendarIDs") != nil
+        UserDefaults.standard.object(forKey: Self.selectedCalendarsKey) != nil
     }
 
     init() {
+        if let raw = UserDefaults.standard.stringArray(forKey: Self.selectedCalendarsKey) {
+            selectedCalendarIDs = Set(raw)
+        }
         refreshAuthorizationStatus()
     }
 
@@ -157,27 +154,30 @@ class CalendarSyncManager {
         recoverCalendarSelectionIfNeeded()
     }
 
-    /// Keep a saved selection that still matches. When nothing was ever saved,
-    /// or every saved id is stale, select the calendars EventKit can read so
-    /// the week is not left blank. An explicit empty selection is left empty.
+    /// After a wipe there is no saved checklist, so start with every calendar
+    /// checked. Once a choice exists — including an explicit empty one — never
+    /// add calendars back. The user turns them on and off in Calendar Sync.
     private func recoverCalendarSelectionIfNeeded() {
+        guard !selectionPreferenceExists else { return }
         let knownIDs = Set(eventStore.calendars(for: .event).map(\.calendarIdentifier))
         guard !knownIDs.isEmpty else { return }
+        replaceSelectedCalendars(knownIDs)
+    }
 
-        let selected = selectedCalendarIDs
-        let matched = selected.intersection(knownIDs)
-        if !matched.isEmpty {
-            if matched != selected {
-                selectedCalendarIDs = matched
-            }
-            return
+    /// Toggle one calendar in the checklist and save that choice.
+    func toggleCalendar(id: String) {
+        var ids = selectedCalendarIDs
+        if ids.contains(id) {
+            ids.remove(id)
+        } else {
+            ids.insert(id)
         }
+        replaceSelectedCalendars(ids)
+    }
 
-        if selectionPreferenceExists && selected.isEmpty {
-            return
-        }
-
-        selectedCalendarIDs = knownIDs
+    private func replaceSelectedCalendars(_ ids: Set<String>) {
+        selectedCalendarIDs = ids
+        UserDefaults.standard.set(Array(ids), forKey: Self.selectedCalendarsKey)
     }
 
     // MARK: - Authorization
@@ -245,18 +245,14 @@ class CalendarSyncManager {
         guard isSyncEnabled, canReadEvents, startDate < endDate else { return [] }
 
         let selectedIDs = selectedCalendarIDs
-        if selectionPreferenceExists && selectedIDs.isEmpty { return [] }
-
-        let allCalendars = eventStore.calendars(for: .event)
-        let matched = allCalendars.filter { selectedIDs.contains($0.calendarIdentifier) }
-        // nil means every calendar EventKit can read. An empty filter used to
-        // discard the whole result when the calendar list was stale.
-        let calendars: [EKCalendar]? = matched.isEmpty ? nil : matched
+        let matched = eventStore.calendars(for: .event)
+            .filter { selectedIDs.contains($0.calendarIdentifier) }
+        guard !matched.isEmpty else { return [] }
 
         let predicate = eventStore.predicateForEvents(
             withStart: startDate,
             end: endDate,
-            calendars: calendars
+            calendars: matched
         )
 
         return eventStore.events(matching: predicate).map { ev in

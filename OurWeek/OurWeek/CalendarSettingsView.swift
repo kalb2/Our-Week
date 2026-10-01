@@ -204,13 +204,7 @@ struct CalendarSettingsView: View {
     private func calendarRow(_ cal: SelectableCalendar) -> some View {
         let isSelected = syncManager.selectedCalendarIDs.contains(cal.id)
         Button {
-            var ids = syncManager.selectedCalendarIDs
-            if isSelected {
-                ids.remove(cal.id)
-            } else {
-                ids.insert(cal.id)
-            }
-            syncManager.selectedCalendarIDs = ids
+            syncManager.toggleCalendar(id: cal.id)
         } label: {
             HStack(spacing: 10) {
                 Circle()
