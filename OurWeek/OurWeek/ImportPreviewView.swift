@@ -847,6 +847,7 @@ struct ImportPreviewView: View {
             )
             return AddRecipeView.IngredientRow(
                 amount: fixed.amount > 0 ? CookingAmount.format(fixed.amount, unit: fixed.unit) : "",
+                amountValue: fixed.amount,
                 unit: fixed.unit,
                 name: fixed.name,
                 notes: fixed.notes
@@ -913,7 +914,7 @@ struct ImportPreviewView: View {
 
         let ingInputs: [DataManager.IngredientInput] = validIngredients.enumerated().map { index, row in
             DataManager.IngredientInput(
-                amount: RecipeScraperService.parseAmount(row.amount),
+                amount: CookingAmount.amountFromEditor(display: row.amount, fallback: row.amountValue, unit: row.unit),
                 unit: row.unit,
                 name: row.name,
                 notes: row.notes,

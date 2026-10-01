@@ -612,10 +612,13 @@ final class RecipeScraperService {
 
     // MARK: - Ingredient String Parsing
 
-    /// One ingredient for display and save: join a split fraction, peel a unit left in the name, keep the full name.
+    /// Join a split fraction and peel a unit left in the name. Does not erase a name or amount already present.
     static func normalizedIngredient(amount: Double, unit: String, name: String, notes: String) -> (amount: Double, unit: String, name: String, notes: String) {
+        let originalAmount = amount
+        let originalUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let originalName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var amount = amount
-        var unit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        var unit = originalUnit
         var name = normalizeFractionText(name).trimmingCharacters(in: .whitespacesAndNewlines)
         var notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -643,6 +646,15 @@ final class RecipeScraperService {
         if !notes.isEmpty, !name.localizedCaseInsensitiveContains(notes) {
             name = name.isEmpty ? notes : "\(name), \(notes)"
             notes = ""
+        }
+
+        // A repair must not erase an ingredient that already had a name or an amount.
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            name = originalName
+        }
+        if amount <= 0, originalAmount > 0 {
+            amount = originalAmount
+            if unit.isEmpty { unit = originalUnit }
         }
 
         return (amount, CookingAmount.canonicalUnit(unit), name, notes)

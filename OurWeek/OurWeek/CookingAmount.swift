@@ -89,6 +89,36 @@ enum CookingAmount {
         }
     }
 
+    /// Amount to store from the editor. The preview already has `fallback`; the text field
+    /// only replaces it when the person typed a new number. An empty field keeps `fallback`,
+    /// so a fraction glyph is not dropped if the decimal keypad clears it.
+    static func amountFromEditor(display: String, fallback: Double, unit: String) -> Double {
+        let trimmed = display.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return max(0, fallback) }
+        if fallback > 0, trimmed == format(fallback, unit: unit) {
+            return fallback
+        }
+        if trimmed == "0" || trimmed == "0.0" { return 0 }
+        let parsed = RecipeScraperService.parseAmount(trimmed)
+        if parsed > 0 { return parsed }
+        return max(0, fallback)
+    }
+
+    /// Display line for fields the editor already settled. Does not re-read the name.
+    static func plainLine(amount: Double, unit: String, name: String, notes: String = "") -> String {
+        let unit = canonicalUnit(unit)
+        let label = labeled(amount, unit: unit)
+        var fullName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let extra = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !extra.isEmpty, !fullName.localizedCaseInsensitiveContains(extra) {
+            fullName = fullName.isEmpty ? extra : "\(fullName), \(extra)"
+        }
+        return [label, fullName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
     /// Value to persist. Kitchen units round to the same fraction used for display.
     static func storedValue(_ amount: Double, unit: String) -> Double {
         guard amount > 0 else { return 0 }
