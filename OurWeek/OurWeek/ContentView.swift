@@ -184,21 +184,51 @@ struct ContentView: View {
 struct HomeView: View {
     @Binding var showSharingSettings: Bool
     @Binding var triggerAddTodo: Bool
+    @State private var keyboardOverlap: CGFloat = 0
+    @State private var focusedLineID: String?
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                GreetingHeader(showSharingSettings: $showSharingSettings)
-                WeeklyCalendarCard()
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    GreetingHeader(showSharingSettings: $showSharingSettings)
+                    WeeklyCalendarCard { id in
+                        focusedLineID = id
+                        reveal(id, proxy: proxy)
+                    }
                     .padding(.bottom, 24)
-                TodoSection(triggerAdd: $triggerAddTodo)
-                    .padding(.bottom, 24)
-                DailyGoalsSection()
-                Spacer().frame(height: 120)
+                    TodoSection(triggerAdd: $triggerAddTodo)
+                        .padding(.bottom, 24)
+                    DailyGoalsSection()
+                    Spacer().frame(height: 120 + keyboardOverlap)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(Color.bgBase)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                let overlap = keyboardOverlapHeight(from: note)
+                withAnimation(.easeOut(duration: 0.25)) {
+                    keyboardOverlap = overlap
+                }
+                if overlap > 0, let id = focusedLineID {
+                    reveal(id, proxy: proxy)
+                }
             }
         }
-        .scrollDismissesKeyboard(.interactively)
-        .background(Color.bgBase)
+    }
+
+    private func reveal(_ id: String, proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.22))
+            }
+        }
+    }
+
+    private func keyboardOverlapHeight(from note: Notification) -> CGFloat {
+        guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return 0 }
+        let screenHeight = note.object.flatMap { $0 as? UIWindow }?.bounds.height ?? UIScreen.main.bounds.height
+        return max(0, screenHeight - frame.minY)
     }
 }
 
@@ -332,49 +362,9 @@ private struct DinnerLine: Identifiable {
     var recipeID: NSManagedObjectID?
 }
 
-private struct FlowLayout: Layout {
-    var spacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? 0
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > maxWidth {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-        }
-        return CGSize(width: maxWidth, height: y + rowHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            subview.place(
-                at: CGPoint(x: x, y: y),
-                proposal: ProposedViewSize(width: size.width, height: size.height)
-            )
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-        }
-    }
-}
-
 struct WeeklyCalendarCard: View {
+    var onFocusScroll: (String) -> Void = { _ in }
+
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
     @State private var weekMeals: [MealPlan] = []
@@ -389,6 +379,7 @@ struct WeeklyCalendarCard: View {
     @State private var recipes: [Recipe] = []
     @State private var linesByDay: [Date: [DinnerLine]] = [:]
     @State private var skipNextCommitID: String?
+    @State private var suppressBlankEcho: [Date: String] = [:]
     @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
@@ -465,10 +456,14 @@ struct WeeklyCalendarCard: View {
                 focusedField = nil
                 loadData()
             }
-            .onChange(of: focusedField) { old, _ in
-                guard case .line(let day, let id) = old else { return }
-                DispatchQueue.main.async {
-                    commitLine(day: day, lineID: id)
+            .onChange(of: focusedField) { old, new in
+                if case .line(let day, let id) = old {
+                    DispatchQueue.main.async {
+                        commitLine(day: day, lineID: id)
+                    }
+                }
+                if case .line(let day, let id) = new {
+                    onFocusScroll(scrollID(day: day, lineID: id))
                 }
             }
             .onDisappear {
@@ -503,7 +498,11 @@ struct WeeklyCalendarCard: View {
         VStack(alignment: .leading, spacing: 0) {
             weekHeader
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
+
+            CalendarHeaderRow()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
 
             ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
                 dayRow(date)
@@ -594,7 +593,6 @@ struct WeeklyCalendarCard: View {
         let lines = linesByDay[key] ?? [blankLine(for: key)]
         let dayEvents = events(for: date)
         let dayApple = appleEventsForDate(date)
-        let showsEvents = !dayFocused && (!dayEvents.isEmpty || !dayApple.isEmpty)
         let dayName: String = {
             if isToday { return "Today" }
             let formatter = DateFormatter()
@@ -607,7 +605,7 @@ struct WeeklyCalendarCard: View {
             return formatter.string(from: date)
         }()
 
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(dayName)
                     .font(.system(size: 12, weight: .heavy, design: .rounded))
@@ -617,19 +615,21 @@ struct WeeklyCalendarCard: View {
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundStyle(.black)
             }
-            .frame(width: 64, alignment: .leading)
+            .frame(width: 56, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(lines) { line in
                     dinnerLine(line, on: key, dayName: dayName)
-                }
-
-                if showsEvents {
-                    eventChips(events: dayEvents, apple: dayApple)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .id(scrollID(day: key, lineID: line.id))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !dayFocused {
+                eventColumn(events: dayEvents, apple: dayApple)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -714,8 +714,8 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private func eventChips(events: [CalendarEvent], apple: [AppleCalendarEvent]) -> some View {
-        FlowLayout(spacing: 6) {
+    private func eventColumn(events: [CalendarEvent], apple: [AppleCalendarEvent]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             ForEach(events, id: \.objectID) { event in
                 Button {
                     selectedAppleEvent = nil
@@ -746,9 +746,10 @@ struct WeeklyCalendarCard: View {
     }
 
     private func eventChip(title: String, time: String?, fill: Color) -> some View {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(title)
-                .lineLimit(1)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
             if let time {
                 Text(time)
                     .foregroundStyle(.black.opacity(0.55))
@@ -757,10 +758,11 @@ struct WeeklyCalendarCard: View {
         }
         .font(.system(size: 12, weight: .heavy, design: .rounded))
         .foregroundStyle(.black)
-        .lineLimit(1)
+        .lineLimit(2)
+        .multilineTextAlignment(.leading)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .frame(maxWidth: 220, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(fill)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
@@ -861,6 +863,10 @@ struct WeeklyCalendarCard: View {
         return title.isEmpty ? nil : title
     }
 
+    private func scrollID(day: Date, lineID: String) -> String {
+        "dinner-\(day.timeIntervalSince1970)-\(lineID)"
+    }
+
     private func blankID(for day: Date) -> String {
         "blank-\(day.timeIntervalSince1970)"
     }
@@ -904,6 +910,7 @@ struct WeeklyCalendarCard: View {
             return
         }
         commitLine(day: day, lineID: lineID)
+        skipNextCommitID = lineID
         focusedField = .line(day: day, id: blankID(for: day))
     }
 
@@ -930,8 +937,13 @@ struct WeeklyCalendarCard: View {
         if let meal {
             DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
         } else {
-            DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+            let created = DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+            lines[index].mealID = created.objectID
+            lines[index].text = ""
+            lines[index].recipeID = nil
+            linesByDay[day] = lines
         }
+        suppressBlankEcho[day] = title
         focusedField = nil
         reloadMeals()
     }
@@ -961,10 +973,11 @@ struct WeeklyCalendarCard: View {
         let line = lines[index]
         let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty {
-            if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+            // The placeholder can briefly carry a meal id after save. Do not delete that dinner.
+            if lineID != blankID(for: day),
+               let mealID = line.mealID,
+               let meal = meal(mealID, on: day) {
                 DayDinnerStore.remove(meal, dataManager: dataManager)
-            }
-            if lineID != blankID(for: day) {
                 reloadMeals()
             }
             return
@@ -980,12 +993,14 @@ struct WeeklyCalendarCard: View {
             if sameTitle && sameRecipe { return }
             DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
         } else {
+            let created = DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
             if var fresh = linesByDay[day], let blankIndex = fresh.firstIndex(where: { $0.id == lineID }) {
+                fresh[blankIndex].mealID = created.objectID
                 fresh[blankIndex].text = ""
                 fresh[blankIndex].recipeID = nil
                 linesByDay[day] = fresh
             }
-            DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+            suppressBlankEcho[day] = title
         }
         reloadMeals()
     }
@@ -1036,8 +1051,16 @@ struct WeeklyCalendarCard: View {
                 if case .line(let focusedDay, let lineID) = protected,
                    focusedDay == key, lineID == blank.id,
                    let draft = linesByDay[key]?.first(where: { $0.id == lineID }) {
-                    blank.text = draft.text
-                    blank.recipeID = draft.recipeID
+                    let draftText = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let echoed = suppressBlankEcho[key].map { namesMatch($0, draftText) } ?? false
+                    let alreadyListed = lines.contains { namesMatch($0.text, draftText) }
+                    if !echoed && !alreadyListed {
+                        blank.text = draft.text
+                        blank.recipeID = draft.recipeID
+                    }
+                }
+                if suppressBlankEcho[key] != nil {
+                    suppressBlankEcho[key] = nil
                 }
                 lines.append(blank)
             }
@@ -1049,16 +1072,15 @@ struct WeeklyCalendarCard: View {
 
 struct CalendarHeaderRow: View {
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             Text("DATE")
                 .frame(width: 56, alignment: .leading)
                 .foregroundStyle(.gray.opacity(0.6))
             Text("MEALS")
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(Color.terra500)
-            Spacer().frame(width: 12)
             Text("EVENTS")
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(Color.lilac500)
         }
         .font(.system(size: 10, weight: .heavy, design: .rounded))
