@@ -320,6 +320,11 @@ struct AvatarButton: View {
 }
 
 // MARK: - Weekly Calendar Card
+
+private enum DinnerField: Hashable {
+    case day(Date)
+}
+
 struct WeeklyCalendarCard: View {
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
@@ -332,10 +337,10 @@ struct WeeklyCalendarCard: View {
     @State private var selectedAppleEvent: AppleCalendarEvent?
     @State private var weekOffset: Int = 0
     @State private var showWeekPlanner = false
-    @State private var planningDay: DayPlanTarget?
-    @State private var newIdea = ""
-    @FocusState private var ideaFieldFocused: Bool
-    @AppStorage("dinnerIdeaTitles") private var ideaBlob = DayDinnerStore.starterBlob
+    @State private var recipes: [Recipe] = []
+    @State private var drafts: [Date: String] = [:]
+    @State private var linkedRecipeByDay: [Date: NSManagedObjectID] = [:]
+    @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -362,8 +367,8 @@ struct WeeklyCalendarCard: View {
         return "\(firstStr) – \(df.string(from: last))"
     }
 
-    private var ideaTitles: [String] {
-        DayDinnerStore.titles(from: ideaBlob)
+    private func dayKey(_ date: Date) -> Date {
+        Calendar.current.startOfDay(for: date)
     }
 
     private func meals(for date: Date) -> [MealPlan] {
@@ -394,22 +399,28 @@ struct WeeklyCalendarCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            weekCard
-            ideasSection
-        }
-        .padding(.horizontal, 24)
-        .onAppear { loadData() }
-        .onChange(of: weekOffset) { _, _ in loadData() }
-        .sheet(item: $planningDay, onDismiss: { loadData() }) { day in
-            DayDinnerSheet(date: day.date, ideas: ideaTitles) {
-                planningDay = nil
+        weekCard
+            .padding(.horizontal, 24)
+            .onAppear { loadData() }
+            .onChange(of: weekOffset) { _, _ in
+                if case .day(let date) = focusedField {
+                    commitDraft(for: date)
+                }
+                focusedField = nil
+                loadData()
             }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(Color.bgBase)
-        }
-        .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
+            .onChange(of: focusedField) { old, _ in
+                guard case .day(let date) = old else { return }
+                DispatchQueue.main.async {
+                    commitDraft(for: date)
+                }
+            }
+            .onDisappear {
+                if case .day(let date) = focusedField {
+                    commitDraft(for: date)
+                }
+            }
+            .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
             AddEventSheet(
                 date: addingEventDate ?? Date(),
                 dataManager: dataManager
@@ -521,8 +532,12 @@ struct WeeklyCalendarCard: View {
 
     private func dayRow(_ date: Date) -> some View {
         let calendar = Calendar.current
+        let key = dayKey(date)
         let isToday = calendar.isDateInToday(date)
-        let dinners = dinners(for: date)
+        let isFocused = focusedField == .day(key)
+        let text = drafts[key] ?? dinners(for: date).first?.title ?? ""
+        let linked = linkedRecipe(matching: text, on: key)
+        let matches = suggestions(for: date)
         let dayEvents = events(for: date)
         let dayApple = appleEventsForDate(date)
         let dayName: String = {
@@ -537,44 +552,88 @@ struct WeeklyCalendarCard: View {
             return formatter.string(from: date)
         }()
 
-        return HStack(alignment: .top, spacing: 12) {
-            Button {
-                planningDay = DayPlanTarget(date: date)
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(dayName)
-                            .font(.system(size: 12, weight: .heavy, design: .rounded))
-                            .textCase(.uppercase)
-                            .foregroundStyle(isToday ? Color.terra600 : .gray)
-                        Text(dayNumber)
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.black)
-                    }
-                    .frame(width: 64, alignment: .leading)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(dayName)
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .textCase(.uppercase)
+                        .foregroundStyle(isToday ? Color.terra600 : .gray)
+                    Text(dayNumber)
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black)
+                }
+                .frame(width: 64, alignment: .leading)
 
-                    if dinners.isEmpty {
-                        Text("tap to plan")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray.opacity(0.55))
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(dinners, id: \.objectID) { meal in
-                                Text(meal.title ?? "Dinner")
-                                    .font(.system(size: 16, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(.black)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                            }
-                        }
+                TextField("", text: draftBinding(for: date))
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .foregroundStyle(linked == nil ? Color.black : Color.terra600)
+                    .textFieldStyle(.plain)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled(true)
+                    .focused($focusedField, equals: .day(key))
+                    .submitLabel(isLastWeekDay(date) ? .done : .next)
+                    .onSubmit { focusNext(after: date) }
+                    .accessibilityLabel("\(dayName) dinner")
+
+                if isFocused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        drafts[key] = ""
+                        clearDinnerIfNeeded(on: key)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .heavy))
+                            .foregroundStyle(.black)
+                            .frame(width: 28, height: 28)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
                     }
-                    Spacer(minLength: 0)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear dinner")
                 }
             }
-            .buttonStyle(.plain)
+
+            Rectangle()
+                .fill(isFocused ? Color.black : Color.black.opacity(0.12))
+                .frame(height: isFocused ? 2 : 1)
+                .padding(.leading, 76)
+
+            if !matches.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(matches, id: \.objectID) { recipe in
+                        Button {
+                            applyRecipe(recipe, on: date)
+                        } label: {
+                            HStack(spacing: 8) {
+                                if let data = recipe.imageData, let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 28, height: 28)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black, lineWidth: 1.5))
+                                }
+                                Text(recipe.name ?? "")
+                                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color.terra100)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 2))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.leading, 76)
+            }
 
             if !dayEvents.isEmpty || !dayApple.isEmpty {
-                VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 8) {
                     ForEach(dayEvents, id: \.objectID) { event in
                         Button {
                             selectedAppleEvent = nil
@@ -599,12 +658,13 @@ struct WeeklyCalendarCard: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: 90, alignment: .trailing)
+                .padding(.leading, 76)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
         .background(isToday ? Color.terra50 : Color.white)
     }
 
@@ -625,69 +685,176 @@ struct WeeklyCalendarCard: View {
         .accessibilityLabel("Plan week")
     }
 
-    private var ideasSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Ideas")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .foregroundStyle(.black)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(ideaTitles, id: \.self) { idea in
-                        Button {
-                            assignIdea(idea)
-                        } label: {
-                            Text(idea)
-                                .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.terra100)
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                        }
-                        .buttonStyle(.plain)
-                    }
+    private func draftBinding(for date: Date) -> Binding<String> {
+        let key = dayKey(date)
+        return Binding(
+            get: { drafts[key] ?? dinners(for: date).first?.title ?? "" },
+            set: { newValue in
+                drafts[key] = newValue
+                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    clearDinnerIfNeeded(on: key)
                 }
             }
+        )
+    }
 
-            TextField("Add an idea", text: $newIdea)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .focused($ideaFieldFocused)
-                .submitLabel(.done)
-                .onSubmit { addIdea() }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+    private func suggestions(for date: Date) -> [Recipe] {
+        let key = dayKey(date)
+        guard focusedField == .day(key) else { return [] }
+        let query = (drafts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        let needle = query.lowercased()
+        let linkedID = linkedRecipe(matching: query, on: key)?.objectID
+        return recipes
+            .filter { recipe in
+                let name = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty, recipe.objectID != linkedID else { return false }
+                let tags = (recipe.tags ?? "").lowercased()
+                return name.lowercased().contains(needle) || tags.contains(needle)
+            }
+            .sorted { a, b in
+                let rankA = matchRank(a, query: needle)
+                let rankB = matchRank(b, query: needle)
+                if rankA != rankB { return rankA < rankB }
+                if a.isFavorite != b.isFavorite { return a.isFavorite }
+                return (a.name ?? "").localizedCaseInsensitiveCompare(b.name ?? "") == .orderedAscending
+            }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    private func matchRank(_ recipe: Recipe, query: String) -> Int {
+        let name = (recipe.name ?? "").lowercased()
+        if name == query { return 0 }
+        if name.hasPrefix(query) { return 1 }
+        if name.contains(query) { return 2 }
+        return 3
+    }
+
+    private func linkedRecipe(matching text: String, on key: Date) -> Recipe? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let id = linkedRecipeByDay[key],
+           let recipe = recipes.first(where: { $0.objectID == id }),
+           namesMatch(recipe.name, trimmed) {
+            return recipe
         }
-    }
-
-    private func assignIdea(_ title: String) {
-        guard let date = weekDates.first(where: { dinners(for: $0).isEmpty }) else { return }
-        DayDinnerStore.setDinner(on: date, title: title, recipe: nil, dataManager: dataManager)
-        loadData()
-    }
-
-    private func addIdea() {
-        let trimmed = newIdea.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        var titles = ideaTitles
-        if !titles.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
-            titles.append(trimmed)
-            ideaBlob = titles.joined(separator: "\n")
+        if let recipe = dinners(for: key).first?.recipe, namesMatch(recipe.name, trimmed) {
+            return recipe
         }
-        newIdea = ""
-        ideaFieldFocused = false
+        return nil
     }
 
+    private func namesMatch(_ name: String?, _ text: String) -> Bool {
+        (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(text) == .orderedSame
+    }
+
+    private func savedTitle(of recipe: Recipe) -> String? {
+        let title = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? nil : title
+    }
+
+    private func isLastWeekDay(_ date: Date) -> Bool {
+        guard let last = weekDates.last else { return true }
+        return Calendar.current.isDate(date, inSameDayAs: last)
+    }
+
+    private func focusNext(after date: Date) {
+        guard let index = weekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: date) }),
+              index + 1 < weekDates.count else {
+            focusedField = nil
+            return
+        }
+        focusedField = .day(dayKey(weekDates[index + 1]))
+    }
+
+    private func applyRecipe(_ recipe: Recipe, on date: Date) {
+        let key = dayKey(date)
+        let title = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        drafts[key] = title
+        linkedRecipeByDay[key] = recipe.objectID
+        DayDinnerStore.setDinner(on: key, title: title, recipe: recipe, dataManager: dataManager)
+        focusedField = nil
+        reloadMeals()
+    }
+
+    private func clearDinnerIfNeeded(on key: Date) {
+        let existing = DayDinnerStore.dinners(on: key, dataManager: dataManager)
+        guard !existing.isEmpty else {
+            linkedRecipeByDay[key] = nil
+            return
+        }
+        DayDinnerStore.clearDinner(on: key, dataManager: dataManager)
+        linkedRecipeByDay[key] = nil
+        reloadMeals()
+    }
+
+    private func commitDraft(for date: Date) {
+        let key = dayKey(date)
+        guard let typed = drafts[key] else { return }
+        let text = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = DayDinnerStore.dinners(on: key, dataManager: dataManager)
+        if text.isEmpty {
+            guard !existing.isEmpty else { return }
+            DayDinnerStore.clearDinner(on: key, dataManager: dataManager)
+            linkedRecipeByDay[key] = nil
+            drafts[key] = ""
+            reloadMeals()
+            return
+        }
+        let recipe = recipeKeepingLink(for: text, on: key, existing: existing)
+        let title = recipe.flatMap { savedTitle(of: $0) } ?? text
+        let current = existing.first
+        let sameTitle = (current?.title ?? "") == title
+        let sameRecipe = current?.recipe?.objectID == recipe?.objectID
+        linkedRecipeByDay[key] = recipe?.objectID
+        drafts[key] = title
+        if current != nil && sameTitle && sameRecipe { return }
+        DayDinnerStore.setDinner(on: key, title: title, recipe: recipe, dataManager: dataManager)
+        reloadMeals()
+    }
+
+    private func recipeKeepingLink(for text: String, on key: Date, existing: [MealPlan]) -> Recipe? {
+        if let id = linkedRecipeByDay[key],
+           let recipe = recipes.first(where: { $0.objectID == id }),
+           namesMatch(recipe.name, text) {
+            return recipe
+        }
+        if let recipe = existing.first?.recipe, namesMatch(recipe.name, text) {
+            return recipe
+        }
+        return nil
+    }
 
     private func loadData() {
         guard let monday = weekDates.first else { return }
+        recipes = dataManager.fetchRecipes()
         weekMeals = dataManager.fetchWeekMealPlans(from: monday)
         weekEvents = dataManager.fetchWeekEvents(from: monday)
         appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
+        syncDrafts()
+    }
+
+    private func reloadMeals() {
+        guard let monday = weekDates.first else { return }
+        let focus = focusedField
+        weekMeals = dataManager.fetchWeekMealPlans(from: monday)
+        syncDrafts(keeping: focus)
+        if focusedField != focus {
+            focusedField = focus
+        }
+    }
+
+    private func syncDrafts(keeping focus: DinnerField? = nil) {
+        let protected = focus ?? focusedField
+        for date in weekDates {
+            let key = dayKey(date)
+            if protected == .day(key) { continue }
+            let dinner = dinners(for: date).first
+            drafts[key] = dinner?.title ?? ""
+            linkedRecipeByDay[key] = dinner?.recipe?.objectID
+        }
     }
 }
 
