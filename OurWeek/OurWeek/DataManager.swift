@@ -438,6 +438,15 @@ class DataManager {
         save()
     }
 
+    /// Deletes every given meal plan in one save. Does not touch calendar events.
+    func deleteMealPlans(_ meals: [MealPlan]) {
+        guard !meals.isEmpty else { return }
+        for meal in meals {
+            viewContext.delete(meal)
+        }
+        save()
+    }
+
     // MARK: - Recipes
 
     func updateRecipeImage(recipe: Recipe, newImageData: Data?) {

@@ -389,6 +389,8 @@ struct WeeklyCalendarCard: View {
     @State private var skipNextCommitID: String?
     @State private var suppressBlankEcho: [Date: String] = [:]
     @State private var showCalendarSettings = false
+    @State private var showClearWeek = false
+    @State private var suppressCommit = false
     @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
@@ -532,6 +534,10 @@ struct WeeklyCalendarCard: View {
         }) {
             WeekPlannerView(weekStart: weekDates.first ?? Date())
         }
+        .fullScreenCover(isPresented: $showClearWeek) {
+            clearWeekPrompt
+                .presentationBackground(.clear)
+        }
     }
 
     private var weekCard: some View {
@@ -539,6 +545,10 @@ struct WeeklyCalendarCard: View {
             weekHeader
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+
+            weekActions
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
 
             CalendarHeaderRow()
                 .padding(.horizontal, 16)
@@ -568,9 +578,6 @@ struct WeeklyCalendarCard: View {
                 }
             }
 
-            planWeekLink
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
         }
         .padding(.vertical, 16)
         .background(Color.cardWhite)
@@ -830,21 +837,122 @@ struct WeeklyCalendarCard: View {
         return formatter.string(from: date)
     }
 
-    private var planWeekLink: some View {
-        Button {
-            showWeekPlanner = true
-        } label: {
-            HStack(spacing: 6) {
-                Text("Plan week")
+    private var weekActions: some View {
+        HStack(spacing: 8) {
+            Button {
+                showWeekPlanner = true
+            } label: {
+                Text("Swipe to plan")
                     .font(.system(size: 13, weight: .heavy, design: .rounded))
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.terra500)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 2))
+                    .boldShadowSm(Color.black, radius: 10)
             }
-            .foregroundStyle(Color.terra600)
+            .buttonStyle(.plain)
+            .disabled(weekDates.isEmpty)
+            .accessibilityLabel("Swipe to plan")
+
+            if !weekMeals.isEmpty {
+                Button {
+                    showClearWeek = true
+                } label: {
+                    Text("Clear week")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 2))
+                        .boldShadowSm(Color.terra200, radius: 10)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear week")
+            }
+
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .disabled(weekDates.isEmpty)
-        .accessibilityLabel("Plan week")
+    }
+
+    private var clearWeekPrompt: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showClearWeek = false }
+
+            VStack(spacing: 18) {
+                Text("Clear this week?")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.black)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                Text("Meals on this week will be removed. Events stay.")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.black.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 10) {
+                    Button {
+                        showClearWeek = false
+                    } label: {
+                        Text("Keep meals")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.terra500)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .boldShadow(Color.black, size: 3, radius: 14)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        clearWeekMeals()
+                    } label: {
+                        Text("Clear week")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .boldShadow(Color.terra200, size: 3, radius: 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .background(Color.bgBase)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+            .boldShadow(Color.terra500, size: 4, radius: 18)
+            .padding(.horizontal, 28)
+        }
+        .preferredColorScheme(.light)
+    }
+
+    private func clearWeekMeals() {
+        suppressCommit = true
+        focusedField = nil
+        showClearWeek = false
+        guard let monday = weekDates.first else {
+            suppressCommit = false
+            return
+        }
+        let meals = dataManager.fetchWeekMealPlans(from: monday)
+        dataManager.deleteMealPlans(meals)
+        loadData()
+        DispatchQueue.main.async {
+            suppressCommit = false
+        }
     }
 
     private func lineBinding(day: Date, lineID: String) -> Binding<String> {
@@ -1019,6 +1127,7 @@ struct WeeklyCalendarCard: View {
     }
 
     private func commitLine(day: Date, lineID: String) {
+        if suppressCommit { return }
         if skipNextCommitID == lineID {
             skipNextCommitID = nil
             return
