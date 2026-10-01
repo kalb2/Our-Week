@@ -773,8 +773,8 @@ struct StoreSection: View {
                 accentColor: accentColor,
                 borderColor: borderColor,
                 onSave: { name, quantity in
-                    item.name = name
-                    item.quantity = quantity
+                    item.name = CookingAmount.reformatLine(name)
+                    item.quantity = CookingAmount.reformatLine(quantity)
                     dataManager.save()
                     loadItems()
                 },
@@ -1058,8 +1058,8 @@ struct EditItemSheet: View {
         }
         .background(Color.bgBase)
         .onAppear {
-            editName = item.name ?? ""
-            editQuantity = item.quantity ?? ""
+            editName = CookingAmount.reformatLine(item.name ?? "")
+            editQuantity = CookingAmount.reformatLine(item.quantity ?? "")
         }
         .alert("Delete Item?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -1106,13 +1106,13 @@ struct ShopListEntryRow: View {
             // Tappable item content
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name ?? "Unknown")
+                    Text(CookingAmount.reformatLine(item.name ?? "Unknown"))
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(isChecked ? .gray.opacity(0.5) : .primary)
                         .strikethrough(isChecked, color: .gray.opacity(0.5))
                     
                     if let quantity = item.quantity, !quantity.isEmpty {
-                        Text(quantity)
+                        Text(CookingAmount.reformatLine(quantity))
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(isChecked ? .gray.opacity(0.3) : .gray)
                             .strikethrough(isChecked, color: .gray.opacity(0.3))

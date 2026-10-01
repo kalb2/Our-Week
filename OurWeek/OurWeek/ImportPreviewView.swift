@@ -888,27 +888,7 @@ struct ImportPreviewView: View {
     }
 
     private func normalizeToAppUnit(_ unit: String) -> String {
-        // Map scraped units to ones in RecipeConstants.units
-        let appUnits = RecipeConstants.units
-        let lower = unit.lowercased()
-        if appUnits.contains(lower) { return lower }
-        // Try common mappings
-        switch lower {
-        case "tablespoons", "tablespoon", "tbs": return "tbsp"
-        case "teaspoons", "teaspoon": return "tsp"
-        case "cups": return "cup"
-        case "ounces", "ounce": return "oz"
-        case "pounds", "pound", "lbs": return "lb"
-        case "grams", "gram": return "g"
-        case "kilograms", "kilogram": return "kg"
-        case "milliliters", "milliliter": return "ml"
-        case "liters", "liter": return "L"
-        case "packages", "package": return "pkg"
-        case "slices": return "slice"
-        case "cloves": return "clove"
-        case "cans": return "can"
-        default: return unit
-        }
+        CookingAmount.canonicalUnit(unit)
     }
 
     // MARK: - Save

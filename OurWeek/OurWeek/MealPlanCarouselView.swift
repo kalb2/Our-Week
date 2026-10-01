@@ -614,7 +614,9 @@ struct MealEditSheet: View {
     // MARK: - Helpers
     
     private func encodeIngredients(_ ing: [EditIngredient]) -> String {
-        let items = ing.filter { !$0.text.isEmpty }.map { "\($0.isChecked ? "1" : "0")|\($0.text)" }
+        let items = ing.filter { !$0.text.isEmpty }.map {
+            "\($0.isChecked ? "1" : "0")|\(CookingAmount.reformatLine($0.text))"
+        }
         return items.joined(separator: "\n")
     }
     
@@ -622,7 +624,7 @@ struct MealEditSheet: View {
         return str.components(separatedBy: "\n").compactMap { line in
             let parts = line.split(separator: "|", maxSplits: 1)
             guard parts.count == 2 else { return nil }
-            return EditIngredient(text: String(parts[1]), isChecked: parts[0] == "1")
+            return EditIngredient(text: CookingAmount.reformatLine(String(parts[1])), isChecked: parts[0] == "1")
         }
     }
 }

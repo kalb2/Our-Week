@@ -5,6 +5,12 @@ import CoreData
 
 struct RecipeDetailView: View {
     let recipe: Recipe
+
+    init(recipe: Recipe) {
+        self.recipe = recipe
+        _adjustedServings = State(initialValue: max(1, Int(recipe.servings)))
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
 
@@ -302,7 +308,9 @@ struct RecipeDetailView: View {
         generationError = nil
         
         // Use custom property instead of dictionary directly
-        let ingredientsList = ingredients.map { "\($0.amount) \($0.unit ?? "") \($0.name ?? "")" }
+        let ingredientsList = ingredients.map {
+            CookingAmount.line(amount: $0.amount, unit: $0.unit ?? "", name: $0.name ?? "")
+        }
         
         Task {
             do {
@@ -484,7 +492,7 @@ struct RecipeDetailView: View {
                             // Amount + unit
                             if ing.amount > 0 {
                                 let scaledAmount = ing.amount * servingMultiplier
-                                Text("\(CookingAmount.format(scaledAmount, unit: ing.unit ?? "")) \(ing.unit ?? "")")
+                                Text(verbatim: CookingAmount.labeled(scaledAmount, unit: ing.unit ?? ""))
                                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }

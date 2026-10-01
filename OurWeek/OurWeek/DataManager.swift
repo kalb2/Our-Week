@@ -486,10 +486,11 @@ class DataManager {
 
         // Create structured ingredients
         for input in ingredientInputs {
+            let unit = CookingAmount.canonicalUnit(input.unit)
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = CookingAmount.storedValue(input.amount, unit: input.unit)
-            ing.unit = input.unit
+            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
+            ing.unit = unit
             ing.name = input.name
             ing.notes = input.notes
             ing.sectionName = input.sectionName
@@ -553,10 +554,11 @@ class DataManager {
             for old in existing { viewContext.delete(old) }
         }
         for input in ingredientInputs {
+            let unit = CookingAmount.canonicalUnit(input.unit)
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = CookingAmount.storedValue(input.amount, unit: input.unit)
-            ing.unit = input.unit
+            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
+            ing.unit = unit
             ing.name = input.name
             ing.notes = input.notes
             ing.sectionName = input.sectionName
@@ -860,12 +862,12 @@ class DataManager {
                     let parts = line.split(separator: "|", maxSplits: 1)
                     if parts.count == 2 {
                         let isChecked = parts[0] == "1"
-                        let text = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                        let text = CookingAmount.reformatLine(String(parts[1]))
                         if !isChecked && !text.isEmpty {
                             newItems.append(text)
                         }
                     } else if parts.count == 1 {
-                        let text = String(parts[0]).trimmingCharacters(in: .whitespaces)
+                        let text = CookingAmount.reformatLine(String(parts[0]))
                         if !text.isEmpty {
                             newItems.append(text)
                         }

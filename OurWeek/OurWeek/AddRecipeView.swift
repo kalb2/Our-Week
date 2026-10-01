@@ -852,7 +852,7 @@ extension AddRecipeView {
             ingredientRows = ings.map { ing in
                 IngredientRow(
                     amount: ing.amount > 0 ? CookingAmount.format(ing.amount, unit: ing.unit ?? "") : "",
-                    unit: ing.unit ?? "",
+                    unit: CookingAmount.canonicalUnit(ing.unit ?? ""),
                     name: ing.name ?? "",
                     notes: ing.notes ?? ""
                 )
