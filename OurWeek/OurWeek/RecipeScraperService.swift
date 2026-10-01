@@ -377,25 +377,33 @@ final class RecipeScraperService {
         let unit = firstString(dict, keys: ["unit", "units"]) ?? ""
         let notes = firstString(dict, keys: ["notes", "note", "comment"]) ?? ""
 
-        if hasAmount || !unit.isEmpty, let explicitName, !explicitName.isEmpty {
-            var ingredient = ScrapedIngredient(
-                amount: flexibleAmount(dict["amount"] ?? dict["quantity"] ?? dict["qty"]),
-                unit: unit,
+        var resolvedUnit = unit
+        var resolvedAmount = dict["amount"] ?? dict["quantity"] ?? dict["qty"]
+        if let quantity = dict["requiredQuantity"] as? [String: Any] {
+            if resolvedAmount == nil {
+                resolvedAmount = quantity["value"] ?? quantity["amount"]
+            }
+            if resolvedUnit.isEmpty {
+                resolvedUnit = firstString(quantity, keys: ["unitText", "unit", "unitCode"]) ?? ""
+            }
+        }
+        if resolvedUnit.isEmpty {
+            resolvedUnit = firstString(dict, keys: ["unitText"]) ?? ""
+        }
+
+        if hasAmount || !resolvedUnit.isEmpty || resolvedAmount != nil, let explicitName, !explicitName.isEmpty {
+            let fixed = normalizedIngredient(
+                amount: flexibleAmount(resolvedAmount),
+                unit: resolvedUnit,
                 name: explicitName,
                 notes: notes
             )
-            if ingredient.amount == 0 && ingredient.unit.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let parsed = parseIngredientString(explicitName)
-                if parsed.amount > 0 || !parsed.unit.isEmpty {
-                    ingredient.amount = parsed.amount
-                    ingredient.unit = parsed.unit
-                    ingredient.name = parsed.name
-                    if ingredient.notes.isEmpty {
-                        ingredient.notes = parsed.notes
-                    }
-                }
-            }
-            return ingredient
+            return ScrapedIngredient(
+                amount: fixed.amount,
+                unit: fixed.unit,
+                name: fixed.name,
+                notes: fixed.notes
+            )
         }
 
         guard let line, !line.isEmpty else { return nil }
@@ -604,8 +612,56 @@ final class RecipeScraperService {
 
     // MARK: - Ingredient String Parsing
 
+    /// One ingredient for display and save: join a split fraction, peel a unit left in the name, keep the full name.
+    static func normalizedIngredient(amount: Double, unit: String, name: String, notes: String) -> (amount: Double, unit: String, name: String, notes: String) {
+        var amount = amount
+        var unit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        var name = normalizeFractionText(name).trimmingCharacters(in: .whitespacesAndNewlines)
+        var notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if unit.isEmpty {
+            let candidate = quantityCandidate(amount: amount, name: name)
+            if !candidate.isEmpty {
+                let parsed = parseIngredientString(candidate)
+                if parsed.amount > 0,
+                   !parsed.name.hasPrefix("-"),
+                   !parsed.name.hasPrefix("–"),
+                   !parsed.name.hasPrefix("%") {
+                    amount = parsed.amount
+                    unit = parsed.unit
+                    name = parsed.name
+                    if notes.isEmpty { notes = parsed.notes }
+                }
+            }
+            if unit.isEmpty, let peeled = peelLeadingUnit(from: name) {
+                unit = peeled.unit
+                name = peeled.rest
+            }
+        }
+
+        // Detail and the editor only show `name`. A comma used to hide the rest in notes.
+        if !notes.isEmpty, !name.localizedCaseInsensitiveContains(notes) {
+            name = name.isEmpty ? notes : "\(name), \(notes)"
+            notes = ""
+        }
+
+        return (amount, CookingAmount.canonicalUnit(unit), name, notes)
+    }
+
+    /// `1` + `/2 cups corn`, or a name that still starts with `1/2`, becomes one line to parse.
+    private static func quantityCandidate(amount: Double, name: String) -> String {
+        if amount > 0, abs(amount - amount.rounded()) < 0.001,
+           name.range(of: #"^/\d+"#, options: .regularExpression) != nil {
+            return "\(Int(amount.rounded()))\(name)"
+        }
+        if name.range(of: #"^(?:\d|[½⅓⅔¼¾⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚])"#, options: .regularExpression) != nil {
+            return name
+        }
+        return ""
+    }
+
     static func parseIngredientString(_ raw: String) -> ScrapedIngredient {
-        let cleaned = cleanHTML(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = normalizeFractionText(cleanHTML(raw)).trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Check for "to taste" type ingredients
         let lowerCleaned = cleaned.lowercased()
@@ -625,76 +681,18 @@ final class RecipeScraperService {
         amount = parsedAmount
         remaining = afterAmount
 
-        // Extract unit
-        let unitPatterns = [
-            "tablespoons", "tablespoon", "tbsp", "tbs",
-            "teaspoons", "teaspoon", "tsp",
-            "cups", "cup",
-            "ounces", "ounce", "oz",
-            "pounds", "pound", "lbs", "lb",
-            "grams", "gram", "g",
-            "kilograms", "kilogram", "kg",
-            "milliliters", "milliliter", "ml",
-            "liters", "liter", "l",
-            "pinch", "pinches",
-            "dash", "dashes",
-            "cloves", "clove",
-            "cans", "can",
-            "packages", "package", "pkg",
-            "slices", "slice",
-            "whole",
-            "bunch", "bunches",
-            "sprigs", "sprig",
-            "stalks", "stalk",
-            "heads", "head",
-            "pieces", "piece",
-            "quarts", "quart", "qt",
-            "pints", "pint", "pt",
-            "gallons", "gallon", "gal"
-        ]
-
-        let trimmedRemaining = remaining.trimmingCharacters(in: .whitespacesAndNewlines)
-        for pattern in unitPatterns {
-            if trimmedRemaining.lowercased().hasPrefix(pattern) {
-                let afterUnit = trimmedRemaining.dropFirst(pattern.count)
-                // Make sure the unit isn't part of a longer word
-                if afterUnit.isEmpty || afterUnit.first == " " || afterUnit.first == "." {
-                    unit = normalizeUnit(pattern)
-                    remaining = String(afterUnit).trimmingCharacters(in: .whitespacesAndNewlines)
-                    // Remove leading "of" if present
-                    if remaining.lowercased().hasPrefix("of ") {
-                        remaining = String(remaining.dropFirst(3))
-                    }
-                    break
-                }
-            }
-        }
-
-        // Extract notes (stuff in parentheses or after comma)
-        if let parenRange = remaining.range(of: "\\(([^)]+)\\)", options: .regularExpression) {
-            notes = String(remaining[parenRange])
-                .replacingOccurrences(of: "(", with: "")
-                .replacingOccurrences(of: ")", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            remaining = remaining.replacingCharacters(in: parenRange, with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        if let commaIndex = remaining.firstIndex(of: ",") {
-            let afterComma = String(remaining[remaining.index(after: commaIndex)...])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !afterComma.isEmpty {
-                notes = notes.isEmpty ? afterComma : "\(notes), \(afterComma)"
-            }
-            remaining = String(remaining[..<commaIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if let peeled = peelLeadingUnit(from: remaining) {
+            unit = peeled.unit
+            remaining = peeled.rest
         }
 
         let name = remaining.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName = (name.isEmpty && amount <= 0 && unit.isEmpty) ? cleaned : name
 
         return ScrapedIngredient(
             amount: amount,
             unit: unit,
-            name: name.isEmpty ? cleaned : name,
+            name: resolvedName,
             notes: notes
         )
     }
@@ -706,8 +704,86 @@ final class RecipeScraperService {
         return extractAmount(from: text).0
     }
 
+    /// Fraction slashes and spaced `1 / 2` become `1/2` before the amount is read.
+    static func normalizeFractionText(_ text: String) -> String {
+        var result = text
+        for slash in ["⁄", "∕", "／", "⧸"] {
+            result = result.replacingOccurrences(of: slash, with: "/")
+        }
+        let entities = [
+            "&frac12;": "½", "&frac14;": "¼", "&frac34;": "¾",
+            "&frac13;": "⅓", "&frac23;": "⅔", "&frasl;": "/"
+        ]
+        for (entity, glyph) in entities {
+            result = result.replacingOccurrences(of: entity, with: glyph, options: .caseInsensitive)
+        }
+        result = result.replacingOccurrences(
+            of: #"(\d)\s*/\s*(\d)"#,
+            with: "$1/$2",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: #"/\s+(\d)"#,
+            with: "/$1",
+            options: .regularExpression
+        )
+        let numericEntities = [
+            "&#189;": "½", "&#188;": "¼", "&#190;": "¾",
+            "&#8531;": "⅓", "&#8532;": "⅔"
+        ]
+        for (entity, glyph) in numericEntities {
+            result = result.replacingOccurrences(of: entity, with: glyph, options: .caseInsensitive)
+        }
+        return result
+    }
+
+    /// Longest unit words first so "cups" is not read as something shorter.
+    private static let unitWords = [
+        "tablespoons", "tablespoon", "tbsp", "tbs",
+        "teaspoons", "teaspoon", "tsp",
+        "cups", "cup",
+        "ounces", "ounce", "oz",
+        "pounds", "pound", "lbs", "lb",
+        "kilograms", "kilogram", "kg",
+        "grams", "gram",
+        "milliliters", "milliliter", "ml",
+        "liters", "liter",
+        "pinches", "pinch",
+        "dashes", "dash",
+        "cloves", "clove",
+        "packages", "package", "pkg",
+        "slices", "slice",
+        "bunches", "bunch",
+        "sprigs", "sprig",
+        "stalks", "stalk",
+        "heads", "head",
+        "pieces", "piece",
+        "quarts", "quart", "qt",
+        "pints", "pint", "pt",
+        "gallons", "gallon", "gal",
+        "cans", "can",
+        "g", "l"
+    ]
+
+    private static func peelLeadingUnit(from text: String) -> (unit: String, rest: String)? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        for pattern in unitWords {
+            guard lower.hasPrefix(pattern) else { continue }
+            let after = trimmed.dropFirst(pattern.count)
+            if after.isEmpty || after.first == " " || after.first == "." || after.first == "," {
+                var rest = after.trimmingCharacters(in: .whitespacesAndNewlines)
+                if rest.lowercased().hasPrefix("of ") {
+                    rest = String(rest.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                return (normalizeUnit(pattern), rest)
+            }
+        }
+        return nil
+    }
+
     private static func extractAmount(from text: String) -> (Double, String) {
-        var remaining = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var remaining = normalizeFractionText(text).trimmingCharacters(in: .whitespacesAndNewlines)
         var total: Double = 0
 
         // Unicode fractions map
@@ -736,9 +812,13 @@ final class RecipeScraperService {
                     total = wholeNum + num / den
                 }
                 remaining = String(remaining[fracMatch.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if let decMatch = remaining.range(of: #"^\.\d+"#, options: .regularExpression) {
+                let decStr = "0" + remaining[decMatch]
+                total = wholeNum + (Double(decStr) ?? 0)
+                remaining = String(remaining[decMatch.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
             } else if remaining.hasPrefix("/") {
                 // "1/2" case where we already consumed "1"
-                let afterSlash = String(remaining.dropFirst())
+                let afterSlash = String(remaining.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
                 if let denMatch = afterSlash.range(of: "^\\d+", options: .regularExpression) {
                     let den = Double(afterSlash[denMatch]) ?? 1
                     if den > 0 {
@@ -748,15 +828,20 @@ final class RecipeScraperService {
                 } else {
                     total = wholeNum
                 }
-            } else if remaining.hasPrefix("-") || remaining.hasPrefix("–") {
-                // Range like "2-3" — use first value
+            } else if let rangeMatch = remaining.range(of: "^[-–]\\d+", options: .regularExpression) {
+                // Range like "2-3" — use the first value
                 total = wholeNum
-                if let rangeMatch = remaining.range(of: "^[-–]\\d+", options: .regularExpression) {
-                    remaining = String(remaining[rangeMatch.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                }
+                remaining = String(remaining[rangeMatch.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if remaining.hasPrefix("-") || remaining.hasPrefix("–") {
+                // "15-oz" stays in the ingredient name
+                return (0, normalizeFractionText(text).trimmingCharacters(in: .whitespacesAndNewlines))
             } else {
                 total = wholeNum
             }
+        } else if let decMatch = remaining.range(of: #"^\.\d+"#, options: .regularExpression) {
+            let decStr = "0" + remaining[decMatch]
+            total = Double(decStr) ?? 0
+            remaining = String(remaining[decMatch.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
         } else if let firstChar = remaining.first, let frac = unicodeFractions[firstChar] {
             // Standalone unicode fraction
             total = frac

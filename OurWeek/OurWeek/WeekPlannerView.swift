@@ -1622,10 +1622,12 @@ struct WeekPlannerView: View {
             let name = ingredient.name ?? ""
             let amount = ingredient.amount
             let unit = ingredient.unit ?? ""
-            var text = name
-            if amount > 0 {
-                text = CookingAmount.line(amount: amount, unit: unit, name: name)
-            }
+            let text = CookingAmount.line(
+                amount: amount,
+                unit: unit,
+                name: name,
+                notes: ingredient.notes ?? ""
+            )
             return "0|\(text)"
         }
         guard !items.isEmpty else { return nil }

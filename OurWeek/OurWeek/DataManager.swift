@@ -480,19 +480,24 @@ class DataManager {
 
         // Build legacy string fields for backward compat
         recipe.ingredients = ingredientInputs.map {
-            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name)
+            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name, notes: $0.notes)
         }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
         // Create structured ingredients
         for input in ingredientInputs {
-            let unit = CookingAmount.canonicalUnit(input.unit)
+            let fixed = RecipeScraperService.normalizedIngredient(
+                amount: input.amount,
+                unit: input.unit,
+                name: input.name,
+                notes: input.notes
+            )
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
-            ing.unit = unit
-            ing.name = input.name
-            ing.notes = input.notes
+            ing.amount = CookingAmount.storedValue(fixed.amount, unit: fixed.unit)
+            ing.unit = fixed.unit
+            ing.name = fixed.name
+            ing.notes = fixed.notes
             ing.sectionName = input.sectionName
             ing.sortOrder = input.sortOrder
             ing.recipe = recipe
@@ -545,7 +550,7 @@ class DataManager {
 
         // Update legacy strings
         recipe.ingredients = ingredientInputs.map {
-            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name)
+            CookingAmount.line(amount: $0.amount, unit: $0.unit, name: $0.name, notes: $0.notes)
         }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
@@ -554,13 +559,18 @@ class DataManager {
             for old in existing { viewContext.delete(old) }
         }
         for input in ingredientInputs {
-            let unit = CookingAmount.canonicalUnit(input.unit)
+            let fixed = RecipeScraperService.normalizedIngredient(
+                amount: input.amount,
+                unit: input.unit,
+                name: input.name,
+                notes: input.notes
+            )
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
-            ing.unit = unit
-            ing.name = input.name
-            ing.notes = input.notes
+            ing.amount = CookingAmount.storedValue(fixed.amount, unit: fixed.unit)
+            ing.unit = fixed.unit
+            ing.name = fixed.name
+            ing.notes = fixed.notes
             ing.sectionName = input.sectionName
             ing.sortOrder = input.sortOrder
             ing.recipe = recipe
@@ -883,10 +893,7 @@ class DataManager {
                     let amount = ing.amount
                     let unit = ing.unit ?? ""
                     
-                    var text = name
-                    if amount > 0 {
-                        text = CookingAmount.line(amount: amount, unit: unit, name: name)
-                    }
+                    let text = CookingAmount.line(amount: amount, unit: unit, name: name, notes: ing.notes ?? "")
                     if !text.isEmpty {
                         newItems.append(text)
                     }

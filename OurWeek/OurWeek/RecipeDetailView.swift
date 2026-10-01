@@ -309,7 +309,7 @@ struct RecipeDetailView: View {
         
         // Use custom property instead of dictionary directly
         let ingredientsList = ingredients.map {
-            CookingAmount.line(amount: $0.amount, unit: $0.unit ?? "", name: $0.name ?? "")
+            CookingAmount.line(amount: $0.amount, unit: $0.unit ?? "", name: $0.name ?? "", notes: $0.notes ?? "")
         }
         
         Task {
@@ -474,6 +474,13 @@ struct RecipeDetailView: View {
                             }
                         }
                     }) {
+                        let fixed = RecipeScraperService.normalizedIngredient(
+                            amount: ing.amount,
+                            unit: ing.unit ?? "",
+                            name: ing.name ?? "",
+                            notes: ing.notes ?? ""
+                        )
+                        let scaledAmount = fixed.amount * servingMultiplier
                         HStack(spacing: 12) {
                             // Checkbox
                             ZStack {
@@ -489,15 +496,13 @@ struct RecipeDetailView: View {
                                 }
                             }
 
-                            // Amount + unit
-                            if ing.amount > 0 {
-                                let scaledAmount = ing.amount * servingMultiplier
-                                Text(verbatim: CookingAmount.labeled(scaledAmount, unit: ing.unit ?? ""))
+                            if scaledAmount > 0 {
+                                Text(verbatim: CookingAmount.labeled(scaledAmount, unit: fixed.unit))
                                     .font(.system(size: 14, weight: .heavy, design: .rounded))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }
 
-                            Text(ing.name ?? "")
+                            Text(fixed.name)
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .foregroundStyle(isChecked ? .gray : .black)
                                 .strikethrough(isChecked, color: .gray)

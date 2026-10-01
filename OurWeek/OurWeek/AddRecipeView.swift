@@ -850,11 +850,17 @@ extension AddRecipeView {
             ingredientRows = [IngredientRow()]
         } else {
             ingredientRows = ings.map { ing in
-                IngredientRow(
-                    amount: ing.amount > 0 ? CookingAmount.format(ing.amount, unit: ing.unit ?? "") : "",
-                    unit: CookingAmount.canonicalUnit(ing.unit ?? ""),
+                let fixed = RecipeScraperService.normalizedIngredient(
+                    amount: ing.amount,
+                    unit: ing.unit ?? "",
                     name: ing.name ?? "",
                     notes: ing.notes ?? ""
+                )
+                return IngredientRow(
+                    amount: fixed.amount > 0 ? CookingAmount.format(fixed.amount, unit: fixed.unit) : "",
+                    unit: fixed.unit,
+                    name: fixed.name,
+                    notes: fixed.notes
                 )
             }
         }

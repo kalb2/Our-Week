@@ -839,11 +839,17 @@ struct ImportPreviewView: View {
 
         // Convert scraped ingredients to rows
         ingredientRows = scrapedRecipe.ingredients.map { ing in
-            AddRecipeView.IngredientRow(
-                amount: ing.amount > 0 ? CookingAmount.format(ing.amount, unit: normalizeToAppUnit(ing.unit)) : "",
-                unit: normalizeToAppUnit(ing.unit),
+            let fixed = RecipeScraperService.normalizedIngredient(
+                amount: ing.amount,
+                unit: ing.unit,
                 name: ing.name,
                 notes: ing.notes
+            )
+            return AddRecipeView.IngredientRow(
+                amount: fixed.amount > 0 ? CookingAmount.format(fixed.amount, unit: fixed.unit) : "",
+                unit: fixed.unit,
+                name: fixed.name,
+                notes: fixed.notes
             )
         }
 

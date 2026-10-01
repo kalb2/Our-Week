@@ -55,13 +55,38 @@ enum CookingAmount {
         return decimalText(amount)
     }
 
-    /// Amount and unit together, e.g. "½ tsp". Empty when there is no amount.
+    /// Amount and unit together, e.g. "½ tsp" or "2 cups". Empty when there is no amount.
+    /// The unit is plural when the amount is greater than 1. Abbreviations such as tsp stay as they are.
     static func labeled(_ amount: Double, unit: String) -> String {
-        let unit = canonicalUnit(unit)
         let amountText = format(amount, unit: unit)
-        return [amountText, unit]
+        let unitText = displayUnit(for: amount, unit: unit)
+        return [amountText, unitText]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
+    }
+
+    /// Unit shown next to an amount. Stored units stay singular (`cup`); reading text uses `cups` above 1.
+    static func displayUnit(for amount: Double, unit: String) -> String {
+        let canonical = canonicalUnit(unit)
+        guard !canonical.isEmpty else { return "" }
+        let reading = canonical == "pkg" ? "package" : canonical
+        guard amount > 1.001 else { return reading }
+        switch reading {
+        case "cup": return "cups"
+        case "can": return "cans"
+        case "lb": return "lbs"
+        case "slice": return "slices"
+        case "clove": return "cloves"
+        case "pinch": return "pinches"
+        case "dash": return "dashes"
+        case "bunch": return "bunches"
+        case "sprig": return "sprigs"
+        case "stalk": return "stalks"
+        case "head": return "heads"
+        case "piece": return "pieces"
+        case "package": return "packages"
+        default: return reading
+        }
     }
 
     /// Value to persist. Kitchen units round to the same fraction used for display.
@@ -73,30 +98,32 @@ enum CookingAmount {
         return (amount * 100).rounded() / 100
     }
 
-    static func line(amount: Double, unit: String, name: String) -> String {
-        let unit = canonicalUnit(unit)
-        let amountText = amount > 0 ? format(amount, unit: unit) : ""
-        return [amountText, unit, name]
+    static func line(amount: Double, unit: String, name: String, notes: String = "") -> String {
+        let fixed = RecipeScraperService.normalizedIngredient(
+            amount: amount,
+            unit: unit,
+            name: name,
+            notes: notes
+        )
+        let amountText = fixed.amount > 0 ? format(fixed.amount, unit: fixed.unit) : ""
+        let unitText = fixed.amount > 0 ? displayUnit(for: fixed.amount, unit: fixed.unit) : ""
+        return [amountText, unitText, fixed.name]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }
 
-    /// Turns a saved line such as "0.5 tsp salt" back into "½ tsp salt".
-    /// Grams, milliliters, and ounces stay decimal.
+    /// Turns a saved line such as "0.5 tsp salt", "1 /2 cup corn", or "2 cup stock" into one kitchen line.
+    /// Grams, milliliters, and ounces stay decimal. Lines with no amount are left as written.
     static func reformatLine(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return text }
-        let parts = trimmed.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true).map(String.init)
-        guard parts.count >= 2, let amount = leadingAmount(parts[0]) else { return trimmed }
-        let unit = canonicalUnit(parts[1])
-        guard usesFractions(unit: unit) else { return trimmed }
-        let amountText = format(amount, unit: unit)
-        guard !amountText.isEmpty else { return trimmed }
-        let rest = parts.count > 2 ? parts[2] : ""
-        return [amountText, unit, rest]
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let parsed = RecipeScraperService.parseIngredientString(trimmed)
+        guard parsed.amount > 0 else { return trimmed }
+        if parsed.name.hasPrefix("-") || parsed.name.hasPrefix("–") || parsed.name.hasPrefix("%") {
+            return trimmed
+        }
+        return line(amount: parsed.amount, unit: parsed.unit, name: parsed.name, notes: parsed.notes)
     }
 
     /// Nearest mixed number on the cooking-fraction grid.
@@ -157,18 +184,6 @@ enum CookingAmount {
         "cloves": "clove",
         "cans": "can"
     ]
-
-    private static func leadingAmount(_ token: String) -> Double? {
-        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let looksNumeric = trimmed.range(
-            of: #"^(?:\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅛⅜⅝⅞]|[0-9]+[½⅓⅔¼¾⅛⅜⅝⅞])$"#,
-            options: .regularExpression
-        ) != nil
-        guard looksNumeric else { return nil }
-        let value = RecipeScraperService.parseAmount(trimmed)
-        return value > 0 ? value : nil
-    }
 
     private static func decimalText(_ amount: Double) -> String {
         if abs(amount - amount.rounded()) < 0.001 {

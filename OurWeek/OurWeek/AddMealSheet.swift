@@ -348,10 +348,7 @@ struct AddMealSheet: View {
                 let name = ing.name ?? ""
                 let amount = ing.amount
                 let unit = ing.unit ?? ""
-                var text = name
-                if amount > 0 {
-                    text = CookingAmount.line(amount: amount, unit: unit, name: name)
-                }
+                let text = CookingAmount.line(amount: amount, unit: unit, name: name, notes: ing.notes ?? "")
                 return "0|\(text)"
             }
             if !items.isEmpty {
