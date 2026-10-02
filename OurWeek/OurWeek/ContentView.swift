@@ -692,7 +692,8 @@ struct WeeklyCalendarCard: View {
             }
 
             if !homeEventLines(on: date).isEmpty {
-                denseEvents(on: date, limit: 4)
+                denseEvents(on: date, limit: 4, compact: true)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .padding(.leading, 14)
@@ -708,7 +709,7 @@ struct WeeklyCalendarCard: View {
 
     private func upcomingRow(_ date: Date) -> some View {
         let meal = upcomingMealText(date)
-        let event = homeEventLines(on: date).first?.text ?? ""
+        let event = homeEventLines(on: date).first?.sideText ?? ""
         let nameFormatter = DateFormatter()
         nameFormatter.dateFormat = "EEE"
         let numberFormatter = DateFormatter()
@@ -738,7 +739,7 @@ struct WeeklyCalendarCard: View {
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.black.opacity(0.65))
                         .lineLimit(1)
-                        .frame(maxWidth: 130, alignment: .trailing)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .padding(.horizontal, 12)
@@ -942,10 +943,12 @@ struct WeeklyCalendarCard: View {
                 }
             }
             .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(0)
 
             if showEvents {
-                denseEvents(on: date, limit: 2)
-                    .frame(width: 128, alignment: .leading)
+                denseEvents(on: date, limit: 2, compact: true)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
         }
@@ -969,21 +972,37 @@ struct WeeklyCalendarCard: View {
         let text = line.text
         let matches = focused ? suggestions(matching: text, excluding: linked?.objectID) : []
 
+        let shown = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .top, spacing: 8) {
-                TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .foregroundStyle(linked == nil ? Color.black : Color.terra600)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(1...3)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled(true)
-                    .focused($focusedField, equals: .line(day: day, id: line.id))
-                    .submitLabel(submitLabel(for: line, on: day))
-                    .onSubmit { submitLine(day: day, lineID: line.id) }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel("\(dayName) dinner")
+                ZStack(alignment: .leading) {
+                    if !focused && !shown.isEmpty {
+                        Text(shown)
+                            .font(.system(size: 15, weight: .heavy, design: .rounded))
+                            .foregroundStyle(linked == nil ? Color.black : Color.terra600)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .allowsHitTesting(false)
+                    }
+                    TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(linked == nil ? Color.black : Color.terra600)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(focused ? 3 : 1)
+                        .truncationMode(.tail)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled(true)
+                        .focused($focusedField, equals: .line(day: day, id: line.id))
+                        .submitLabel(submitLabel(for: line, on: day))
+                        .onSubmit { submitLine(day: day, lineID: line.id) }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(focused || shown.isEmpty ? 1 : 0)
+                        .accessibilityLabel("\(dayName) dinner")
+                }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
                 if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button {
@@ -1042,19 +1061,34 @@ struct WeeklyCalendarCard: View {
 
     private struct HomeEventLine: Identifiable {
         let id: String
-        let text: String
+        let timeLabel: String
+        let title: String
         let sortDate: Date
         let open: () -> Void
+
+        /// Compact side column. Start time only, never the event title.
+        var sideText: String { timeLabel }
+
+        var detailText: String {
+            if timeLabel.isEmpty { return title }
+            if title.isEmpty || timeLabel == "All day" { return timeLabel == "All day" && !title.isEmpty ? "All day · \(title)" : timeLabel }
+            return "\(timeLabel) · \(title)"
+        }
+    }
+
+    private func eventTimeLabel(date: Date?, allDay: Bool) -> String {
+        if allDay { return "All day" }
+        return eventTime(date, allDay: false) ?? ""
     }
 
     private func homeEventLines(on date: Date) -> [HomeEventLine] {
         var lines: [HomeEventLine] = []
         for event in events(for: date) {
             let title = event.title ?? "Event"
-            let when = eventTime(event.date, allDay: event.isAllDay)
             lines.append(HomeEventLine(
                 id: event.objectID.uriRepresentation().absoluteString,
-                text: when.map { "\($0) · \(title)" } ?? title,
+                timeLabel: eventTimeLabel(date: event.date, allDay: event.isAllDay),
+                title: title,
                 sortDate: event.date ?? .distantPast
             ) {
                 selectedAppleEvent = nil
@@ -1062,10 +1096,10 @@ struct WeeklyCalendarCard: View {
             })
         }
         for event in appleEventsForDate(date) {
-            let when = eventTime(event.startDate, allDay: event.isAllDay)
             lines.append(HomeEventLine(
                 id: event.id,
-                text: when.map { "\($0) · \(event.title)" } ?? event.title,
+                timeLabel: eventTimeLabel(date: event.startDate, allDay: event.isAllDay),
+                title: event.title,
                 sortDate: event.startDate
             ) {
                 selectedEvent = nil
@@ -1079,22 +1113,26 @@ struct WeeklyCalendarCard: View {
     }
 
     /// `limit` caps the visible lines until that day is expanded. `nil` shows every line.
-    private func denseEvents(on date: Date, limit: Int?) -> some View {
+    /// Compact rows show the start time only so a long title cannot widen the side column.
+    private func denseEvents(on date: Date, limit: Int?, compact: Bool) -> some View {
         let key = dayKey(date)
-        let lines = homeEventLines(on: date)
+        let lines = homeEventLines(on: date).filter { compact ? !$0.sideText.isEmpty : true }
         let expanded = limit == nil || expandedEventDays.contains(key)
         let shown = expanded ? lines : Array(lines.prefix(limit ?? lines.count))
         let hidden = lines.count - shown.count
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: compact ? .trailing : .leading, spacing: 2) {
             ForEach(shown) { line in
                 Button(action: line.open) {
-                    Text(line.text)
+                    Text(compact ? line.sideText : line.detailText)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(.black)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .truncationMode(.tail)
+                        .multilineTextAlignment(compact ? .trailing : .leading)
+                        .frame(maxWidth: compact ? nil : .infinity, alignment: compact ? .trailing : .leading)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(line.detailText)
             }
             if hidden > 0 {
                 Button {
@@ -1198,15 +1236,20 @@ struct WeeklyCalendarCard: View {
         Binding(
             get: { linesByDay[day]?.first { $0.id == lineID }?.text ?? "" },
             set: { newValue in
+                let submitted = newValue.contains { $0 == "\n" || $0 == "\r" }
+                let cleaned = newValue
+                    .replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: "\r", with: "")
+                if submitted, skipNextCommitID == lineID { return }
                 guard var lines = linesByDay[day],
                       let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
-                lines[index].text = newValue
+                lines[index].text = cleaned
                 if let recipeID = lines[index].recipeID,
                    let recipe = recipes.first(where: { $0.objectID == recipeID }),
-                   !namesMatch(recipe.name, newValue) {
+                   !namesMatch(recipe.name, cleaned) {
                     lines[index].recipeID = nil
                 }
-                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !submitted && cleaned.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     lines[index].recipeID = nil
                     if let mealID = lines[index].mealID,
                        let meal = meal(mealID, on: day) {
@@ -1215,6 +1258,9 @@ struct WeeklyCalendarCard: View {
                     }
                 }
                 linesByDay[day] = lines
+                if submitted {
+                    submitLine(day: day, lineID: lineID)
+                }
             }
         )
     }
@@ -1294,6 +1340,7 @@ struct WeeklyCalendarCard: View {
     }
 
     private func submitLabel(for line: DinnerLine, on day: Date) -> SubmitLabel {
+        if isLastWeekDay(day), line.id == blankID(for: day) { return .done }
         let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty, isLastWeekDay(day) { return .done }
         return .next
@@ -1306,6 +1353,8 @@ struct WeeklyCalendarCard: View {
 
     private func submitLine(day: Date, lineID: String) {
         let text = (linesByDay[day]?.first { $0.id == lineID }?.text ?? "")
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: "\r", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty {
             focusNextDay(after: day)
@@ -1313,6 +1362,13 @@ struct WeeklyCalendarCard: View {
         }
         commitLine(day: day, lineID: lineID)
         skipNextCommitID = lineID
+        // The new row on the last day uses the blank id. Focusing that same id
+        // never blurs, so Return stays in the field and the events column stays hidden.
+        if isLastWeekDay(day), lineID == blankID(for: day) {
+            focusedField = nil
+            KeyboardDismiss.resign()
+            return
+        }
         focusedField = .line(day: day, id: blankID(for: day))
     }
 
