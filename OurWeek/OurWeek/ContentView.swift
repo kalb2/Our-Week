@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import PhotosUI
 import EventKit
 import CoreData
@@ -203,7 +204,7 @@ struct HomeView: View {
                     Spacer().frame(height: 120 + keyboardOverlap)
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.immediately)
             .background(Color.bgBase)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
                 let overlap = keyboardOverlapHeight(from: note)
@@ -362,6 +363,140 @@ private enum DinnerField: Hashable {
     case line(day: Date, id: String)
 }
 
+/// Tap outside a meal field to drop the keyboard. Text fields are left alone so a tap still focuses them.
+private struct MealKeyboardDismissInstaller: UIViewRepresentable {
+    var focusStamp: () -> Int
+    var onDismiss: (Int) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        MealKeyboardDismissRelay.shared.focusStamp = focusStamp
+        MealKeyboardDismissRelay.shared.onDismiss = onDismiss
+        context.coordinator.scheduleInstall(from: uiView)
+    }
+
+    final class Coordinator: NSObject {
+        private weak var installedOn: UIScrollView?
+        private var waitingToInstall = false
+        private let tapName = "ourweek.mealKeyboardDismiss"
+
+        func scheduleInstall(from view: UIView) {
+            guard installedOn == nil, !waitingToInstall else { return }
+            waitingToInstall = true
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                self.waitingToInstall = false
+                guard let view, self.installedOn == nil else { return }
+                self.install(from: view)
+                guard self.installedOn == nil else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self, weak view] in
+                    guard let self, let view, self.installedOn == nil else { return }
+                    self.install(from: view)
+                }
+            }
+        }
+
+        func install(from view: UIView) {
+            guard installedOn == nil, let scroll = view.enclosingScrollView() else { return }
+            if scroll.gestureRecognizers?.contains(where: { $0.name == tapName }) == true {
+                installedOn = scroll
+                return
+            }
+            let relay = MealKeyboardDismissRelay.shared
+            let tap = UITapGestureRecognizer(target: relay, action: #selector(MealKeyboardDismissRelay.handleTap))
+            tap.name = tapName
+            tap.cancelsTouchesInView = false
+            tap.delegate = relay
+            scroll.addGestureRecognizer(tap)
+            installedOn = scroll
+        }
+    }
+}
+
+/// Lives for the app so the scroll-view tap never points at a released coordinator.
+private final class MealKeyboardDismissRelay: NSObject, UIGestureRecognizerDelegate {
+    static let shared = MealKeyboardDismissRelay()
+
+    var focusStamp: () -> Int = { 0 }
+    var onDismiss: (Int) -> Void = { _ in }
+    private var stampAtTouchDown = 0
+
+    @objc func handleTap() {
+        onDismiss(stampAtTouchDown)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        stampAtTouchDown = focusStamp()
+        guard let view = touch.view else { return true }
+        return !view.isInsideTextInput
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
+    }
+}
+
+private extension UIView {
+    func enclosingScrollView() -> UIScrollView? {
+        var current: UIView? = self
+        while let view = current {
+            if let scroll = view as? UIScrollView { return scroll }
+            current = view.superview
+        }
+        return nil
+    }
+
+    var isInsideTextInput: Bool {
+        var current: UIView? = self
+        while let view = current {
+            if view is UITextField || view is UITextView { return true }
+            current = view.superview
+        }
+        return false
+    }
+
+    var currentFirstResponder: UIView? {
+        if isFirstResponder { return self }
+        for subview in subviews {
+            if let found = subview.currentFirstResponder { return found }
+        }
+        return nil
+    }
+}
+
+private extension UIColor {
+    /// White ink wins only when it contrasts more than black on this fill.
+    var chipInkIsWhite: Bool {
+        let lum = chipRelativeLuminance
+        let whiteContrast = 1.05 / (lum + 0.05)
+        let blackContrast = (lum + 0.05) / 0.05
+        return whiteContrast > blackContrast
+    }
+
+    var chipRelativeLuminance: CGFloat {
+        let source = resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).cgColor
+        let rgb = source.converted(to: CGColorSpaceCreateDeviceRGB(), intent: .defaultIntent, options: nil) ?? source
+        guard let comps = rgb.components, comps.count >= 3 else { return 1 }
+        func channel(_ value: CGFloat) -> CGFloat {
+            value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        return (0.2126 * channel(comps[0])) + (0.7152 * channel(comps[1])) + (0.0722 * channel(comps[2]))
+    }
+}
+
 private struct DinnerLine: Identifiable {
     var id: String
     var mealID: NSManagedObjectID?
@@ -392,6 +527,7 @@ struct WeeklyCalendarCard: View {
     @State private var showClearWeek = false
     @State private var suppressCommit = false
     @State private var expandedEventDays: Set<Date> = []
+    @State private var mealFocusStamp = 0
     @AppStorage("homeLayoutMode") private var homeLayoutMode = "week"
     @FocusState private var focusedField: DinnerField?
 
@@ -463,6 +599,19 @@ struct WeeklyCalendarCard: View {
     var body: some View {
         homeSurface
             .padding(.horizontal, 24)
+            .background {
+                MealKeyboardDismissInstaller(
+                    focusStamp: { mealFocusStamp },
+                    onDismiss: dismissMealKeyboard(fromStamp:)
+                )
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+                let stamp = mealFocusStamp
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    guard stamp == mealFocusStamp, focusedField != nil, !Self.textInputIsFirstResponder() else { return }
+                    focusedField = nil
+                }
+            }
             .onAppear {
                 dataManager.replaceDemoOwnerNameIfNeeded()
                 loadData()
@@ -489,6 +638,9 @@ struct WeeklyCalendarCard: View {
                 refreshAppleEvents()
             }
             .onChange(of: focusedField) { old, new in
+                if new != nil {
+                    mealFocusStamp += 1
+                }
                 if case .line(let day, let id) = old {
                     DispatchQueue.main.async {
                         commitLine(day: day, lineID: id)
@@ -545,7 +697,11 @@ struct WeeklyCalendarCard: View {
     private var homeSurface: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Spacer(minLength: 0)
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissMealKeyboard() }
                 layoutToggle
             }
             .padding(.horizontal, 12)
@@ -606,8 +762,11 @@ struct WeeklyCalendarCard: View {
             Text(todayDateLabel)
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(.black)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
+                .contentShape(Rectangle())
+                .onTapGesture { dismissMealKeyboard() }
 
             if let today = todayInWeek {
                 todayHero(today)
@@ -692,7 +851,7 @@ struct WeeklyCalendarCard: View {
             }
 
             if !homeEventLines(on: date).isEmpty {
-                denseEvents(on: date, limit: 4, nameWidth: 160)
+                denseEvents(on: date, limit: 4)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -734,7 +893,7 @@ struct WeeklyCalendarCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let eventLine = homeEventLines(on: date).first {
-                    compactEventLabel(eventLine, nameWidth: 72)
+                    compactEventLabel(eventLine)
                 }
             }
             .padding(.horizontal, 12)
@@ -804,6 +963,8 @@ struct WeeklyCalendarCard: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .center)
+            .contentShape(Rectangle())
+            .onTapGesture { dismissMealKeyboard() }
 
             if weekOffset != 0 {
                 Button(action: { weekOffset = 0 }) {
@@ -930,6 +1091,8 @@ struct WeeklyCalendarCard: View {
                     .foregroundStyle(.black)
             }
             .frame(width: 48, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { dismissMealKeyboard() }
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(lines) { line in
@@ -941,7 +1104,7 @@ struct WeeklyCalendarCard: View {
             .layoutPriority(0)
 
             if showEvents {
-                denseEvents(on: date, limit: 2, nameWidth: 72)
+                denseEvents(on: date, limit: 2)
                     .layoutPriority(1)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
@@ -1055,14 +1218,19 @@ struct WeeklyCalendarCard: View {
         }
     }
 
+    /// Every home event chip uses this width so the week column lines up.
+    private static let eventPillWidth: CGFloat = 144
+
     private struct HomeEventLine: Identifiable {
         let id: String
         let timeLabel: String
         let title: String
         let sortDate: Date
+        /// EventKit calendar color. Nil keeps the cream chip.
+        let calendarColor: UIColor?
         let open: () -> Void
 
-        /// Start time plus the event name. The name truncates in the column.
+        /// Start time plus the event name. The whole line truncates inside the pill.
         var sideText: String {
             if timeLabel.isEmpty { return title }
             if title.isEmpty { return timeLabel }
@@ -1072,33 +1240,29 @@ struct WeeklyCalendarCard: View {
         var detailText: String { sideText }
     }
 
-    /// Cream-yellow chip. The time stays whole; a long name ends in an ellipsis.
-    private func compactEventLabel(_ line: HomeEventLine, nameWidth: CGFloat) -> some View {
-        HStack(spacing: 3) {
-            if !line.timeLabel.isEmpty {
-                Text(line.timeLabel)
-                    .fixedSize(horizontal: true, vertical: false)
-                if !line.title.isEmpty {
-                    Text("·")
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-            }
-            if !line.title.isEmpty {
-                Text(line.title)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: nameWidth, alignment: .leading)
-            }
+    private func eventChipColors(_ calendarColor: UIColor?) -> (fill: Color, ink: Color) {
+        guard let calendarColor else {
+            return (Color.lime100, .black)
         }
-        .font(.system(size: 11, weight: .heavy, design: .rounded))
-        .foregroundStyle(.black)
-        .lineLimit(1)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.lime100)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black, lineWidth: 1.5))
-        .accessibilityLabel(line.sideText)
+        let ink: Color = calendarColor.chipInkIsWhite ? .white : .black
+        return (Color(uiColor: calendarColor), ink)
+    }
+
+    /// Fixed-width chip. Calendar color tints the fill; cream is the fallback.
+    private func compactEventLabel(_ line: HomeEventLine) -> some View {
+        let colors = eventChipColors(line.calendarColor)
+        return Text(line.sideText)
+            .font(.system(size: 11, weight: .heavy, design: .rounded))
+            .foregroundStyle(colors.ink)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .frame(width: Self.eventPillWidth, alignment: .leading)
+            .background(colors.fill)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black, lineWidth: 1.5))
+            .accessibilityLabel(line.sideText)
     }
 
     private func eventTimeLabel(date: Date?, allDay: Bool) -> String {
@@ -1114,7 +1278,8 @@ struct WeeklyCalendarCard: View {
                 id: event.objectID.uriRepresentation().absoluteString,
                 timeLabel: eventTimeLabel(date: event.date, allDay: event.isAllDay),
                 title: title,
-                sortDate: event.date ?? .distantPast
+                sortDate: event.date ?? .distantPast,
+                calendarColor: uiColor(fromHex: event.color)
             ) {
                 selectedAppleEvent = nil
                 selectedEvent = event
@@ -1125,7 +1290,8 @@ struct WeeklyCalendarCard: View {
                 id: event.id,
                 timeLabel: eventTimeLabel(date: event.startDate, allDay: event.isAllDay),
                 title: event.title,
-                sortDate: event.startDate
+                sortDate: event.startDate,
+                calendarColor: event.calendarColor
             ) {
                 selectedEvent = nil
                 selectedAppleEvent = event
@@ -1138,7 +1304,7 @@ struct WeeklyCalendarCard: View {
     }
 
     /// `limit` caps the visible lines until that day is expanded. `nil` shows every line.
-    private func denseEvents(on date: Date, limit: Int?, nameWidth: CGFloat) -> some View {
+    private func denseEvents(on date: Date, limit: Int?) -> some View {
         let key = dayKey(date)
         let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
         let expanded = limit == nil || expandedEventDays.contains(key)
@@ -1147,9 +1313,10 @@ struct WeeklyCalendarCard: View {
         return VStack(alignment: .trailing, spacing: 4) {
             ForEach(shown) { line in
                 Button(action: line.open) {
-                    compactEventLabel(line, nameWidth: nameWidth)
+                    compactEventLabel(line)
                 }
                 .buttonStyle(.plain)
+                .frame(width: Self.eventPillWidth, alignment: .leading)
             }
             if hidden > 0 {
                 Button {
@@ -1163,6 +1330,42 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel("\(hidden) more events")
             }
         }
+        .frame(width: Self.eventPillWidth, alignment: .trailing)
+    }
+
+    private func uiColor(fromHex token: String?) -> UIColor? {
+        guard var hex = token?.trimmingCharacters(in: .whitespacesAndNewlines), !hex.isEmpty else { return nil }
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        guard hex.count == 6, let value = UInt64(hex, radix: 16) else { return nil }
+        let red = CGFloat((value >> 16) & 0xFF) / 255
+        let green = CGFloat((value >> 8) & 0xFF) / 255
+        let blue = CGFloat(value & 0xFF) / 255
+        return UIColor(red: red, green: green, blue: blue, alpha: 1)
+    }
+
+    /// Drops the keyboard unless this same tap moved focus into a meal field.
+    private func dismissMealKeyboard() {
+        dismissMealKeyboard(fromStamp: mealFocusStamp)
+    }
+
+    private func dismissMealKeyboard(fromStamp stamp: Int) {
+        DispatchQueue.main.async {
+            guard stamp == mealFocusStamp else { return }
+            if focusedField != nil {
+                focusedField = nil
+            }
+            KeyboardDismiss.resign()
+        }
+    }
+
+    private static func textInputIsFirstResponder() -> Bool {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for window in scenes.flatMap(\.windows) {
+            if let responder = window.currentFirstResponder, responder.isInsideTextInput {
+                return true
+            }
+        }
+        return false
     }
 
     private func eventTime(_ date: Date?, allDay: Bool) -> String? {
