@@ -692,7 +692,7 @@ struct WeeklyCalendarCard: View {
             }
 
             if !homeEventLines(on: date).isEmpty {
-                denseEvents(on: date, limit: 4, compact: true)
+                denseEvents(on: date, limit: 4, maxWidth: .infinity)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -709,7 +709,6 @@ struct WeeklyCalendarCard: View {
 
     private func upcomingRow(_ date: Date) -> some View {
         let meal = upcomingMealText(date)
-        let event = homeEventLines(on: date).first?.sideText ?? ""
         let nameFormatter = DateFormatter()
         nameFormatter.dateFormat = "EEE"
         let numberFormatter = DateFormatter()
@@ -734,12 +733,9 @@ struct WeeklyCalendarCard: View {
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if !event.isEmpty {
-                    Text(event)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.black.opacity(0.65))
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                if let eventLine = homeEventLines(on: date).first {
+                    compactEventLabel(eventLine, maxWidth: 132)
+                        .frame(width: 132, alignment: .leading)
                 }
             }
             .padding(.horizontal, 12)
@@ -946,8 +942,8 @@ struct WeeklyCalendarCard: View {
             .layoutPriority(0)
 
             if showEvents {
-                denseEvents(on: date, limit: 2, compact: true)
-                    .fixedSize(horizontal: true, vertical: false)
+                denseEvents(on: date, limit: 2, maxWidth: 148)
+                    .frame(width: 148, alignment: .leading)
                     .layoutPriority(1)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
@@ -976,15 +972,6 @@ struct WeeklyCalendarCard: View {
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .top, spacing: 8) {
                 ZStack(alignment: .leading) {
-                    if !focused && !shown.isEmpty {
-                        Text(shown)
-                            .font(.system(size: 15, weight: .heavy, design: .rounded))
-                            .foregroundStyle(linked == nil ? Color.black : Color.terra600)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .allowsHitTesting(false)
-                    }
                     TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
                         .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundStyle(linked == nil ? Color.black : Color.terra600)
@@ -1001,10 +988,22 @@ struct WeeklyCalendarCard: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(focused || shown.isEmpty ? 1 : 0)
                         .accessibilityLabel("\(dayName) dinner")
+                    if !focused && !shown.isEmpty {
+                        Text(shown)
+                            .font(.system(size: 15, weight: .heavy, design: .rounded))
+                            .foregroundStyle(linked == nil ? Color.black : Color.terra600)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                focusedField = .line(day: day, id: line.id)
+                            }
+                    }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
-                if focused && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !shown.isEmpty {
                     Button {
                         clearLine(day: day, lineID: line.id)
                     } label: {
@@ -1066,14 +1065,39 @@ struct WeeklyCalendarCard: View {
         let sortDate: Date
         let open: () -> Void
 
-        /// Compact side column. Start time only, never the event title.
-        var sideText: String { timeLabel }
-
-        var detailText: String {
+        /// Start time plus the event name. The name truncates in the column.
+        var sideText: String {
             if timeLabel.isEmpty { return title }
-            if title.isEmpty || timeLabel == "All day" { return timeLabel == "All day" && !title.isEmpty ? "All day · \(title)" : timeLabel }
+            if title.isEmpty { return timeLabel }
             return "\(timeLabel) · \(title)"
         }
+
+        var detailText: String { sideText }
+    }
+
+    /// Time stays whole. A long name ends in an ellipsis inside `maxWidth`.
+    private func compactEventLabel(_ line: HomeEventLine, maxWidth: CGFloat) -> some View {
+        HStack(spacing: 3) {
+            if !line.timeLabel.isEmpty {
+                Text(line.timeLabel)
+                    .fixedSize(horizontal: true, vertical: false)
+                if !line.title.isEmpty {
+                    Text("·")
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+            }
+            if !line.title.isEmpty {
+                Text(line.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .font(.system(size: 12, weight: .bold, design: .rounded))
+        .foregroundStyle(.black)
+        .lineLimit(1)
+        .frame(maxWidth: maxWidth, alignment: .leading)
+        .accessibilityLabel(line.sideText)
     }
 
     private func eventTimeLabel(date: Date?, allDay: Bool) -> String {
@@ -1113,26 +1137,19 @@ struct WeeklyCalendarCard: View {
     }
 
     /// `limit` caps the visible lines until that day is expanded. `nil` shows every line.
-    /// Compact rows show the start time only so a long title cannot widen the side column.
-    private func denseEvents(on date: Date, limit: Int?, compact: Bool) -> some View {
+    /// Each line is the start time and a name that truncates inside `maxWidth`.
+    private func denseEvents(on date: Date, limit: Int?, maxWidth: CGFloat) -> some View {
         let key = dayKey(date)
-        let lines = homeEventLines(on: date).filter { compact ? !$0.sideText.isEmpty : true }
+        let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
         let expanded = limit == nil || expandedEventDays.contains(key)
         let shown = expanded ? lines : Array(lines.prefix(limit ?? lines.count))
         let hidden = lines.count - shown.count
-        return VStack(alignment: compact ? .trailing : .leading, spacing: 2) {
+        return VStack(alignment: .leading, spacing: 2) {
             ForEach(shown) { line in
                 Button(action: line.open) {
-                    Text(compact ? line.sideText : line.detailText)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.black)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .multilineTextAlignment(compact ? .trailing : .leading)
-                        .frame(maxWidth: compact ? nil : .infinity, alignment: compact ? .trailing : .leading)
+                    compactEventLabel(line, maxWidth: maxWidth)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(line.detailText)
             }
             if hidden > 0 {
                 Button {
@@ -1146,6 +1163,7 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel("\(hidden) more events")
             }
         }
+        .frame(maxWidth: maxWidth, alignment: .leading)
     }
 
     private func eventTime(_ date: Date?, allDay: Bool) -> String? {
@@ -1236,6 +1254,7 @@ struct WeeklyCalendarCard: View {
         Binding(
             get: { linesByDay[day]?.first { $0.id == lineID }?.text ?? "" },
             set: { newValue in
+                if suppressCommit { return }
                 let submitted = newValue.contains { $0 == "\n" || $0 == "\r" }
                 let cleaned = newValue
                     .replacingOccurrences(of: "\n", with: "")
@@ -1409,6 +1428,8 @@ struct WeeklyCalendarCard: View {
     private func clearLine(day: Date, lineID: String) {
         guard var lines = linesByDay[day],
               let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        // Hold commits until after the field blurs, so leaving focus cannot save the title again.
+        suppressCommit = true
         if let mealID = lines[index].mealID, let meal = meal(mealID, on: day) {
             DayDinnerStore.remove(meal, dataManager: dataManager)
         }
@@ -1416,9 +1437,12 @@ struct WeeklyCalendarCard: View {
         lines[index].recipeID = nil
         lines[index].mealID = nil
         linesByDay[day] = lines
-        skipNextCommitID = lineID
         focusedField = nil
+        KeyboardDismiss.resign()
         reloadMeals()
+        DispatchQueue.main.async {
+            suppressCommit = false
+        }
     }
 
     private func commitLine(day: Date, lineID: String) {
@@ -1433,10 +1457,10 @@ struct WeeklyCalendarCard: View {
         let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty {
             // The placeholder can briefly carry a meal id after save. Do not delete that dinner.
-            if lineID != blankID(for: day),
-               let mealID = line.mealID,
-               let meal = meal(mealID, on: day) {
-                DayDinnerStore.remove(meal, dataManager: dataManager)
+            if lineID != blankID(for: day) {
+                if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+                    DayDinnerStore.remove(meal, dataManager: dataManager)
+                }
                 reloadMeals()
             }
             return
