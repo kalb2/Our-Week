@@ -692,7 +692,7 @@ struct WeeklyCalendarCard: View {
             }
 
             if !homeEventLines(on: date).isEmpty {
-                denseEvents(on: date, limit: 4, maxWidth: .infinity)
+                denseEvents(on: date, limit: 4, nameWidth: 160)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
@@ -734,8 +734,7 @@ struct WeeklyCalendarCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let eventLine = homeEventLines(on: date).first {
-                    compactEventLabel(eventLine, maxWidth: 132)
-                        .frame(width: 132, alignment: .leading)
+                    compactEventLabel(eventLine, nameWidth: 72)
                 }
             }
             .padding(.horizontal, 12)
@@ -942,8 +941,7 @@ struct WeeklyCalendarCard: View {
             .layoutPriority(0)
 
             if showEvents {
-                denseEvents(on: date, limit: 2, maxWidth: 148)
-                    .frame(width: 148, alignment: .leading)
+                denseEvents(on: date, limit: 2, nameWidth: 72)
                     .layoutPriority(1)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
@@ -1003,26 +1001,25 @@ struct WeeklyCalendarCard: View {
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
-                if !shown.isEmpty {
+                if focused && !shown.isEmpty {
                     Button {
                         clearLine(day: day, lineID: line.id)
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .heavy))
-                            .foregroundStyle(.black)
-                            .frame(width: 28, height: 28)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.45))
+                            .frame(width: 22, height: 22)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear dinner")
                 }
             }
 
-            Rectangle()
-                .fill(focused ? Color.black : Color.black.opacity(0.12))
-                .frame(height: focused ? 2 : 1)
+            if focused || shown.isEmpty {
+                Rectangle()
+                    .fill(focused ? Color.black : Color.black.opacity(0.12))
+                    .frame(height: focused ? 2 : 1)
+            }
 
             if !matches.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -1075,8 +1072,8 @@ struct WeeklyCalendarCard: View {
         var detailText: String { sideText }
     }
 
-    /// Time stays whole. A long name ends in an ellipsis inside `maxWidth`.
-    private func compactEventLabel(_ line: HomeEventLine, maxWidth: CGFloat) -> some View {
+    /// Cream-yellow chip. The time stays whole; a long name ends in an ellipsis.
+    private func compactEventLabel(_ line: HomeEventLine, nameWidth: CGFloat) -> some View {
         HStack(spacing: 3) {
             if !line.timeLabel.isEmpty {
                 Text(line.timeLabel)
@@ -1090,13 +1087,17 @@ struct WeeklyCalendarCard: View {
                 Text(line.title)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: nameWidth, alignment: .leading)
             }
         }
-        .font(.system(size: 12, weight: .bold, design: .rounded))
+        .font(.system(size: 11, weight: .heavy, design: .rounded))
         .foregroundStyle(.black)
         .lineLimit(1)
-        .frame(maxWidth: maxWidth, alignment: .leading)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.lime100)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black, lineWidth: 1.5))
         .accessibilityLabel(line.sideText)
     }
 
@@ -1137,17 +1138,16 @@ struct WeeklyCalendarCard: View {
     }
 
     /// `limit` caps the visible lines until that day is expanded. `nil` shows every line.
-    /// Each line is the start time and a name that truncates inside `maxWidth`.
-    private func denseEvents(on date: Date, limit: Int?, maxWidth: CGFloat) -> some View {
+    private func denseEvents(on date: Date, limit: Int?, nameWidth: CGFloat) -> some View {
         let key = dayKey(date)
         let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
         let expanded = limit == nil || expandedEventDays.contains(key)
         let shown = expanded ? lines : Array(lines.prefix(limit ?? lines.count))
         let hidden = lines.count - shown.count
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: .trailing, spacing: 4) {
             ForEach(shown) { line in
                 Button(action: line.open) {
-                    compactEventLabel(line, maxWidth: maxWidth)
+                    compactEventLabel(line, nameWidth: nameWidth)
                 }
                 .buttonStyle(.plain)
             }
@@ -1163,7 +1163,6 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel("\(hidden) more events")
             }
         }
-        .frame(maxWidth: maxWidth, alignment: .leading)
     }
 
     private func eventTime(_ date: Date?, allDay: Bool) -> String? {
