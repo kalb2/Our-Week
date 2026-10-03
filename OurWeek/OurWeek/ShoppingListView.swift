@@ -107,53 +107,93 @@ struct ShoppingListBoard: View {
             .frame(maxWidth: .infinity)
 
             if isReorderMode {
-                HStack(spacing: 10) {
-                    Image(systemName: "arrow.up.arrow.down.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                    Text("Drag sections or use arrows to reorder")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                    Spacer()
-                    Button("Done") {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isReorderMode = false
+                if quietToolbar {
+                    HStack(spacing: 12) {
+                        Text("Drag sections or use the arrows")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                        Spacer(minLength: 8)
+                        Button("Done") {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isReorderMode = false
+                            }
                         }
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                        .buttonStyle(.plain)
                     }
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Color.white)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
+                    .padding(.horizontal, 24)
+                    .padding(.top, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.up.arrow.down.circle.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                        Text("Drag sections or use arrows to reorder")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                        Spacer()
+                        Button("Done") {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isReorderMode = false
+                            }
+                        }
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
+                    }
+                    .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.sky100)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.sky200, lineWidth: 1.5)
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.sky100)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.sky200, lineWidth: 1.5)
-                )
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            VStack(spacing: 20) {
+            VStack(spacing: quietToolbar ? 14 : 20) {
                 if shoppingLists.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "cart.badge.plus")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Color.terra400)
-                        Text("No Shopping Lists Yet")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                        Text("Use the Add Section button above to create a store list.")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.gray)
-                            .multilineTextAlignment(.center)
+                    if quietToolbar {
+                        VStack(spacing: 8) {
+                            Text("No lists yet")
+                                .font(.system(size: 20, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                            Text("Add a section to start a store list.")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.vertical, 28)
+                        .frame(maxWidth: .infinity)
+                        .homeQuietCard()
+                    } else {
+                        VStack(spacing: 12) {
+                            Image(systemName: "cart.badge.plus")
+                                .font(.system(size: 40))
+                                .foregroundStyle(Color.terra400)
+                            Text("No Shopping Lists Yet")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                            Text("Use the Add Section button above to create a store list.")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.gray)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.vertical, 40)
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.vertical, 40)
-                    .frame(maxWidth: .infinity)
                 } else {
                     ForEach(Array(shoppingLists.enumerated()), id: \.element.objectID) { index, list in
                         StoreSection(
@@ -170,6 +210,7 @@ struct ShoppingListBoard: View {
                             checkFill: accentColor(for: list.name ?? ""),
                             dividerColor: accentLight(for: list.name ?? ""),
                             headerColor: darkerColor(for: list.name ?? ""),
+                            quiet: quietToolbar,
                             undoStack: undoStack,
                             isReorderMode: isReorderMode,
                             isFirst: index == 0,
@@ -204,32 +245,44 @@ struct ShoppingListBoard: View {
             .padding(.top, 20)
 
             Button(action: { showSyncModal = true }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("SYNC WITH MEAL PLAN")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [Color.terra400, Color.terra500],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                if quietToolbar {
+                    Text("Sync with meal plan")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("SYNC WITH MEAL PLAN")
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.terra400, Color.terra500],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.terra600, lineWidth: 2)
-                )
-                .boldShadow(Color.terra600, size: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.terra600, lineWidth: 2)
+                    )
+                    .boldShadow(Color.terra600, size: 4)
+                }
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 24)
-            .padding(.top, 24)
+            .padding(.top, quietToolbar ? 16 : 24)
             .padding(.bottom, reservesTabBarSpace ? 120 : 0)
         }
         .onAppear {
@@ -358,35 +411,32 @@ struct ShoppingToolbar: View {
             }
         }
         .sheet(isPresented: $showAddSectionModal) {
-            AddSectionModal(onAdd: onListsChanged)
+            AddSectionModal(onAdd: onListsChanged, quiet: quiet)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showEditModal) {
-            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged)
+            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged, quiet: quiet)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSyncModal) {
-            SyncModal()
+            SyncModal(quiet: quiet)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
     }
 
     private var quietBar: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             quietPair(
                 leading: (isReorderMode ? "Done" : "Reorder", "arrow.up.arrow.down", {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         isReorderMode.toggle()
                     }
                 }),
-                trailing: ("Add section", "plus.circle", { showAddSectionModal = true })
+                trailing: ("Add section", "plus", { showAddSectionModal = true })
             )
-            .padding(.vertical, 12)
-            .background(Color.black.opacity(0.045))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
 
             quietPair(
                 leading: ("Edit", "pencil", { showEditModal = true }),
@@ -398,22 +448,16 @@ struct ShoppingToolbar: View {
                     leading: ("Undo", "arrow.uturn.backward", { undoStack.undo() }),
                     trailing: ("Redo", "arrow.uturn.forward", { undoStack.redo() })
                 )
-                .opacity(1)
             }
         }
-        .padding(.horizontal, 8)
-        .foregroundStyle(Color(red: 0.16, green: 0.15, blue: 0.14))
     }
 
     private func quietPair(
         leading: (String, String, () -> Void),
         trailing: (String, String, () -> Void)
     ) -> some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 10) {
             quietButton(title: leading.0, icon: leading.1, action: leading.2)
-            Rectangle()
-                .fill(Color.black.opacity(0.1))
-                .frame(width: 1, height: 16)
             quietButton(title: trailing.0, icon: trailing.1, action: trailing.2)
         }
     }
@@ -422,12 +466,17 @@ struct ShoppingToolbar: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: 13, weight: .regular))
                 Text(title)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: 14, weight: .regular))
             }
+            .foregroundStyle(HomeQuiet.ink)
             .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            .padding(.vertical, 10)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .disabled((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo))
@@ -542,6 +591,7 @@ struct StoreSection: View {
     let checkFill: Color
     let dividerColor: Color
     let headerColor: Color
+    var quiet: Bool = false
     var undoStack: ShoppingUndoStack
     var isReorderMode: Bool = false
     var isFirst: Bool = false
@@ -657,10 +707,51 @@ struct StoreSection: View {
 
     @State private var showDeleteSectionConfirm = false
 
+    private var itemCountLabel: String {
+        let count = allItems.count
+        return "\(count) \(count == 1 ? "ITEM" : "ITEMS")"
+    }
+
+    private func quietMoveButton(_ systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(enabled ? HomeQuiet.ink : HomeQuiet.quiet)
+                .frame(width: 32, height: 32)
+                .background(Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+        }
+        .disabled(!enabled)
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             if isReorderMode {
+                if quiet {
+                    HStack(spacing: 8) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                        Text(storeName)
+                            .font(.system(size: 18, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        quietMoveButton("chevron.up", enabled: !isFirst, action: onMoveUp)
+                        quietMoveButton("chevron.down", enabled: !isLast, action: onMoveDown)
+                        Button(action: { showDeleteSectionConfirm = true }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(Color.terra600)
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, 4)
+                } else {
                 // Reorder mode header with move controls
                 HStack(spacing: 0) {
                     // Drag handle
@@ -729,6 +820,7 @@ struct StoreSection: View {
                     }
                 }
                 .padding(.bottom, 4)
+                }
             } else {
                 // Normal mode header — tap to expand/collapse
                 Button(action: {
@@ -736,6 +828,24 @@ struct StoreSection: View {
                         isExpanded.toggle()
                     }
                 }) {
+                    if quiet {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(storeName)
+                                    .font(.system(size: 20, weight: .regular, design: .serif))
+                                    .foregroundStyle(HomeQuiet.ink)
+                                    .lineLimit(1)
+                                Text(itemCountLabel)
+                                    .font(.system(size: 11, weight: .regular))
+                                    .tracking(1.2)
+                                    .foregroundStyle(HomeQuiet.quiet)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                        }
+                    } else {
                     HStack {
                         HStack(spacing: 8) {
                             Image(systemName: icon)
@@ -766,6 +876,7 @@ struct StoreSection: View {
                             .foregroundStyle(headerColor)
                             .padding(.leading, 8)
                     }
+                    }
                 }
                 .buttonStyle(.plain)
                 .padding(.bottom, isExpanded ? 14 : 0)
@@ -785,6 +896,7 @@ struct StoreSection: View {
                                 checkBorder: checkBorder,
                                 checkFill: checkFill,
                                 accentColor: accentColor,
+                                quiet: quiet,
                                 onToggle: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         dataManager.toggleShoppingItem(item)
@@ -797,9 +909,15 @@ struct StoreSection: View {
                             )
                         }
 
-                        Divider()
-                            .background(dividerColor)
-                            .padding(.vertical, 2)
+                        if quiet {
+                            Rectangle()
+                                .fill(HomeQuiet.rule)
+                                .frame(height: 1)
+                        } else {
+                            Divider()
+                                .background(dividerColor)
+                                .padding(.vertical, 2)
+                        }
                     }
                     // Drag reorder — item follows finger, reorder on drop
                     .offset(y: draggedItemID == item.objectID ? dragOffset : 0)
@@ -844,6 +962,7 @@ struct StoreSection: View {
                         ),
                         checkBorder: checkBorder,
                         accentColor: accentColor,
+                        quiet: quiet,
                         isFocused: focusedAddRowID == rowID,
                         onFocus: { focusedAddRowID = rowID },
                         onSubmit: { commitRow(rowID) }
@@ -852,14 +971,8 @@ struct StoreSection: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(borderColor, lineWidth: 2)
-        )
-        .boldShadow(shadowColor)
+        .padding(quiet ? 16 : 20)
+        .modifier(StoreCardChrome(quiet: quiet, borderColor: borderColor, shadowColor: shadowColor))
         .onAppear {
             loadItems()
             ensureOneAddRow()
@@ -884,6 +997,7 @@ struct StoreSection: View {
                 item: item,
                 accentColor: accentColor,
                 borderColor: borderColor,
+                quiet: quiet,
                 onSave: { name, quantity in
                     item.name = CookingAmount.reformatLine(name)
                     item.quantity = CookingAmount.reformatLine(quantity)
@@ -999,25 +1113,25 @@ struct InlineAddItemRow: View {
     @Binding var text: String
     let checkBorder: Color
     let accentColor: Color
+    var quiet: Bool = false
     let isFocused: Bool
     let onFocus: () -> Void
     let onSubmit: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            // Empty circle (unchecked style)
             Circle()
-                .stroke(checkBorder.opacity(0.4), lineWidth: 1.5)
-                .frame(width: 20, height: 20)
+                .stroke(quiet ? HomeQuiet.ink.opacity(0.22) : checkBorder.opacity(0.4), lineWidth: quiet ? 1 : 1.5)
+                .frame(width: 18, height: 18)
                 .overlay(
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(checkBorder.opacity(0.5))
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : checkBorder.opacity(0.5))
                 )
 
             TextField("Add item...", text: $text)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+                .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(quiet ? HomeQuiet.ink : .primary)
                 .submitLabel(.return)
                 .onSubmit(onSubmit)
                 .onTapGesture { onFocus() }
@@ -1028,12 +1142,62 @@ struct InlineAddItemRow: View {
     }
 }
 
+private struct RenameFieldShadow: ViewModifier {
+    var quiet: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content
+        } else {
+            content.boldShadow(.black, size: 3, radius: 10)
+        }
+    }
+}
+
+private struct RenameControlShadow: ViewModifier {
+    var quiet: Bool
+    var size: CGFloat = 3
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content
+        } else {
+            content.boldShadow(.black, size: size, radius: 12)
+        }
+    }
+}
+
+private struct StoreCardChrome: ViewModifier {
+    var quiet: Bool
+    var borderColor: Color
+    var shadowColor: Color
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content.homeQuietCard()
+        } else {
+            content
+                .background(Color.cardWhite)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(borderColor, lineWidth: 2)
+                )
+                .boldShadow(shadowColor)
+        }
+    }
+}
+
 // MARK: - Edit Item Sheet
 struct EditItemSheet: View {
     @Environment(\.dismiss) private var dismiss
     let item: ShoppingItem
     let accentColor: Color
     let borderColor: Color
+    var quiet: Bool = false
     let onSave: (String, String) -> Void
     let onDelete: () -> Void
 
@@ -1046,23 +1210,32 @@ struct EditItemSheet: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Edit Item")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Edit item" : "Edit Item")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("UPDATE DETAILS")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(accentColor)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(accentColor)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1071,18 +1244,18 @@ struct EditItemSheet: View {
             // Item name field
             VStack(alignment: .leading, spacing: 8) {
                 Text("ITEM NAME")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
 
                 TextField("Item name", text: $editName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
                     .padding(16)
                     .background(Color.cardWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                     )
             }
             .padding(.horizontal, 24)
@@ -1092,19 +1265,19 @@ struct EditItemSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("QUANTITY")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                     Spacer()
                     Text("OPTIONAL")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .font(.system(size: 9, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(0.5)
-                        .foregroundStyle(.gray.opacity(0.3))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
                 }
 
                 HStack {
                     TextField("e.g. 5 tomatoes, 2 lbs...", text: $editQuantity)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
 
                     if !editQuantity.isEmpty {
                         Button(action: { editQuantity = "" }) {
@@ -1119,7 +1292,7 @@ struct EditItemSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                        .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                 )
             }
             .padding(.horizontal, 24)
@@ -1128,27 +1301,37 @@ struct EditItemSheet: View {
 
             // Action buttons
             VStack(spacing: 10) {
-                // Save button
                 Button(action: {
                     let cleanName = editName.trimmingCharacters(in: .whitespaces)
                     let cleanQty = editQuantity.trimmingCharacters(in: .whitespaces)
                     onSave(cleanName, cleanQty)
                     dismiss()
                 }) {
-                    Text("SAVE CHANGES")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(editName.isEmpty ? Color.gray.opacity(0.3) : accentColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                        )
-                        .boldShadow(editName.isEmpty ? Color.gray.opacity(0.2) : borderColor, size: 4)
+                    if quiet {
+                        Text("Save")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(editName.isEmpty ? HomeQuiet.quiet : Color.terra500)
+                            .clipShape(Capsule())
+                    } else {
+                        Text("SAVE CHANGES")
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .tracking(1)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(editName.isEmpty ? Color.gray.opacity(0.3) : accentColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                            )
+                            .boldShadow(editName.isEmpty ? Color.gray.opacity(0.2) : borderColor, size: 4)
+                    }
                 }
+                .buttonStyle(.plain)
                 .disabled(editName.isEmpty)
 
                 // Delete button
@@ -1192,42 +1375,41 @@ struct ShopListEntryRow: View {
     let checkBorder: Color
     let checkFill: Color
     let accentColor: Color
+    var quiet: Bool = false
     let onToggle: () -> Void
     let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            // Circular checkbox
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .stroke(isChecked ? checkFill : checkBorder, lineWidth: 2)
-                        .frame(width: 20, height: 20)
+                        .stroke(quiet ? (isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28)) : (isChecked ? checkFill : checkBorder), lineWidth: quiet ? 1 : 2)
+                        .frame(width: 18, height: 18)
                     if isChecked {
                         Circle()
-                            .fill(checkFill)
-                            .frame(width: 20, height: 20)
+                            .fill(quiet ? Color.terra500 : checkFill)
+                            .frame(width: 18, height: 18)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: quiet ? 9 : 12, weight: quiet ? .regular : .bold))
                             .foregroundStyle(.white)
                     }
                 }
             }
             .buttonStyle(.plain)
 
-            // Tappable item content
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(CookingAmount.reformatLine(item.name ?? "Unknown"))
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(isChecked ? .gray.opacity(0.5) : .primary)
-                        .strikethrough(isChecked, color: .gray.opacity(0.5))
+                        .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(quiet ? (isChecked ? HomeQuiet.quiet : HomeQuiet.ink) : (isChecked ? Color.gray.opacity(0.5) : Color.primary))
+                        .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                     
                     if let quantity = item.quantity, !quantity.isEmpty {
                         Text(CookingAmount.reformatLine(quantity))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(isChecked ? .gray.opacity(0.3) : .gray)
-                            .strikethrough(isChecked, color: .gray.opacity(0.3))
+                            .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
+                            .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
                     }
                 }
             }
@@ -1235,15 +1417,14 @@ struct ShopListEntryRow: View {
 
             Spacer()
 
-            // Edit icon hint
             Button(action: onTap) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.gray.opacity(0.25))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, quiet ? 8 : 4)
         .frame(minHeight: 32)
     }
 }
@@ -1368,6 +1549,7 @@ struct AddSectionModal: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
     var onAdd: () -> Void = {}
+    var quiet: Bool = false
     @State private var sectionName = ""
     @State private var selectedColor: Color = .lime500
 
@@ -1384,23 +1566,32 @@ struct AddSectionModal: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add Section")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Add section" : "Add Section")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("NEW STORE OR CATEGORY")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color(red: 0.26, green: 0.53, blue: 0.09))
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color(red: 0.26, green: 0.53, blue: 0.09))
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1409,23 +1600,24 @@ struct AddSectionModal: View {
             // Section name text field
             VStack(alignment: .leading, spacing: 8) {
                 Text("SECTION NAME")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
 
                 TextField("e.g. Whole Foods, Target...", text: $sectionName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
                     .padding(16)
                     .background(Color.cardWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                     )
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
 
+            if !quiet {
             // Color picker
             VStack(alignment: .leading, spacing: 12) {
                 Text("ACCENT COLOR")
@@ -1457,10 +1649,10 @@ struct AddSectionModal: View {
                 }
             }
             .padding(.horizontal, 24)
+            }
 
             Spacer()
 
-            // Add button
             Button(action: {
                 let name = sectionName.trimmingCharacters(in: .whitespaces)
                 guard !name.isEmpty else { return }
@@ -1468,31 +1660,42 @@ struct AddSectionModal: View {
                 onAdd()
                 dismiss()
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("ADD SECTION")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
+                if quiet {
+                    Text("Add section")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(sectionName.isEmpty ? HomeQuiet.quiet : Color.terra500)
+                        .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("ADD SECTION")
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        sectionName.isEmpty
+                            ? Color.gray.opacity(0.3)
+                            : Color(red: 0.26, green: 0.53, blue: 0.09)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                    )
+                    .boldShadow(
+                        sectionName.isEmpty ? Color.gray.opacity(0.2) : Color.lime500,
+                        size: 4
+                    )
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    sectionName.isEmpty
-                        ? Color.gray.opacity(0.3)
-                        : Color(red: 0.26, green: 0.53, blue: 0.09)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                )
-                .boldShadow(
-                    sectionName.isEmpty ? Color.gray.opacity(0.2) : Color.lime500,
-                    size: 4
-                )
             }
+            .buttonStyle(.plain)
             .disabled(sectionName.isEmpty)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
@@ -1592,6 +1795,7 @@ struct EditListModal: View {
     @Environment(DataManager.self) private var dataManager
     @Binding var shoppingLists: [ShoppingList]
     var onListsChanged: () -> Void = {}
+    var quiet: Bool = false
     @State private var showDeleteConfirm = false
     @State private var checkedDeleted = false
 
@@ -1600,23 +1804,32 @@ struct EditListModal: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Edit List")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Edit list" : "Edit List")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("MANAGE YOUR ITEMS")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.terra600)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.terra600)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1646,7 +1859,8 @@ struct EditListModal: View {
                                 icon: checkedDeleted ? "checkmark.circle.fill" : "trash",
                                 title: checkedDeleted ? "Checked Items Removed!" : "Delete Checked Items",
                                 subtitle: checkedDeleted ? "All completed items have been removed" : "Remove all completed items from every section",
-                                accentColor: checkedDeleted ? Color.lime500 : Color.terra500
+                                accentColor: checkedDeleted ? Color.lime500 : Color.terra500,
+                                quiet: quiet
                             )
                         }
                         .buttonStyle(.plain)
@@ -1656,7 +1870,8 @@ struct EditListModal: View {
                                 icon: "xmark.circle",
                                 title: "Clear All Sections",
                                 subtitle: "Remove all items from every section — can't be undone",
-                                accentColor: Color(red: 0.85, green: 0.20, blue: 0.20)
+                                accentColor: Color(red: 0.85, green: 0.20, blue: 0.20),
+                                quiet: quiet
                             )
                         }
                         .buttonStyle(.plain)
@@ -1666,7 +1881,7 @@ struct EditListModal: View {
 
                     // Sections Editor
                     ForEach(shoppingLists, id: \.objectID) { list in
-                        EditSectionCard(list: list, onListsChanged: onListsChanged)
+                        EditSectionCard(list: list, onListsChanged: onListsChanged, quiet: quiet)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -1701,6 +1916,7 @@ struct EditSectionCard: View {
     @ObservedObject var list: ShoppingList
     @Environment(DataManager.self) private var dataManager
     var onListsChanged: () -> Void = {}
+    var quiet: Bool = false
 
     @State private var editName: String = ""
     @State private var isRenaming = false
@@ -1716,58 +1932,58 @@ struct EditSectionCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("SECTION NAME")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
 
                     if isRenaming {
                         TextField("Store or Section", text: $editName)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
                             .padding(12)
                             .background(Color.cardWhite)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.black, lineWidth: 2)
+                                    .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
                             )
-                            .boldShadow(.black, size: 3, radius: 10)
+                            .modifier(RenameFieldShadow(quiet: quiet))
                             .focused($nameFieldFocused)
                             .submitLabel(.done)
                             .onSubmit(commitRename)
 
                         HStack(spacing: 10) {
                             Button(action: commitRename) {
-                                Text("SAVE")
-                                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                    .tracking(0.8)
-                                    .foregroundStyle(.black)
+                                Text(quiet ? "Save" : "SAVE")
+                                    .font(quiet ? .system(size: 15, weight: .regular) : .system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.8)
+                                    .foregroundStyle(quiet ? Color.white : Color.black)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(Color.lime400)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .background(quiet ? Color.terra500 : Color.lime400)
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 12))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.black, lineWidth: 2)
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 12)
+                                            .stroke(quiet ? Color.clear : Color.black, lineWidth: quiet ? 0 : 2)
                                     )
-                                    .boldShadow(.black, size: 3, radius: 12)
+                                    .modifier(RenameControlShadow(quiet: quiet))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Save section name")
 
                             Button(action: cancelRename) {
-                                Text("CANCEL")
-                                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                    .tracking(0.8)
-                                    .foregroundStyle(.black)
+                                Text(quiet ? "Cancel" : "CANCEL")
+                                    .font(quiet ? .system(size: 15, weight: .regular) : .system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.8)
+                                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.black)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                                     .background(Color.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 12))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.black, lineWidth: 2)
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 12)
+                                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
                                     )
-                                    .boldShadow(.black, size: 3, radius: 12)
+                                    .modifier(RenameControlShadow(quiet: quiet))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Cancel rename")
@@ -1775,23 +1991,24 @@ struct EditSectionCard: View {
                     } else {
                         HStack(spacing: 10) {
                             Text(storedName.isEmpty ? "Store or Section" : storedName)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(quiet ? .system(size: 18, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             Button(action: beginRename) {
-                                Text("RENAME")
-                                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                                    .tracking(0.6)
-                                    .foregroundStyle(.black)
+                                Text(quiet ? "Rename" : "RENAME")
+                                    .font(quiet ? .system(size: 14, weight: .regular) : .system(size: 12, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.6)
+                                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.black)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 8)
-                                    .background(Color.lime100)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .background(quiet ? Color.white : Color.lime100)
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 10))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.black, lineWidth: 2)
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 10)
+                                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
                                     )
-                                    .boldShadow(.black, size: 2, radius: 10)
+                                    .modifier(RenameControlShadow(quiet: quiet, size: 2))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Rename section")
@@ -1801,19 +2018,27 @@ struct EditSectionCard: View {
 
                 if !isRenaming {
                     Button(action: { showClearConfirm = true }) {
-                        VStack(spacing: 4) {
+                        if quiet {
                             Image(systemName: "trash")
-                                .font(.system(size: 14, weight: .bold))
-                            Text("CLEAR")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(Color.terra600)
+                                .frame(width: 36, height: 36)
+                        } else {
+                            VStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14, weight: .bold))
+                                Text("CLEAR")
+                                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                            }
+                            .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear section")
                 }
             }
             
@@ -1821,7 +2046,7 @@ struct EditSectionCard: View {
             if let items = list.items as? Set<ShoppingItem>, !items.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(items).sorted { ($0.name ?? "") < ($1.name ?? "") }, id: \.objectID) { item in
-                        EditItemRow(item: item)
+                        EditItemRow(item: item, quiet: quiet)
                         if item != Array(items).sorted(by: { ($0.name ?? "") < ($1.name ?? "") }).last {
                             Divider().background(Color.gray.opacity(0.1))
                         }
@@ -1839,8 +2064,11 @@ struct EditSectionCard: View {
         }
         .padding(16)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.12), lineWidth: 2))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
+        )
         .onAppear {
             if !isRenaming {
                 editName = storedName
@@ -1914,6 +2142,7 @@ struct EditSectionCard: View {
 // MARK: - Edit Item Row
 struct EditItemRow: View {
     @ObservedObject var item: ShoppingItem
+    var quiet: Bool = false
     @Environment(DataManager.self) private var dataManager
     
     var body: some View {
@@ -1925,7 +2154,7 @@ struct EditItemRow: View {
                     dataManager.save()
                 }
             ))
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .semibold, design: .rounded))
             
             Spacer()
             
@@ -1950,37 +2179,39 @@ struct EditActionRow: View {
     let title: String
     let subtitle: String
     let accentColor: Color
+    var quiet: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(accentColor)
+                .font(.system(size: quiet ? 16 : 20, weight: quiet ? .regular : .semibold))
+                .foregroundStyle(quiet ? HomeQuiet.ink : accentColor)
                 .frame(width: 40, height: 40)
-                .background(accentColor.opacity(0.12))
+                .background(quiet ? HomeQuiet.rule : accentColor.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                 Text(subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.6))
+                    .font(.system(size: 12, weight: quiet ? .regular : .medium, design: quiet ? .default : .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.6))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.gray.opacity(0.3))
+                .font(.system(size: 12, weight: quiet ? .regular : .bold))
+                .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.gray.opacity(0.12), lineWidth: 2)
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
         )
     }
 }
@@ -1989,6 +2220,7 @@ struct EditActionRow: View {
 struct SyncModal: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
+    var quiet: Bool = false
     @State private var isSyncing = false
     @State private var syncComplete = false
     @AppStorage("autoSync") private var autoSync = true
@@ -2000,22 +2232,31 @@ struct SyncModal: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sync")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("MEAL PLAN INTEGRATION")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac600)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.lilac600)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -2025,22 +2266,23 @@ struct SyncModal: View {
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(syncComplete ? Color.lime100 : Color.lilac100)
+                        .fill(quiet ? HomeQuiet.rule : (syncComplete ? Color.lime100 : Color.lilac100))
                         .frame(width: 64, height: 64)
 
                     if isSyncing {
                         ProgressView()
                             .scaleEffect(1.3)
-                            .tint(Color.lilac600)
+                            .tint(quiet ? Color.terra500 : Color.lilac600)
                     } else {
                         Image(systemName: syncComplete ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(syncComplete ? Color.lime500 : Color.lilac600)
+                            .font(.system(size: 28, weight: quiet ? .regular : .bold))
+                            .foregroundStyle(quiet ? (syncComplete ? Color.terra500 : HomeQuiet.ink) : (syncComplete ? Color.lime500 : Color.lilac600))
                     }
                 }
 
                 Text(isSyncing ? "Syncing..." : (syncComplete ? "All Synced!" : "Ready to Sync"))
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(quiet ? .system(size: 18, weight: .regular, design: .serif) : .system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
 
                 Text("Last synced: Today, 2:30 PM")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -2050,10 +2292,10 @@ struct SyncModal: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
             .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.lilac200, lineWidth: 2)
+                RoundedRectangle(cornerRadius: quiet ? 22 : 16, style: .continuous)
+                    .stroke(quiet ? HomeQuiet.cardStroke : Color.lilac200, lineWidth: quiet ? 1 : 2)
             )
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
@@ -2061,9 +2303,9 @@ struct SyncModal: View {
             // Toggle options
             VStack(spacing: 10) {
                 SyncToggleRow(icon: "clock.arrow.2.circlepath", title: "Auto-Sync",
-                              subtitle: "Sync when meal plan changes", isOn: $autoSync)
+                              subtitle: "Sync when meal plan changes", isOn: $autoSync, quiet: quiet)
                 SyncToggleRow(icon: "book", title: "Include Recipes",
-                              subtitle: "Add recipe ingredients automatically", isOn: $syncRecipes)
+                              subtitle: "Add recipe ingredients automatically", isOn: $syncRecipes, quiet: quiet)
             }
             .padding(.horizontal, 24)
 
@@ -2083,30 +2325,41 @@ struct SyncModal: View {
                     }
                 }
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("SYNC NOW")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [Color.lilac500, Color.lilac600],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                if quiet {
+                    Text(isSyncing ? "Syncing" : "Sync now")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("SYNC NOW")
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.lilac500, Color.lilac600],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                )
-                .boldShadow(Color.lilac400, size: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                    )
+                    .boldShadow(Color.lilac400, size: 4)
+                }
             }
+            .buttonStyle(.plain)
             .disabled(isSyncing)
             .opacity(isSyncing ? 0.6 : 1.0)
             .padding(.horizontal, 24)
@@ -2121,37 +2374,39 @@ struct SyncToggleRow: View {
     let title: String
     let subtitle: String
     @Binding var isOn: Bool
+    var quiet: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.lilac600)
+                .font(.system(size: 16, weight: quiet ? .regular : .semibold))
+                .foregroundStyle(quiet ? HomeQuiet.ink : Color.lilac600)
                 .frame(width: 36, height: 36)
-                .background(Color.lilac100)
+                .background(quiet ? HomeQuiet.rule : Color.lilac100)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 15, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                 Text(subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .font(.system(size: 11, weight: quiet ? .regular : .medium, design: quiet ? .default : .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
             }
 
             Spacer()
 
             Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .tint(Color.lilac500)
+                .tint(quiet ? Color.terra500 : Color.lilac500)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.gray.opacity(0.12), lineWidth: 2)
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
         )
     }
 }

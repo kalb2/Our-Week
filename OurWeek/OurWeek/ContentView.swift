@@ -181,6 +181,26 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Home quiet language
+/// Shared by the week card and the rest of Home. Shop keeps its own controls.
+enum HomeQuiet {
+    static let ink = Color(red: 0.12, green: 0.11, blue: 0.10)
+    static let quiet = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.45)
+    static let rule = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.10)
+    static let cardStroke = Color.black.opacity(0.06)
+    static let buttonStroke = Color.black.opacity(0.14)
+    static var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
+}
+
+extension View {
+    func homeQuietCard() -> some View {
+        background(Color.white)
+            .clipShape(HomeQuiet.card)
+            .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
+    }
+}
+
 // MARK: - Home View
 struct HomeView: View {
     @Binding var showSharingSettings: Bool
@@ -1327,16 +1347,16 @@ struct WeeklyCalendarCard: View {
                 .ignoresSafeArea()
                 .onTapGesture { showClearWeek = false }
 
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 Text("Clear this week?")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.black)
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
 
                 Text("Meals on this week will be removed. Events stay.")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.black.opacity(0.7))
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
 
@@ -1345,14 +1365,12 @@ struct WeeklyCalendarCard: View {
                         showClearWeek = false
                     } label: {
                         Text("Keep meals")
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 15, weight: .regular))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .padding(.vertical, 12)
                             .background(Color.terra500)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-                            .boldShadow(Color.black, size: 3, radius: 14)
+                            .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
 
@@ -1360,23 +1378,22 @@ struct WeeklyCalendarCard: View {
                         clearWeekMeals()
                     } label: {
                         Text("Clear week")
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.black)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .padding(.vertical, 12)
                             .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-                            .boldShadow(Color.terra200, size: 3, radius: 14)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(20)
-            .background(Color.bgBase)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
-            .boldShadow(Color.terra500, size: 4, radius: 18)
+            .padding(22)
+            .background(Color.white)
+            .clipShape(HomeQuiet.card)
+            .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 8)
             .padding(.horizontal, 28)
         }
         .preferredColorScheme(.light)
@@ -2133,33 +2150,43 @@ struct TodoSection: View {
     @State private var selectedTodo: TodoTask?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Today's To-Do")
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .tracking(-0.3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TO-DO")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Text("Today")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                }
                 Spacer()
                 Button(action: {
                     isAddingTodo = true
-                    // Small delay to ensure the TextField is in the hierarchy before focusing
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isNewTodoFocused = true
                     }
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.lilac600)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 36, height: 36)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add task")
             }
 
-            // Card
             VStack(spacing: 0) {
                 if todos.isEmpty && !isAddingTodo {
-                    Text("No tasks yet. Add one!")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.gray)
-                        .padding(.vertical, 20)
+                    Text("No tasks yet")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
                 } else {
                     ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
                         TodoItem(
@@ -2175,21 +2202,22 @@ struct TodoSection: View {
                         )
                         
                         if index < todos.count - 1 || isAddingTodo {
-                            Divider().background(Color.terra100)
+                            Rectangle()
+                                .fill(HomeQuiet.rule)
+                                .frame(height: 1)
                         }
                     }
                 }
                 
                 if isAddingTodo {
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.terra300, lineWidth: 2)
-                                .frame(width: 24, height: 24)
-                        }
+                        Circle()
+                            .stroke(HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                            .frame(width: 18, height: 18)
                         
-                        TextField("New task...", text: $newTodoTitle)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                        TextField("New task", text: $newTodoTitle)
+                            .font(.system(size: 16, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
                             .focused($isNewTodoFocused)
                             .onSubmit {
                                 submitNewTodo()
@@ -2201,14 +2229,8 @@ struct TodoSection: View {
                     .padding(.vertical, 12)
                 }
             }
-            .padding(20)
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.terra500, lineWidth: 2)
-            )
-            .boldShadow(Color.terra500)
+            .padding(16)
+            .homeQuietCard()
         }
         .padding(.horizontal, 24)
         .sheet(item: $selectedTodo) { todo in
@@ -2308,8 +2330,8 @@ struct TodoItem: View {
                 // Circular checkbox
                 ZStack {
                     Circle()
-                        .stroke(todo.isChecked ? Color.terra500 : Color.terra300, lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                        .frame(width: 18, height: 18)
                         .background(
                             Circle()
                                 .fill(todo.isChecked ? Color.terra500 : Color.clear)
@@ -2317,7 +2339,7 @@ struct TodoItem: View {
 
                     if todo.isChecked {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.white)
                     }
                 }
@@ -2329,18 +2351,16 @@ struct TodoItem: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(todo.title)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(todo.isChecked ? .gray.opacity(0.4) : .primary)
-                        .strikethrough(todo.isChecked, color: .gray.opacity(0.4))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(todo.isChecked ? HomeQuiet.quiet : HomeQuiet.ink)
+                        .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
                         .lineLimit(1)
                     if !todo.subtitle.isEmpty {
                         Text(todo.subtitle)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(todo.isChecked ? .gray.opacity(0.3) : todo.subtitleColor)
-                            .tracking(0.5)
-                            .textCase(.uppercase)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
                             .lineLimit(1)
-                            .strikethrough(todo.isChecked, color: .gray.opacity(0.3))
+                            .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -2357,7 +2377,7 @@ struct TodoItem: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 2)
-            .background(Color.cardWhite)
+            .background(Color.white)
             .offset(x: offset)
         }
         .contentShape(Rectangle())
@@ -2458,10 +2478,9 @@ struct EditTodoSheet: View {
         VStack(spacing: 24) {
             // Header
             HStack {
-                Text("EDIT TASK")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundStyle(Color.terra500)
+                Text("Edit task")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Spacer()
                 Button(action: {
                     onDelete(todo)
@@ -2477,38 +2496,36 @@ struct EditTodoSheet: View {
             // Form
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Title")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.8))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
+                    Text("TITLE")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .tracking(1.2)
                     
                     TextField("What needs to be done?", text: $todo.title)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(16)
-                        .background(Color.gray.opacity(0.05))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
                         )
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Subtitle")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.8))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
+                    Text("NOTE")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .tracking(1.2)
                     
                     TextField("e.g. 7:30 AM • Studio", text: $todo.subtitle)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(16)
-                        .background(Color.gray.opacity(0.05))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
                         )
                 }
                 
@@ -2540,15 +2557,12 @@ struct EditTodoSheet: View {
                 onSave(todo)
                 dismiss()
             }) {
-                Text("Save Changes")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text("Save")
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.terra500)
-                    )
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.terra500))
             }
             .padding(.bottom, 8)
         }
@@ -2631,25 +2645,24 @@ struct DailyGoalsSection: View {
     @State private var editingGoal: DailyGoal? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack(alignment: .center, spacing: 8) {
-                Text("DAILY GOALS")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .tracking(1)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("GOALS")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Text("Daily")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                }
 
                 Spacer()
 
-                // Badge pill
-                Text("TAP TO LOG • HOLD TO EDIT")
-                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule().fill(Color(red: 0.2, green: 0.2, blue: 0.25))
-                    )
+                Text("TAP TO LOG")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.1)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.horizontal, 24)
 
@@ -2673,28 +2686,23 @@ struct DailyGoalsSection: View {
                         VStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                    .foregroundStyle(.gray.opacity(0.3))
+                                    .stroke(HomeQuiet.ink.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                                 Image(systemName: "plus")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundStyle(.gray.opacity(0.5))
+                                    .font(.system(size: 18, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
                             }
-                            .frame(width: 96, height: 96)
+                            .frame(width: 72, height: 72)
                             
-                            Text("New Goal")
-                                .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.gray.opacity(0.6))
+                            Text("New goal")
+                                .font(.system(size: 16, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
                         }
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 18)
                         .padding(.horizontal, 16)
-                        .frame(width: 160)
-                        .background(Color.gray.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.gray.opacity(0.1), lineWidth: 2)
-                        )
+                        .frame(width: 148)
+                        .homeQuietCard()
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 8)
@@ -2797,65 +2805,56 @@ struct GoalRingCard: View {
         VStack(spacing: 12) {
             // Circular progress ring with icon & percentage
             ZStack {
-                // Track
                 Circle()
-                    .stroke(goal.ringTrack, lineWidth: 8)
+                    .stroke(HomeQuiet.rule, lineWidth: 3)
 
-                // Progress arc
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
                     .stroke(
-                        goal.ringColor,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        Color.terra500,
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.4), value: progress)
 
-                // Icon + percentage inside ring
                 VStack(spacing: 2) {
                     Image(systemName: goal.icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(goal.ringColor)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
 
                     Text("\(percentDone)%")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
                 }
             }
-            .frame(width: 96, height: 96)
+            .frame(width: 72, height: 72)
 
-            // Value + unit below ring
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(displayValue)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 if goal.unitShort != "k" {
                     Text(displayUnitSuffix)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.5))
-                } else if goal.unitShort == "k" { // special case handling similar to old steps logic
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                } else if goal.unitShort == "k" {
                      Text("k")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
                         .offset(x: -2)
                 }
             }
 
-            // Label
-            Text(goal.unit)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray.opacity(0.5))
-                .tracking(0.5)
-                .textCase(.uppercase)
+            Text(goal.unit.uppercased())
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .tracking(1.1)
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 18)
         .padding(.horizontal, 16)
-        .frame(width: 160)
+        .frame(width: 148)
         .background(cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(goal.borderColor, lineWidth: 2)
-        )
-        .boldShadow(goal.shadowColor, size: 6, radius: 24)
+        .homeQuietCard()
         .onTapGesture {
             onTap()
         }
@@ -2880,10 +2879,9 @@ struct QuickEditGoalSheet: View {
         VStack(spacing: 24) {
             // Header with delete button
             HStack {
-                Text("QUICK EDIT GOAL")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundStyle(goal.ringColor)
+                Text("Edit goal")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Spacer()
                 Button(action: {
                     onDelete(goal)
@@ -2898,7 +2896,8 @@ struct QuickEditGoalSheet: View {
 
             // Goal name
             Text(goal.title)
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .font(.system(size: 20, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
 
             // +/- controls
             HStack(spacing: 24) {
@@ -2922,14 +2921,15 @@ struct QuickEditGoalSheet: View {
                 // Current value display
                 VStack(spacing: 2) {
                     Text(editTarget == floor(editTarget) ? String(format: "%.0f", editTarget) : String(format: "%.1f", editTarget))
-                        .font(.system(size: 42, weight: .heavy, design: .rounded))
+                        .font(.system(size: 40, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
                         .contentTransition(.numericText())
                         .animation(.snappy, value: editTarget)
 
-                    Text(goal.unit)
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                    Text(goal.unit.uppercased())
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.1)
+                        .foregroundStyle(HomeQuiet.quiet)
                 }
 
                 // Plus button
@@ -2957,7 +2957,7 @@ struct QuickEditGoalSheet: View {
                     in: goal.rangeLower...goal.rangeUpper,
                     step: goal.step
                 )
-                .tint(goal.ringColor)
+                .tint(Color.terra500)
 
                 HStack {
                     Text(formatRangeLabel(goal.rangeLower))
@@ -2978,23 +2978,18 @@ struct QuickEditGoalSheet: View {
                 onSave(updated)
                 dismiss()
             }) {
-                Text("Set New Goal")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text("Save")
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(goal.ringColor)
-                    )
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.terra500))
             }
 
-            // Cancel
             Button(action: { dismiss() }) {
-                Text("CANCEL")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                Text("Cancel")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
         }
         .padding(.horizontal, 32)
@@ -3167,15 +3162,12 @@ struct AddGoalSheet: View {
                         onAdd(newGoal)
                         dismiss()
                     }) {
-                        Text("Add Goal")
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                        Text("Add goal")
+                            .font(.system(size: 15, weight: .regular))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(colorFor(hex: selectedColor))
-                            )
+                            .padding(.vertical, 12)
+                            .background(Capsule().fill(Color.terra500))
                     }
                     .disabled(title.isEmpty || target.isEmpty || unit.isEmpty)
                     .opacity((title.isEmpty || target.isEmpty || unit.isEmpty) ? 0.5 : 1)
@@ -3183,7 +3175,7 @@ struct AddGoalSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
             }
-            .navigationTitle("New Goal")
+            .navigationTitle("New goal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
