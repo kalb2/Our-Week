@@ -177,6 +177,8 @@ enum HomeQuiet {
     static let rule = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.10)
     static let cardStroke = Color.black.opacity(0.06)
     static let buttonStroke = Color.black.opacity(0.14)
+    /// Today's row. One step darker than the cream card: a warm stone.
+    static let todayRow = Color(red: 0.937, green: 0.902, blue: 0.863)
     static var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
 }
 
@@ -666,6 +668,11 @@ private struct WeekShareCard: View {
         .padding(.leading, 12)
         .padding(.trailing, 16)
         .padding(.vertical, 14)
+        .background {
+            if day.isToday {
+                HomeQuiet.todayRow
+            }
+        }
     }
 }
 
@@ -1420,6 +1427,11 @@ struct WeeklyCalendarCard: View {
         .padding(.leading, 12)
         .padding(.trailing, 10)
         .padding(.vertical, 14)
+        .background {
+            if isToday {
+                HomeQuiet.todayRow
+            }
+        }
         .animation(.easeInOut(duration: 0.22), value: dayFocused)
     }
 
