@@ -193,7 +193,7 @@ struct HomeView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     GreetingHeader(showSharingSettings: $showSharingSettings)
-                    WeeklyCalendarCard(openBottom: true) { id in
+                    WeeklyCalendarCard { id in
                         focusedLineID = id
                         reveal(id, proxy: proxy)
                     }
@@ -519,8 +519,6 @@ private struct DinnerLine: Identifiable {
 
 struct WeeklyCalendarCard: View {
     var onFocusScroll: (String) -> Void = { _ in }
-    /// Home tucks the grocery toolbar under this card, so the bottom edge stays open.
-    var openBottom: Bool = false
 
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
@@ -731,13 +729,8 @@ struct WeeklyCalendarCard: View {
     private static let weekQuiet = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.45)
     private static let weekRule = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.10)
 
-    private var weekCardShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 22,
-            bottomLeadingRadius: openBottom ? 0 : 22,
-            bottomTrailingRadius: openBottom ? 0 : 22,
-            topTrailingRadius: 22
-        )
+    private var weekCardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
     }
 
     private var weekHairline: some View {
@@ -772,18 +765,12 @@ struct WeeklyCalendarCard: View {
             .background(Color.white)
             .clipShape(weekCardShape)
             .overlay(weekCardShape.stroke(Color.black.opacity(0.06), lineWidth: 1))
-            .overlay(alignment: .bottom) {
-                if openBottom {
-                    Rectangle()
-                        .fill(Color.white)
-                        .frame(height: 2)
-                        .padding(.horizontal, 1)
-                }
-            }
-            .shadow(color: Color.black.opacity(openBottom ? 0 : 0.04), radius: openBottom ? 0 : 14, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
+
+            weekFooterActions
         }
         .padding(.top, 2)
-        .padding(.bottom, openBottom ? 0 : 4)
+        .padding(.bottom, 4)
     }
 
     private var weekContent: some View {
@@ -792,15 +779,12 @@ struct WeeklyCalendarCard: View {
 
             weekHairline
 
-            ForEach(Array(listedWeekDates.enumerated()), id: \.offset) { _, date in
+            ForEach(Array(listedWeekDates.enumerated()), id: \.offset) { index, date in
                 dayRow(date)
-                weekHairline
+                if index < listedWeekDates.count - 1 {
+                    weekHairline
+                }
             }
-
-            weekFooterActions
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, openBottom ? 10 : 16)
         }
     }
 
@@ -848,11 +832,8 @@ struct WeeklyCalendarCard: View {
                 eventLines(on: date)
                     .padding(.horizontal, 16)
             }
-
-            weekFooterActions
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
         }
+        .padding(.bottom, 16)
     }
 
     private func expandedDayTitle(_ date: Date) -> String {
@@ -911,30 +892,42 @@ struct WeeklyCalendarCard: View {
     }
 
     private var weekFooterActions: some View {
-        HStack(spacing: 18) {
-            Button {
-                showWeekPlanner = true
-            } label: {
-                Text("Swipe to plan")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Self.weekInk)
-            }
-            .buttonStyle(.plain)
-            .disabled(weekDates.isEmpty)
-            .opacity(weekDates.isEmpty ? 0.35 : 1)
-
-            if !weekMeals.isEmpty {
-                Button {
-                    showClearWeek = true
-                } label: {
-                    Text("Clear week")
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundStyle(Self.weekQuiet)
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(spacing: 10) {
+                weekActionButton("Swipe to plan", enabled: !weekDates.isEmpty) {
+                    showWeekPlanner = true
                 }
-                .buttonStyle(.plain)
+                if !weekMeals.isEmpty {
+                    weekActionButton("Clear week") {
+                        showClearWeek = true
+                    }
+                }
             }
             Spacer(minLength: 0)
         }
+        .padding(.top, 16)
+        .padding(.bottom, 2)
+    }
+
+    private func weekActionButton(
+        _ title: String,
+        enabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(Self.weekInk)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
     }
 
     private var todayPill: some View {

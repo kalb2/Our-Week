@@ -82,7 +82,7 @@ struct ShoppingListView: View {
 /// The week meal cards stay on Shop only.
 struct ShoppingListBoard: View {
     var reservesTabBarSpace: Bool = false
-    /// Home uses the quiet toolbar from the week reference. Shop keeps the color pills.
+    /// Home keeps these controls with the list. Shop keeps the color pills.
     var quietToolbar: Bool = false
 
     @Environment(DataManager.self) private var dataManager
@@ -101,40 +101,10 @@ struct ShoppingListBoard: View {
                 onListsChanged: { loadLists() },
                 quiet: quietToolbar
             )
-            .padding(.horizontal, quietToolbar ? 8 : 0)
-            .padding(.top, quietToolbar ? 8 : 12)
-            .padding(.bottom, quietToolbar ? 16 : 0)
-            .frame(maxWidth: .infinity)
-            .background(quietToolbar ? Color.white : Color.clear)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 0,
-                    bottomLeadingRadius: quietToolbar ? 22 : 0,
-                    bottomTrailingRadius: quietToolbar ? 22 : 0,
-                    topTrailingRadius: 0
-                )
-            )
-            .overlay {
-                if quietToolbar {
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: 22,
-                        bottomTrailingRadius: 22,
-                        topTrailingRadius: 0
-                    )
-                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
-                }
-            }
-            .overlay(alignment: .top) {
-                if quietToolbar {
-                    Rectangle()
-                        .fill(Color.white)
-                        .frame(height: 3)
-                        .padding(.horizontal, 1)
-                }
-            }
             .padding(.horizontal, quietToolbar ? 24 : 0)
-            .padding(.top, quietToolbar ? -2 : 0)
+            .padding(.top, quietToolbar ? 22 : 12)
+            .padding(.bottom, quietToolbar ? 2 : 0)
+            .frame(maxWidth: .infinity)
 
             if isReorderMode {
                 HStack(spacing: 10) {
