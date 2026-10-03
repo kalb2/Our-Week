@@ -205,7 +205,7 @@ struct HomeView: View {
                         focusedLineID = id
                         reveal(id, proxy: proxy)
                     }
-                    ShoppingListBoard(quietToolbar: true)
+                    ShoppingListBoard(quietToolbar: true, showsSectionLabel: true)
                         .padding(.bottom, 24)
                     TodoSection(triggerAdd: $triggerAddTodo)
                         .padding(.bottom, 24)
