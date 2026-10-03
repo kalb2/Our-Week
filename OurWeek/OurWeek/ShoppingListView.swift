@@ -82,6 +82,8 @@ struct ShoppingListView: View {
 /// The week meal cards stay on Shop only.
 struct ShoppingListBoard: View {
     var reservesTabBarSpace: Bool = false
+    /// Home uses the quiet toolbar from the week reference. Shop keeps the color pills.
+    var quietToolbar: Bool = false
 
     @Environment(DataManager.self) private var dataManager
     @State private var undoStack = ShoppingUndoStack()
@@ -96,9 +98,43 @@ struct ShoppingListBoard: View {
                 isReorderMode: $isReorderMode,
                 showSyncModal: $showSyncModal,
                 shoppingLists: $shoppingLists,
-                onListsChanged: { loadLists() }
+                onListsChanged: { loadLists() },
+                quiet: quietToolbar
             )
-            .padding(.top, 12)
+            .padding(.horizontal, quietToolbar ? 8 : 0)
+            .padding(.top, quietToolbar ? 8 : 12)
+            .padding(.bottom, quietToolbar ? 16 : 0)
+            .frame(maxWidth: .infinity)
+            .background(quietToolbar ? Color.white : Color.clear)
+            .clipShape(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: quietToolbar ? 22 : 0,
+                    bottomTrailingRadius: quietToolbar ? 22 : 0,
+                    topTrailingRadius: 0
+                )
+            )
+            .overlay {
+                if quietToolbar {
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: 22,
+                        bottomTrailingRadius: 22,
+                        topTrailingRadius: 0
+                    )
+                    .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                }
+            }
+            .overlay(alignment: .top) {
+                if quietToolbar {
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(height: 3)
+                        .padding(.horizontal, 1)
+                }
+            }
+            .padding(.horizontal, quietToolbar ? 24 : 0)
+            .padding(.top, quietToolbar ? -2 : 0)
 
             if isReorderMode {
                 HStack(spacing: 10) {
@@ -339,10 +375,96 @@ struct ShoppingToolbar: View {
     @Binding var showSyncModal: Bool
     @Binding var shoppingLists: [ShoppingList]
     var onListsChanged: () -> Void
+    var quiet: Bool = false
     @State private var showAddSectionModal = false
     @State private var showEditModal = false
 
     var body: some View {
+        Group {
+            if quiet {
+                quietBar
+            } else {
+                colorPills
+            }
+        }
+        .sheet(isPresented: $showAddSectionModal) {
+            AddSectionModal(onAdd: onListsChanged)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showEditModal) {
+            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSyncModal) {
+            SyncModal()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var quietBar: some View {
+        VStack(spacing: 12) {
+            quietPair(
+                leading: (isReorderMode ? "Done" : "Reorder", "arrow.up.arrow.down", {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isReorderMode.toggle()
+                    }
+                }),
+                trailing: ("Add section", "plus.circle", { showAddSectionModal = true })
+            )
+            .padding(.vertical, 12)
+            .background(Color.black.opacity(0.045))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            quietPair(
+                leading: ("Edit", "pencil", { showEditModal = true }),
+                trailing: ("Sync", "arrow.triangle.2.circlepath", { showSyncModal = true })
+            )
+
+            if undoStack.canUndo || undoStack.canRedo {
+                quietPair(
+                    leading: ("Undo", "arrow.uturn.backward", { undoStack.undo() }),
+                    trailing: ("Redo", "arrow.uturn.forward", { undoStack.redo() })
+                )
+                .opacity(1)
+            }
+        }
+        .padding(.horizontal, 8)
+        .foregroundStyle(Color(red: 0.16, green: 0.15, blue: 0.14))
+    }
+
+    private func quietPair(
+        leading: (String, String, () -> Void),
+        trailing: (String, String, () -> Void)
+    ) -> some View {
+        HStack(spacing: 0) {
+            quietButton(title: leading.0, icon: leading.1, action: leading.2)
+            Rectangle()
+                .fill(Color.black.opacity(0.1))
+                .frame(width: 1, height: 16)
+            quietButton(title: trailing.0, icon: trailing.1, action: trailing.2)
+        }
+    }
+
+    private func quietButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .regular))
+                Text(title)
+                    .font(.system(size: 15, weight: .regular))
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo))
+        .opacity((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo) ? 0.35 : 1)
+    }
+
+    private var colorPills: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ActionPill(icon: "arrow.up.arrow.down", label: isReorderMode ? "Done" : "Reorder",
@@ -385,21 +507,6 @@ struct ShoppingToolbar: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 4)
-        }
-        .sheet(isPresented: $showAddSectionModal) {
-            AddSectionModal(onAdd: onListsChanged)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showEditModal) {
-            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showSyncModal) {
-            SyncModal()
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
         }
     }
 }
