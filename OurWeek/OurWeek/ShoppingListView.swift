@@ -82,8 +82,10 @@ struct ShoppingListView: View {
 /// The week meal cards stay on Shop only.
 struct ShoppingListBoard: View {
     var reservesTabBarSpace: Bool = false
-    /// Home keeps these controls with the list. Shop keeps the color pills.
+    /// Quiet white capsules on Home and Shop.
     var quietToolbar: Bool = false
+    /// Home labels the grocery controls. Shop already has a Shopping title.
+    var showsSectionLabel: Bool = false
 
     @Environment(DataManager.self) private var dataManager
     @State private var undoStack = ShoppingUndoStack()
@@ -93,6 +95,16 @@ struct ShoppingListBoard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if showsSectionLabel {
+                Text("SHOPPING")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.4)
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 36)
+                    .padding(.bottom, 14)
+            }
+
             ShoppingToolbar(
                 undoStack: undoStack,
                 isReorderMode: $isReorderMode,
@@ -102,7 +114,7 @@ struct ShoppingListBoard: View {
                 quiet: quietToolbar
             )
             .padding(.horizontal, quietToolbar ? 24 : 0)
-            .padding(.top, quietToolbar ? 22 : 12)
+            .padding(.top, showsSectionLabel ? 0 : (quietToolbar ? 22 : 12))
             .padding(.bottom, quietToolbar ? 2 : 0)
             .frame(maxWidth: .infinity)
 
