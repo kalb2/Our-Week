@@ -530,7 +530,7 @@ struct WeeklyCalendarCard: View {
     @State private var suppressCommit = false
     @State private var expandedEventDays: Set<Date> = []
     @State private var mealFocusStamp = 0
-    @AppStorage("homeLayoutMode") private var homeLayoutMode = "week"
+    @State private var expandedDay: Date?
     @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
@@ -637,6 +637,7 @@ struct WeeklyCalendarCard: View {
                     .presentationDragIndicator(.visible)
             }
             .onChange(of: weekOffset) { _, _ in
+                expandedDay = nil
                 if case .line(let day, let id) = focusedField {
                     commitLine(day: day, lineID: id)
                 }
@@ -703,17 +704,6 @@ struct WeeklyCalendarCard: View {
 
     private var homeSurface: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Color.clear
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
-                    .contentShape(Rectangle())
-                    .onTapGesture { dismissMealKeyboard() }
-                layoutToggle
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 6)
-
             if let cue = calendarSyncManager.calendarSelectionCue {
                 Button {
                     showCalendarSettings = true
@@ -725,17 +715,18 @@ struct WeeklyCalendarCard: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
                 .accessibilityLabel("Choose calendars")
             }
 
-            if homeLayoutMode == "today" {
-                todayContent
+            if let expandedDay {
+                dayExpanded(expandedDay)
             } else {
                 weekContent
             }
         }
-        .padding(.vertical, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
@@ -746,7 +737,7 @@ struct WeeklyCalendarCard: View {
         VStack(alignment: .leading, spacing: 0) {
             weekHeader
                 .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+                .padding(.bottom, 2)
 
             ForEach(Array(weekDates.enumerated()), id: \.offset) { index, date in
                 dayRow(date, index: index)
@@ -764,187 +755,73 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private var todayContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(todayDateLabel)
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-                .contentShape(Rectangle())
-                .onTapGesture { dismissMealKeyboard() }
-
-            if let today = todayInWeek {
-                todayHero(today)
-            }
-
-            if !upcomingDates.isEmpty {
-                Text("UP NEXT")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(0.6)
-                    .foregroundStyle(.black.opacity(0.45))
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
-
-                ForEach(Array(upcomingDates.enumerated()), id: \.offset) { index, date in
-                    upcomingRow(date)
-                    if index < upcomingDates.count - 1 {
-                        Rectangle()
-                            .fill(Color.black.opacity(0.15))
-                            .frame(height: 1)
-                            .padding(.horizontal, 12)
-                    }
+    private func dayExpanded(_ date: Date) -> some View {
+        let key = dayKey(date)
+        let lines = linesByDay[key] ?? [blankLine(for: key)]
+        let isToday = Calendar.current.isDateInToday(date)
+        let title = expandedDayTitle(date)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Button {
+                    dismissMealKeyboard()
+                    expandedDay = nil
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 12, weight: .heavy))
+                        .foregroundStyle(.black)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back to week")
+
+                VStack(alignment: .leading, spacing: 1) {
+                    if isToday {
+                        Text("TODAY")
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.terra500)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black, lineWidth: 1.5))
+                    }
+                    Text(title)
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 2)
+
+            ForEach(lines) { line in
+                dinnerLine(line, on: key, dayName: isToday ? "Today" : title)
+                    .padding(.horizontal, 14)
             }
 
-            Button {
-                homeLayoutMode = "week"
-            } label: {
-                Text("See full week")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
-                    .boldShadow(.black, size: 2, radius: 12)
+            if !homeEventLines(on: date).isEmpty {
+                denseEvents(on: date, limit: nil)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 2)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .accessibilityLabel("See full week")
 
             weekFooterActions
                 .padding(.horizontal, 12)
-                .padding(.top, 10)
+                .padding(.top, 8)
                 .padding(.bottom, 2)
         }
     }
 
-    private var todayDateLabel: String {
+    private func expandedDayTitle(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: Date())
-    }
-
-    private var todayInWeek: Date? {
-        weekDates.first { Calendar.current.isDateInToday($0) }
-    }
-
-    private var upcomingDates: [Date] {
-        let start = Calendar.current.startOfDay(for: Date())
-        return weekDates.filter { dayKey($0) > start }
-    }
-
-    private func todayHero(_ date: Date) -> some View {
-        let key = dayKey(date)
-        let lines = linesByDay[key] ?? [blankLine(for: key)]
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("TODAY")
-                .font(.system(size: 10, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.terra500)
-                .clipShape(RoundedRectangle(cornerRadius: 5))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.black, lineWidth: 1.5))
-
-            ForEach(lines) { line in
-                dinnerLine(line, on: key, dayName: "Today")
-                    .id(scrollID(day: key, lineID: line.id))
-            }
-
-            if !homeEventLines(on: date).isEmpty {
-                denseEvents(on: date, limit: 4)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Color.terra500)
-                .frame(width: 4)
-        }
-    }
-
-    private func upcomingRow(_ date: Date) -> some View {
-        let meal = upcomingMealText(date)
-        let nameFormatter = DateFormatter()
-        nameFormatter.dateFormat = "EEE"
-        let numberFormatter = DateFormatter()
-        numberFormatter.dateFormat = "d"
-        return Button {
-            homeLayoutMode = "week"
-        } label: {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(nameFormatter.string(from: date).uppercased())
-                        .font(.system(size: 9, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.gray)
-                    Text(numberFormatter.string(from: date))
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.black)
-                }
-                .frame(width: 36, alignment: .leading)
-
-                Text(meal)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.black)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let eventLine = homeEventLines(on: date).first {
-                    compactEventLabel(eventLine)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(nameFormatter.string(from: date)) \(meal)")
-    }
-
-    private func upcomingMealText(_ date: Date) -> String {
-        dinners(for: date)
-            .compactMap { $0.title?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
-    }
-
-    private var layoutToggle: some View {
-        HStack(spacing: 0) {
-            modeChip("Week", on: homeLayoutMode != "today") {
-                homeLayoutMode = "week"
-            }
-            modeChip("Today", on: homeLayoutMode == "today") {
-                if weekOffset != 0 {
-                    weekOffset = 0
-                }
-                homeLayoutMode = "today"
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black, lineWidth: 2))
-    }
-
-    private func modeChip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundStyle(on ? Color.white : Color.black)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(on ? Color.terra500 : Color.white)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(title) layout")
+        return formatter.string(from: date)
     }
 
     private var weekHeader: some View {
@@ -958,12 +835,12 @@ struct WeeklyCalendarCard: View {
                         .foregroundStyle(Color.sky500)
                 }
                 Text(weekOffset == 0 ? "This week" : weekRangeLabel)
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 if weekOffset == 0 {
                     Text(weekRangeLabel)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.gray)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -994,9 +871,9 @@ struct WeeklyCalendarCard: View {
     private func weekChevron(_ systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .heavy))
+                .font(.system(size: 10, weight: .heavy))
                 .foregroundStyle(.black)
-                .frame(width: 26, height: 26)
+                .frame(width: 22, height: 22)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black, lineWidth: 2))
@@ -1099,7 +976,12 @@ struct WeeklyCalendarCard: View {
             }
             .frame(width: 48, alignment: .leading)
             .contentShape(Rectangle())
-            .onTapGesture { dismissMealKeyboard() }
+            .onTapGesture {
+                dismissMealKeyboard()
+                expandedDay = key
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Open \(dayName) \(dayNumber)")
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(lines) { line in
