@@ -195,6 +195,7 @@ struct HomeView: View {
     @Binding var triggerAddTodo: Bool
     @State private var keyboardOverlap: CGFloat = 0
     @State private var focusedLineID: String?
+    @AppStorage("homeShowShoppingList") private var showShoppingList = true
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -205,8 +206,10 @@ struct HomeView: View {
                         focusedLineID = id
                         reveal(id, proxy: proxy)
                     }
-                    ShoppingListBoard(quietToolbar: true, showsSectionLabel: true)
-                        .padding(.bottom, 24)
+                    if showShoppingList {
+                        ShoppingListBoard(quietToolbar: true, showsSectionLabel: true)
+                            .padding(.bottom, 24)
+                    }
                     TodoSection(triggerAdd: $triggerAddTodo)
                         .padding(.bottom, 24)
                     DailyGoalsSection()
@@ -711,6 +714,112 @@ private enum WeekShareImage {
     }
 }
 
+/// Quiet sheet for the three Home display choices. Stored on this phone.
+private struct HomeDisplaySheet: View {
+    @AppStorage("homeShowPastDays") private var showPastDays = false
+    @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
+    @AppStorage("homeShowShoppingList") private var showShoppingList = true
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            options
+        }
+        .background(Color.bgBase)
+    }
+
+    private var options: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("HOME")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.4)
+                    .foregroundStyle(HomeQuiet.quiet)
+                Text("Display")
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("THIS WEEK")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.4)
+                    .foregroundStyle(HomeQuiet.quiet)
+
+                VStack(spacing: 0) {
+                    weekChoice("From today", selected: !showPastDays) {
+                        showPastDays = false
+                    }
+                    Rectangle()
+                        .fill(HomeQuiet.rule)
+                        .frame(height: 1)
+                    weekChoice("Every day", selected: showPastDays) {
+                        showPastDays = true
+                    }
+                }
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+                )
+            }
+
+            VStack(spacing: 0) {
+                displayToggle("Events under meals", isOn: $showWeekEvents)
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                displayToggle("Shopping list", isOn: $showShoppingList)
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+            )
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func weekChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(title)
+                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Spacer(minLength: 8)
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(Color.terra500)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : AccessibilityTraits())
+    }
+
+    private func displayToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 17, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            Spacer(minLength: 8)
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                .tint(Color.terra500)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+}
+
 @MainActor
 private enum WeekSharePresenter {
     static func present(_ image: UIImage) {
@@ -761,10 +870,13 @@ struct WeeklyCalendarCard: View {
     @State private var suppressBlankEcho: [Date: String] = [:]
     @State private var showCalendarSettings = false
     @State private var showClearWeek = false
+    @State private var showHomeDisplay = false
     @State private var suppressCommit = false
     @State private var mealFocusStamp = 0
     @State private var expandedDay: Date?
     @FocusState private var focusedField: DinnerField?
+    @AppStorage("homeShowPastDays") private var showPastDays = false
+    @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -777,9 +889,10 @@ struct WeeklyCalendarCard: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
     }
 
-    /// This week starts at today. Thursday shows Thursday–Sunday. Other weeks stay whole.
+    /// This week starts at today unless Display is set to every day.
+    /// Thursday shows Thursday–Sunday. Other weeks stay whole.
     private var listedWeekDates: [Date] {
-        guard weekOffset == 0 else { return weekDates }
+        guard weekOffset == 0, !showPastDays else { return weekDates }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         return weekDates.filter { calendar.startOfDay(for: $0) >= today }
@@ -945,6 +1058,12 @@ struct WeeklyCalendarCard: View {
             clearWeekPrompt
                 .presentationBackground(.clear)
         }
+        .sheet(isPresented: $showHomeDisplay) {
+            HomeDisplaySheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+        }
     }
 
     /// Quiet cream card. Today is a terracotta pill. Meals stay near-black.
@@ -978,19 +1097,18 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel("Choose calendars")
             }
 
-            Group {
+            VStack(alignment: .leading, spacing: 0) {
                 if let expandedDay {
                     dayExpanded(expandedDay)
                 } else {
                     weekContent
                 }
+                weekFooterActions
             }
             .background(Color.white)
             .clipShape(weekCardShape)
             .overlay(weekCardShape.stroke(Color.black.opacity(0.06), lineWidth: 1))
             .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
-
-            weekFooterActions
         }
         .padding(.top, 2)
         .padding(.bottom, 4)
@@ -1051,7 +1169,7 @@ struct WeeklyCalendarCard: View {
             dinnerBlock(lines, on: key, dayName: isToday ? "Today" : title)
                 .padding(.horizontal, 16)
 
-            if !homeEventLines(on: date).isEmpty {
+            if showWeekEvents, !homeEventLines(on: date).isEmpty {
                 eventLines(on: date)
                     .padding(.horizontal, 16)
             }
@@ -1115,9 +1233,9 @@ struct WeeklyCalendarCard: View {
     }
 
     private var weekFooterActions: some View {
-        HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            HStack(spacing: 10) {
+        VStack(spacing: 0) {
+            weekHairline
+            HStack(spacing: 6) {
                 weekActionButton("Swipe to plan", enabled: !weekDates.isEmpty) {
                     showWeekPlanner = true
                 }
@@ -1130,11 +1248,24 @@ struct WeeklyCalendarCard: View {
                         showClearWeek = true
                     }
                 }
+                Spacer(minLength: 6)
+                Button {
+                    showHomeDisplay = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Self.weekInk)
+                        .frame(width: 34, height: 34)
+                        .background(Color.terra100)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.terra200, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Home display")
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 12)
         }
-        .padding(.top, 16)
-        .padding(.bottom, 2)
     }
 
     private func weekActionButton(
@@ -1144,13 +1275,15 @@ struct WeeklyCalendarCard: View {
     ) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 14, weight: .regular))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(Self.weekInk)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 8)
+                .background(Color.terra100)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
+                .overlay(Capsule().stroke(Color.terra200, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -1164,7 +1297,7 @@ struct WeeklyCalendarCard: View {
         WeekSharePresenter.present(image)
     }
 
-    /// Same rows the home week is showing: past days omitted on this week, titles only, no ingredients.
+    /// Same rows the home week is showing. Titles only, no ingredients.
     private func weekShareSnapshot() -> WeekShareSnapshot {
         let days = listedWeekDates.map { date -> WeekShareDay in
             let calendar = Calendar.current
@@ -1186,9 +1319,11 @@ struct WeeklyCalendarCard: View {
             if !dinnerTitles.isEmpty {
                 groups.append(WeekShareMealGroup(id: "DINNER", label: "DINNER", titles: dinnerTitles))
             }
-            let events = homeEventLines(on: date)
-                .filter { !$0.sideText.isEmpty }
-                .map { WeekShareEvent(id: $0.id, text: $0.sideText, color: $0.calendarColor) }
+            let events = showWeekEvents
+                ? homeEventLines(on: date)
+                    .filter { !$0.sideText.isEmpty }
+                    .map { WeekShareEvent(id: $0.id, text: $0.sideText, color: $0.calendarColor) }
+                : []
             return WeekShareDay(
                 id: String(calendar.startOfDay(for: date).timeIntervalSince1970),
                 weekday: weekdayFormatter.string(from: date).uppercased(),
@@ -1231,7 +1366,7 @@ struct WeeklyCalendarCard: View {
             return formatter.string(from: date)
         }()
         let dayName = isToday ? "Today" : weekday
-        let showEvents = !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
+        let showEvents = showWeekEvents && !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
 
         return HStack(alignment: .top, spacing: 8) {
             VStack(spacing: 2) {
