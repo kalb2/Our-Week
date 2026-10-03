@@ -8,6 +8,19 @@
 	</array>
 	<key>CKSharingSupported</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kalebjensen.OurWeek</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ourweek</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Our Week uses the camera to turn a photo of a recipe into a recipe you can save.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>OurWeek uses your calendar to show and sync events across your household.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

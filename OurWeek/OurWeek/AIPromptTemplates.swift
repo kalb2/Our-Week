@@ -53,35 +53,89 @@ struct AIPromptTemplates {
           "prepTime": 15,
           "cookTime": 30,
           "servings": 4,
-          "difficulty": "easy",
+          "difficulty": "Easy",
           "ingredients": [
             {
-              "amount": 1.5,
-              "unit": "cups",
-              "name": "flour",
-              "notes": "all-purpose"
+              "amount": 0.5,
+              "unit": "cup",
+              "name": "frozen corn",
+              "notes": ""
             }
           ],
           "instructions": [
             "Step 1 description",
             "Step 2 description"
           ],
-          "categories": "dinner",
+          "categories": "Dinner",
           "tags": "quick, easy",
           "imageURL": "https://..."
         }
 
         Rules:
         - Return ONLY the JSON object, nothing else
-        - If prep/cook time not found, estimate based on recipe complexity
-        - Default servings to 4 if not specified
-        - Parse ingredients carefully: extract amount (as number), unit, name, and notes
-        - If amount is not a number (e.g. "a pinch"), set amount to 0 and put it in notes
-        - Split instructions into clear separate steps
-        - Estimate difficulty: "easy" (< 5 steps), "medium" (5-10), "hard" (> 10)
-        - For categories use a single string like "dinner", "dessert", "snack", etc.
-        - For tags use a comma-separated string
-        - Include imageURL if found in the HTML (look for og:image or recipe image)
+        - Copy the recipe on the page. Do not invent a different dish or leave out lines you can see
+        - title, every ingredient, and every step are required when they appear in the page
+        - prepTime and cookTime are integers in minutes. Use 0 only when the page does not state that time
+        - If the page gives one total time and not prep/cook, put that number in cookTime
+        - servings is an integer. Use 4 only when the page does not state a yield
+        - ingredients is an array of objects. amount is a JSON number for the full quantity (0.5 for 1/2, 0.25 for 1/4, 1.5 for 1 1/2), never a string and never split so the name starts with /2
+        - unit is only the measure (cup, tsp, tbsp, can, lb, package). Leave it "" when there is no measure. Do not put the unit in the name
+        - name is the full ingredient after the amount and unit, including adjectives and parentheticals. "1 lb boneless, skinless chicken breasts" is amount 1, unit lb, name "boneless, skinless chicken breasts". Never shorten the name to the first word
+        - notes stays "" unless the line is only an aside such as "to taste"
+        - If an amount is not numeric (a pinch, to taste), set amount to 0 and put those words in notes
+        - instructions is an array of strings, one step per item, in order. Do not wrap steps in objects
+        - difficulty is "Easy", "Medium", or "Hard" when the page says so, otherwise ""
+        - categories is one of: Main, Full meal, Breakfast, Lunch, Dinner, Dessert, Snack, Side, Appetizer, Drink
+        - Use Main or Dinner for a savory meal, and Dessert, Side, Snack, Appetizer, or Drink when that is what the page shows
+        - tags is a comma-separated string of extra labels, or ""
+        - Include imageURL when the HTML has an og:image or recipe image
+        """
+    }
+
+    /// Read a photographed or screenshotted recipe into the same JSON shape as HTML parsing.
+    static func recipeImageParsingPrompt() -> String {
+        """
+        You are a recipe parser. Read the recipe in the attached photo or screenshot.
+
+        Return ONLY valid JSON (no markdown, no explanation, no code fences):
+        {
+          "title": "Recipe Name",
+          "description": "Brief description",
+          "prepTime": 15,
+          "cookTime": 30,
+          "servings": 4,
+          "ingredients": [
+            {
+              "amount": 0.5,
+              "unit": "tsp",
+              "name": "kosher salt",
+              "notes": ""
+            }
+          ],
+          "instructions": [
+            "Step 1 description",
+            "Step 2 description"
+          ],
+          "categories": "Dinner",
+          "tags": ""
+        }
+
+        Rules:
+        - Return ONLY the JSON object
+        - Transcribe the recipe you can see. Do not invent a different dish or skip lines that are visible
+        - title, every ingredient, and every step must be copied when they are in the photo
+        - prepTime and cookTime are integers in minutes. Use 0 when that time is not visible
+        - If only one total time is shown, put it in cookTime and use 0 for prepTime
+        - servings is an integer. Use 4 only when no yield is visible
+        - ingredients is an array of objects. amount is a JSON number for the full quantity (0.5 for 1/2, 0.25 for 1/4, 1.5 for 1 1/2), never a string and never split so the name starts with /2
+        - unit is only the measure (cup, tsp, tbsp, can, lb, package). Leave it "" when there is no measure
+        - name is the full ingredient after the amount and unit, including adjectives and parentheticals. Never shorten "boneless, skinless chicken breasts" to "boneless"
+        - notes stays "" unless the line is only an aside such as "to taste"
+        - If an amount is not numeric, set amount to 0 and put the words in notes
+        - instructions is an array of strings, one visible step per item, in order. Do not wrap steps in objects
+        - categories is one of: Main, Full meal, Breakfast, Lunch, Dinner, Dessert, Snack, Side, Appetizer, Drink
+        - Use Main or Dinner for a savory meal, and Dessert, Side, Snack, Appetizer, or Drink when that is what the photo shows
+        - tags is a comma-separated string, or ""
         """
     }
 

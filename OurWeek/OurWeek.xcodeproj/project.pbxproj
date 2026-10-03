@@ -6,7 +6,36 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1SH00012F3EE20E00A5063F /* OurWeekShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1SH00052F3EE20E00A5063F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9C775242F3EE20E00A5063F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1SH000B2F3EE20E00A5063F;
+			remoteInfo = OurWeekShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1SH00072F3EE20E00A5063F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1SH00012F3EE20E00A5063F /* OurWeekShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OurWeekShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9C7752C2F3EE20E00A5063F /* OurWeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OurWeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -18,9 +47,24 @@
 			);
 			target = E9C7752B2F3EE20E00A5063F /* OurWeek */;
 		};
+		A1SH00032F3EE20E00A5063F /* Exceptions for "OurWeekShare" folder in "OurWeekShare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A1SH000B2F3EE20E00A5063F /* OurWeekShare */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A1SH00042F3EE20E00A5063F /* OurWeekShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1SH00032F3EE20E00A5063F /* Exceptions for "OurWeekShare" folder in "OurWeekShare" target */,
+			);
+			path = OurWeekShare;
+			sourceTree = "<group>";
+		};
 		E9C7752E2F3EE20E00A5063F /* OurWeek */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +76,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A1SH00082F3EE20E00A5063F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9C775292F3EE20E00A5063F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +97,7 @@
 			isa = PBXGroup;
 			children = (
 				E9C7752E2F3EE20E00A5063F /* OurWeek */,
+				A1SH00042F3EE20E00A5063F /* OurWeekShare */,
 				E9C7752D2F3EE20E00A5063F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +106,7 @@
 			isa = PBXGroup;
 			children = (
 				E9C7752C2F3EE20E00A5063F /* OurWeek.app */,
+				A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -68,10 +121,12 @@
 				E9C775282F3EE20E00A5063F /* Sources */,
 				E9C775292F3EE20E00A5063F /* Frameworks */,
 				E9C7752A2F3EE20E00A5063F /* Resources */,
+				A1SH00072F3EE20E00A5063F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A1SH00062F3EE20E00A5063F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E9C7752E2F3EE20E00A5063F /* OurWeek */,
@@ -83,7 +138,37 @@
 			productReference = E9C7752C2F3EE20E00A5063F /* OurWeek.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1SH000B2F3EE20E00A5063F /* OurWeekShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1SH000E2F3EE20E00A5063F /* Build configuration list for PBXNativeTarget "OurWeekShare" */;
+			buildPhases = (
+				A1SH000A2F3EE20E00A5063F /* Sources */,
+				A1SH00082F3EE20E00A5063F /* Frameworks */,
+				A1SH00092F3EE20E00A5063F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1SH00042F3EE20E00A5063F /* OurWeekShare */,
+			);
+			name = OurWeekShare;
+			packageProductDependencies = (
+			);
+			productName = OurWeekShare;
+			productReference = A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXTargetDependency section */
+		A1SH00062F3EE20E00A5063F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1SH000B2F3EE20E00A5063F /* OurWeekShare */;
+			targetProxy = A1SH00052F3EE20E00A5063F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		E9C775242F3EE20E00A5063F /* Project object */ = {
@@ -93,6 +178,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					A1SH000B2F3EE20E00A5063F = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					E9C7752B2F3EE20E00A5063F = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -113,11 +201,19 @@
 			projectRoot = "";
 			targets = (
 				E9C7752B2F3EE20E00A5063F /* OurWeek */,
+				A1SH000B2F3EE20E00A5063F /* OurWeekShare */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A1SH00092F3EE20E00A5063F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9C7752A2F3EE20E00A5063F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +224,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A1SH000A2F3EE20E00A5063F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9C775282F3EE20E00A5063F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -138,6 +241,64 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		A1SH000C2F3EE20E00A5063F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OurWeekShare/OurWeekShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 36;
+				DEVELOPMENT_TEAM = ZNKG8BKXAT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OurWeekShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Our Week";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kalebjensen.OurWeek.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1SH000D2F3EE20E00A5063F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OurWeekShare/OurWeekShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 36;
+				DEVELOPMENT_TEAM = ZNKG8BKXAT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OurWeekShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Our Week";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kalebjensen.OurWeek.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E9C7753E2F3EE21100A5063F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -145,7 +306,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OurWeek/OurWeek.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 36;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -180,7 +341,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OurWeek/OurWeek.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 36;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -339,6 +500,15 @@
 			buildConfigurations = (
 				E9C775402F3EE21100A5063F /* Debug */,
 				E9C775412F3EE21100A5063F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1SH000E2F3EE20E00A5063F /* Build configuration list for PBXNativeTarget "OurWeekShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1SH000C2F3EE20E00A5063F /* Debug */,
+				A1SH000D2F3EE20E00A5063F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

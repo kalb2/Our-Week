@@ -208,16 +208,43 @@ class DataManager {
         loadOrCreateHousehold()
     }
 
-    /// Create a new Household
+    /// Create a new Household. Does not rename an existing household.
+    /// A blank owner is stored as nil — never a placeholder name.
     func createHousehold(name: String, ownerName: String) -> Household {
         let household = Household(context: viewContext)
         household.id = UUID()
         household.name = name
-        household.ownerName = ownerName
+        let trimmedOwner = ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        household.ownerName = trimmedOwner.isEmpty ? nil : trimmedOwner
         household.createdAt = Date()
         save()
         currentHousehold = household
         return household
+    }
+
+    /// Keep the device profile and the owned household from being stuck on the
+    /// old preview name. Never writes a placeholder over a name that is already
+    /// saved, and never edits a household this device does not own.
+    func replaceDemoOwnerNameIfNeeded() {
+        let profileKey = "userProfileName"
+        var profile = UserDefaults.standard.string(forKey: profileKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if profile.isEmpty,
+           let owned = allHouseholds.first(where: { isOwner(of: $0) }) {
+            let owner = owned.ownerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !owner.isEmpty, owner.caseInsensitiveCompare("Alex") != .orderedSame {
+                UserDefaults.standard.set(owner, forKey: profileKey)
+                profile = owner
+            }
+        }
+
+        guard let household = currentHousehold, isOwner(of: household) else { return }
+        let owner = household.ownerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard owner.caseInsensitiveCompare("Alex") == .orderedSame else { return }
+        guard !profile.isEmpty, profile.caseInsensitiveCompare("Alex") != .orderedSame else { return }
+        household.ownerName = profile
+        save()
     }
 
     // MARK: - Sync Notifications
@@ -282,6 +309,33 @@ class DataManager {
         if !predicates.isEmpty {
             request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         }
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CalendarEvent.date, ascending: true)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            print("Error fetching events: \(error)")
+            return []
+        }
+    }
+
+    func fetchEvents(from startDate: Date, to endDate: Date, in household: Household? = nil) -> [CalendarEvent] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
+        guard start < end else { return [] }
+
+        let request: NSFetchRequest<CalendarEvent> = CalendarEvent.fetchRequest()
+        var predicates: [NSPredicate] = [
+            NSPredicate(
+                format: "(date >= %@ AND date < %@) OR (endDate != nil AND date < %@ AND endDate > %@)",
+                start as NSDate, end as NSDate, end as NSDate, start as NSDate
+            )
+        ]
+        if let household = household ?? currentHousehold {
+            predicates.append(NSPredicate(format: "household == %@", household))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \CalendarEvent.date, ascending: true)]
 
         do {
@@ -411,6 +465,15 @@ class DataManager {
         save()
     }
 
+    /// Deletes every given meal plan in one save. Does not touch calendar events.
+    func deleteMealPlans(_ meals: [MealPlan]) {
+        guard !meals.isEmpty else { return }
+        for meal in meals {
+            viewContext.delete(meal)
+        }
+        save()
+    }
+
     // MARK: - Recipes
 
     func updateRecipeImage(recipe: Recipe, newImageData: Data?) {
@@ -438,6 +501,12 @@ class DataManager {
         var stepNumber: Int16
         var text: String
         var timerSeconds: Int32
+    }
+
+    private func legacyIngredientLine(_ input: IngredientInput) -> String {
+        let unit = CookingAmount.canonicalUnit(input.unit)
+        let amount = CookingAmount.storedValue(input.amount, unit: unit)
+        return CookingAmount.plainLine(amount: amount, unit: unit, name: input.name, notes: input.notes)
     }
 
     func createRecipe(
@@ -479,15 +548,16 @@ class DataManager {
         recipe.household = household ?? currentHousehold
 
         // Build legacy string fields for backward compat
-        recipe.ingredients = ingredientInputs.map { "\($0.amount) \($0.unit) \($0.name)".trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        recipe.ingredients = ingredientInputs.map { legacyIngredientLine($0) }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
-        // Create structured ingredients
+        // Create structured ingredients. Every preview row is stored as given.
         for input in ingredientInputs {
+            let unit = CookingAmount.canonicalUnit(input.unit)
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = input.amount
-            ing.unit = input.unit
+            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
+            ing.unit = unit
             ing.name = input.name
             ing.notes = input.notes
             ing.sectionName = input.sectionName
@@ -541,18 +611,19 @@ class DataManager {
         recipe.updatedAt = Date()
 
         // Update legacy strings
-        recipe.ingredients = ingredientInputs.map { "\($0.amount) \($0.unit) \($0.name)".trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
+        recipe.ingredients = ingredientInputs.map { legacyIngredientLine($0) }.joined(separator: "\n")
         recipe.instructions = instructionInputs.map { $0.text }.joined(separator: "\n")
 
-        // Replace ingredients
+        // Replace ingredients. Every row is stored as given.
         if let existing = recipe.recipeIngredients as? Set<RecipeIngredient> {
             for old in existing { viewContext.delete(old) }
         }
         for input in ingredientInputs {
+            let unit = CookingAmount.canonicalUnit(input.unit)
             let ing = RecipeIngredient(context: viewContext)
             ing.id = UUID()
-            ing.amount = input.amount
-            ing.unit = input.unit
+            ing.amount = CookingAmount.storedValue(input.amount, unit: unit)
+            ing.unit = unit
             ing.name = input.name
             ing.notes = input.notes
             ing.sectionName = input.sectionName
@@ -856,12 +927,12 @@ class DataManager {
                     let parts = line.split(separator: "|", maxSplits: 1)
                     if parts.count == 2 {
                         let isChecked = parts[0] == "1"
-                        let text = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                        let text = CookingAmount.reformatLine(String(parts[1]))
                         if !isChecked && !text.isEmpty {
                             newItems.append(text)
                         }
                     } else if parts.count == 1 {
-                        let text = String(parts[0]).trimmingCharacters(in: .whitespaces)
+                        let text = CookingAmount.reformatLine(String(parts[0]))
                         if !text.isEmpty {
                             newItems.append(text)
                         }
@@ -877,14 +948,7 @@ class DataManager {
                     let amount = ing.amount
                     let unit = ing.unit ?? ""
                     
-                    var text = name
-                    if amount > 0 {
-                        let amountFormatter = NumberFormatter()
-                        amountFormatter.minimumFractionDigits = 0
-                        amountFormatter.maximumFractionDigits = 2
-                        let amountStr = amountFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
-                        text = "\(amountStr) \(unit) \(name)".trimmingCharacters(in: .whitespaces)
-                    }
+                    let text = CookingAmount.line(amount: amount, unit: unit, name: name, notes: ing.notes ?? "")
                     if !text.isEmpty {
                         newItems.append(text)
                     }

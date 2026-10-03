@@ -32,6 +32,7 @@ final class RecipeTextParser {
 
         // Extract description
         let description = extractDescription(lines: lines, sections: sections)
+        let labels = extractLabels(lines: lines)
 
         return ScrapedRecipe(
             title: title,
@@ -43,8 +44,29 @@ final class RecipeTextParser {
             servings: servings,
             imageURL: nil,
             sourceURL: "",
-            sourceDomain: "Pasted Text"
+            sourceDomain: "Pasted Text",
+            categories: labels.categories,
+            tags: labels.tags
         )
+    }
+
+    /// Pull "Category: Dinner" / "Tags: weeknight" lines into the same fields URL and photo import use.
+    private static func extractLabels(lines: [String]) -> (categories: String, tags: String) {
+        var categories: [String] = []
+        var tags: [String] = []
+        for line in lines {
+            let lower = line.lowercased()
+            let value = line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard value.count == 2 else { continue }
+            let label = value[1].trimmingCharacters(in: .whitespaces)
+            guard !label.isEmpty else { continue }
+            if lower.hasPrefix("categor") || lower.hasPrefix("course") || lower.hasPrefix("type:") || lower.hasPrefix("meal:") {
+                categories.append(label)
+            } else if lower.hasPrefix("tag") || lower.hasPrefix("keyword") {
+                tags.append(label)
+            }
+        }
+        return (categories.joined(separator: ", "), tags.joined(separator: ", "))
     }
 
     // MARK: - Section Detection
@@ -419,7 +441,7 @@ final class RecipeTextParser {
             "^(?:serves?|servings?|yield|makes|portions?)\\s*:?\\s*\\d+",
             "^(?:prep|cook|total|bake|baking)\\s*(?:time)?\\s*:?\\s*\\d+",
             "^(?:calories|cal|kcal)\\s*:?\\s*\\d+",
-            "^(?:course|cuisine|category|diet)\\s*:",
+            "^(?:course|cuisine|category|diet|tags?|keywords?|meal|type)\\s*:",
             "^(?:author|source|from|adapted|recipe by)\\s*:"
         ]
 

@@ -14,29 +14,16 @@ struct RecipeCard: View {
 
     private var totalTime: Int16 { recipe.prepTime + recipe.cookTime }
 
-    private var randomEmoji: String {
-        let hash = abs((recipe.name ?? "").hashValue)
-        let emojis = RecipeConstants.foodEmojis
-        return emojis[hash % emojis.count]
-    }
-
-    private var categoryEmoji: String {
-        guard let cats = recipe.categories, !cats.isEmpty else { return randomEmoji }
-        let firstCat = cats.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? ""
-        return RecipeConstants.categoryEmojis[firstCat] ?? randomEmoji
-    }
-
     private var selectionBadge: some View {
         ZStack {
             Circle()
-                .fill(isSelected ? Color.terra500 : Color.cardWhite)
-                .frame(width: 32, height: 32)
-                .overlay(Circle().stroke(isSelected ? Color.terra600 : Color.black, lineWidth: 2))
-                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                .fill(isSelected ? Color.terra500 : Color.white)
+                .frame(width: 28, height: 28)
+                .overlay(Circle().stroke(isSelected ? Color.clear : HomeQuiet.buttonStroke, lineWidth: 1))
 
             Image(systemName: isSelected ? "checkmark" : "circle")
-                .font(.system(size: 13, weight: .heavy))
-                .foregroundStyle(isSelected ? .white : Color.gray.opacity(0.45))
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(isSelected ? .white : HomeQuiet.quiet)
         }
         .accessibilityLabel(isSelected ? "Selected" : "Not selected")
     }
@@ -46,25 +33,27 @@ struct RecipeCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Image / Placeholder
                 ZStack(alignment: .topTrailing) {
-                    if let data = recipe.imageData, let uiImage = UIImage(data: data) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 120)
-                            .clipped()
-                    } else {
-                        // Gradient placeholder with emoji
-                        LinearGradient(
-                            colors: [Color.terra100, Color.terra200],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                    // A clear frame owns the layout. scaledToFill images would
+                    // otherwise expand the button's hit target over the toolbar.
+                    Color.clear
+                        .frame(maxWidth: .infinity)
                         .frame(height: 120)
-                        .overlay(
-                            Text(categoryEmoji)
-                                .font(.system(size: 40))
-                        )
-                    }
+                        .overlay {
+                            if let data = recipe.imageData, let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                Color(red: 0.98, green: 0.96, blue: 0.94)
+                                .overlay(
+                                    Image(systemName: "fork.knife")
+                                        .font(.system(size: 22, weight: .regular))
+                                        .foregroundStyle(HomeQuiet.quiet)
+                                )
+                            }
+                        }
+                        .clipped()
+                        .contentShape(Rectangle())
 
                     if isSelectMode {
                         selectionBadge
@@ -74,13 +63,13 @@ struct RecipeCard: View {
                         Button(action: onFavoriteToggle) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.cardWhite)
-                                    .frame(width: 32, height: 32)
-                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                                    .fill(Color.white)
+                                    .frame(width: 30, height: 30)
+                                    .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
 
                                 Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(recipe.isFavorite ? Color.terra500 : .gray.opacity(0.5))
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(recipe.isFavorite ? Color.terra600 : HomeQuiet.quiet)
                             }
                         }
                         .buttonStyle(.plain)
@@ -91,47 +80,39 @@ struct RecipeCard: View {
                 // Info section
                 VStack(alignment: .leading, spacing: 6) {
                     Text(recipe.name ?? "Untitled")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .lineLimit(2)
-                        .foregroundStyle(.black)
+                        .foregroundStyle(HomeQuiet.ink)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         if totalTime > 0 {
                             HStack(spacing: 3) {
                                 Image(systemName: "clock")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 9, weight: .regular))
                                 Text("\(totalTime) min")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .font(.system(size: 11, weight: .regular))
                             }
-                            .foregroundStyle(Color.terra500)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.terra100)
-                            .clipShape(Capsule())
+                            .foregroundStyle(HomeQuiet.quiet)
                         }
 
                         if let diff = recipe.difficulty, !diff.isEmpty {
-                            Text(diff)
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(.gray.opacity(0.6))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.gray.opacity(0.08))
-                                .clipShape(Capsule())
+                            Text(diff.uppercased())
+                                .font(.system(size: 10, weight: .regular))
+                                .tracking(0.6)
+                                .foregroundStyle(HomeQuiet.quiet)
                         }
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             }
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .homeQuietCard()
+            .contentShape(HomeQuiet.card)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isSelected ? Color.terra500 : Color.black, lineWidth: isSelected ? 3 : 2)
+                HomeQuiet.card
+                    .stroke(isSelected ? Color.terra500.opacity(0.7) : Color.clear, lineWidth: 1)
             )
-            .boldShadow(isSelected ? Color.terra400 : .black, size: 3, radius: 16)
         }
         .buttonStyle(.plain)
         .if(!isSelectMode) { view in

@@ -39,23 +39,18 @@ struct SharingSettingsView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 4) {
-                        Image(systemName: "house.2.fill")
-                            .font(.system(size: 48))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.lilac500, Color.terra500],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .padding(.bottom, 8)
+                        Text("SHARING")
+                            .font(.system(size: 11, weight: .regular))
+                            .tracking(1.4)
+                            .foregroundStyle(HomeQuiet.quiet)
 
-                        Text("Household Sharing")
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        Text("Household")
+                            .font(.system(size: 32, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
 
-                        Text("Sync calendars, meals, recipes & more")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
+                        Text("Calendars, meals, recipes, and lists")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
                     }
                     .padding(.top, 24)
 
@@ -93,7 +88,7 @@ struct SharingSettingsView: View {
                             Image(systemName: "stethoscope")
                                 .font(.system(size: 11))
                             Text("Connection Doctor")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .font(.system(size: 11, weight: .regular))
                         }
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 14)
@@ -160,14 +155,16 @@ struct SharingSettingsView: View {
     @ViewBuilder
     func connectionBannerView(_ banner: SharingManager.ConnectionBanner) -> some View {
         HStack(spacing: 12) {
-            Text("🎉")
-                .font(.system(size: 28))
+            Image(systemName: "person.2")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(Color.terra600)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Partner Connected!")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                Text("Partner connected")
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Text(banner.message)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.secondary)
             }
 
@@ -184,18 +181,7 @@ struct SharingSettingsView: View {
             }
         }
         .padding(16)
-        .background(
-            LinearGradient(
-                colors: [Color.lime400.opacity(0.2), Color.lime500.opacity(0.1)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.lime500, lineWidth: 2)
-        )
+        .homeQuietCard()
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
@@ -204,18 +190,12 @@ struct SharingSettingsView: View {
     var profileNameCard: some View {
         VStack(spacing: 16) {
             HStack(spacing: 10) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.lilac500, Color.terra500],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                Image(systemName: "person")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
 
                 Text("Your Profile")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
 
                 Spacer()
 
@@ -235,14 +215,14 @@ struct SharingSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("Enter your name", text: $profileName)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
 
                     HStack(spacing: 16) {
                         Button {
                             showPhotoPicker = true
                         } label: {
                             Text("Change Picture")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(Color.terra600)
                         }
 
@@ -251,7 +231,7 @@ struct SharingSettingsView: View {
                                 profileImageData = nil
                             } label: {
                                 Text("Remove")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .font(.system(size: 12, weight: .regular))
                                     .foregroundStyle(.red)
                             }
                         }
@@ -270,7 +250,7 @@ struct SharingSettingsView: View {
             }
 
             Text("This is how your partner will see you.")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -279,7 +259,7 @@ struct SharingSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(profileName.isEmpty ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
+                .stroke(profileName.isEmpty ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 1)
         )
     }
 
@@ -292,9 +272,9 @@ struct SharingSettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(household.name ?? "Our Home")
-                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                        .font(.system(size: 20, weight: .regular, design: .serif))
                     Text("Created by \(household.ownerName ?? "You")")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -318,26 +298,15 @@ struct SharingSettingsView: View {
                     }
                     Text(sharingManager.shareStatus == .notShared
                          ? "Invite Partner" : "Manage Sharing")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: [Color.lilac500, Color.lilac600],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.lilac600, lineWidth: 2)
-                )
+                .background(Color.terra500)
+                .clipShape(Capsule())
             }
             .disabled(isLoading)
-            .boldShadow(Color.lilac400, radius: 12)
 
             // Participants
             if !sharingManager.participants.isEmpty {
@@ -347,7 +316,7 @@ struct SharingSettingsView: View {
             // Error
             if let error = errorMessage {
                 Text(error)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.red)
                     .padding(8)
                     .background(Color.red.opacity(0.1))
@@ -355,13 +324,7 @@ struct SharingSettingsView: View {
             }
         }
         .padding(20)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.lilac500, lineWidth: 2)
-        )
-        .boldShadow(Color.lilac400)
+        .homeQuietCard()
         .onAppear {
             sharingManager.startAutoRefresh(for: household)
         }
@@ -375,7 +338,7 @@ struct SharingSettingsView: View {
     var participantsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("MEMBERS")
-                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                .font(.system(size: 10, weight: .regular))
                 .tracking(1)
                 .foregroundStyle(.secondary)
 
@@ -387,16 +350,16 @@ struct SharingSettingsView: View {
                         .frame(width: 10, height: 10)
                         .overlay(
                             Circle()
-                                .stroke(participantStatusColor(participant.status).opacity(0.3), lineWidth: 3)
+                                .stroke(participantStatusColor(participant.status).opacity(0.3), lineWidth: 1)
                         )
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(participant.status == .pending ? "Waiting for response…" : participant.name)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(participant.status == .pending ? .secondary : .primary)
 
                         Text(participant.status.rawValue)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(participantStatusColor(participant.status))
                     }
 
@@ -435,7 +398,7 @@ struct SharingSettingsView: View {
             switch sharingManager.shareStatus {
             case .shared:
                 Label("Synced", systemImage: "checkmark.icloud.fill")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -443,7 +406,7 @@ struct SharingSettingsView: View {
                     .clipShape(Capsule())
             case .pending:
                 Label("Pending", systemImage: "clock.fill")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -451,7 +414,7 @@ struct SharingSettingsView: View {
                     .clipShape(Capsule())
             case .notShared:
                 Label("Private", systemImage: "lock.fill")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -466,17 +429,17 @@ struct SharingSettingsView: View {
     var createHouseholdCard: some View {
         VStack(spacing: 16) {
             Text("Create Your Household")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .font(.system(size: 18, weight: .regular, design: .serif))
 
             Text("Set up a household to start sharing data with your partner.")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 12) {
                 TextField("Household Name", text: $householdName)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
             }
 
             if profileName.isEmpty {
@@ -485,7 +448,7 @@ struct SharingSettingsView: View {
                         .foregroundStyle(.orange)
                         .font(.system(size: 12))
                     Text("Set your profile name above first")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.orange)
                 }
                 .padding(8)
@@ -498,7 +461,7 @@ struct SharingSettingsView: View {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                     Text("Create Household")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -507,7 +470,7 @@ struct SharingSettingsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.terra600, lineWidth: 2)
+                        .stroke(Color.terra600, lineWidth: 1)
                 )
             }
             .disabled(householdName.isEmpty || profileName.isEmpty)
@@ -519,7 +482,7 @@ struct SharingSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.terra500, lineWidth: 2)
+                .stroke(Color.terra500, lineWidth: 1)
         )
         .boldShadow(Color.terra500)
     }
@@ -551,7 +514,7 @@ struct SharingSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .bottom) {
                 Text("WHAT GETS SHARED")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.secondary)
                 
@@ -564,17 +527,17 @@ struct SharingSettingsView: View {
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.secondary)
                         Text(syncDateFormatted)
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
                 }
             }
 
             VStack(spacing: 8) {
-                sharedDataRow(icon: "calendar", text: "Calendar Events", color: Color.lilac500)
-                sharedDataRow(icon: "fork.knife", text: "Meal Plans", color: Color.terra500)
-                sharedDataRow(icon: "book.fill", text: "Recipes", color: Color.sky500)
-                sharedDataRow(icon: "bag.fill", text: "Shopping Lists", color: Color.lime500)
+                sharedDataRow(icon: "calendar", text: "Calendar Events", color: HomeQuiet.ink)
+                sharedDataRow(icon: "fork.knife", text: "Meal Plans", color: HomeQuiet.ink)
+                sharedDataRow(icon: "book", text: "Recipes", color: HomeQuiet.ink)
+                sharedDataRow(icon: "bag", text: "Shopping Lists", color: HomeQuiet.ink)
             }
         }
         .padding(16)
@@ -592,7 +555,7 @@ struct SharingSettingsView: View {
                 .background(color.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             Text(text)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
             Spacer()
             Image(systemName: "arrow.triangle.2.circlepath")
                 .font(.system(size: 12))
@@ -608,30 +571,22 @@ struct SharingSettingsView: View {
         } label: {
             HStack(spacing: 16) {
                 // Icon
-                ZStack {
-                    LinearGradient(
-                        colors: [Color.lilac500, Color.sky500],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 44, height: 44)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 1.5))
-                .boldShadow(.black, size: 2, radius: 12)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 44, height: 44)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(HomeQuiet.cardStroke, lineWidth: 1))
                 
                 // Text
                 VStack(alignment: .leading, spacing: 4) {
                     Text("AI Features")
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(.primary)
                     
                     Text("Powered by Google Gemini")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
                 
@@ -657,7 +612,7 @@ struct SharingSettingsView: View {
             .padding(16)
             .background(Color.cardWhite)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadow(.black, size: 3, radius: 16)
         }
     }
@@ -667,12 +622,12 @@ struct SharingSettingsView: View {
     var multipleHouseholdsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("YOUR HOUSEHOLDS")
-                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                .font(.system(size: 10, weight: .regular))
                 .tracking(1)
                 .foregroundStyle(.secondary)
             
             Text("You are a member of multiple households. Select one to make it active. Long-press to delete an unused one.")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(.secondary)
 
             ForEach(dataManager.allHouseholds) { hh in
@@ -689,23 +644,23 @@ struct SharingSettingsView: View {
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(hh.name ?? "Our Home")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .foregroundStyle(.primary)
                             HStack(spacing: 6) {
                                 if isShared && !isOwner {
                                     Text("Shared with you")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .font(.system(size: 12, weight: .regular))
                                 } else if isShared && isOwner {
                                     Text("Shared by you")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .font(.system(size: 12, weight: .regular))
                                 } else {
                                     Text("Private Account")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .font(.system(size: 12, weight: .regular))
                                 }
                                 
                                 if !isOwner {
                                     Text("• By \(hh.ownerName ?? "Unknown")")
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .font(.system(size: 12, weight: .regular))
                                 }
                             }
                             .foregroundStyle(.secondary)
@@ -719,7 +674,7 @@ struct SharingSettingsView: View {
                                 .font(.system(size: 22))
                         } else {
                             Circle()
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                                 .frame(width: 22, height: 22)
                         }
                     }
@@ -728,7 +683,7 @@ struct SharingSettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(dataManager.currentHousehold == hh ? Color.lime500 : Color.clear, lineWidth: 2)
+                            .stroke(dataManager.currentHousehold == hh ? Color.lime500 : Color.clear, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -782,8 +737,8 @@ struct SharingSettingsView: View {
                             LinearGradient(colors: [Color.sky200, Color.sky400], startPoint: .topLeading, endPoint: .bottomTrailing)
                         )
                         .frame(width: 36, height: 36)
-                        .overlay(Text(initial).font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(Color.white))
-                        .overlay(Circle().stroke(Color.cardWhite, lineWidth: 2))
+                        .overlay(Text(initial).font(.system(size: 15, weight: .regular)).foregroundStyle(Color.white))
+                        .overlay(Circle().stroke(Color.cardWhite, lineWidth: 1))
                 } else {
                     // A partner icon (since we don't store partner names reliably)
                     Circle()
@@ -792,7 +747,7 @@ struct SharingSettingsView: View {
                         )
                         .frame(width: 36, height: 36)
                         .overlay(Image(systemName: "person.fill").foregroundStyle(Color.white).font(.system(size: 16)))
-                        .overlay(Circle().stroke(Color.cardWhite, lineWidth: 2))
+                        .overlay(Circle().stroke(Color.cardWhite, lineWidth: 1))
                 }
             }
             
@@ -803,7 +758,7 @@ struct SharingSettingsView: View {
                     .scaledToFill()
                     .frame(width: 36, height: 36)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.cardWhite, lineWidth: 2))
+                    .overlay(Circle().stroke(Color.cardWhite, lineWidth: 1))
             } else {
                 let initial = String(profileName.prefix(1)).uppercased()
                 Circle()
@@ -811,8 +766,8 @@ struct SharingSettingsView: View {
                         LinearGradient(colors: [Color.terra300, Color.terra500], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
                     .frame(width: 36, height: 36)
-                    .overlay(Text(initial.isEmpty ? "U" : initial).font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(Color.white))
-                    .overlay(Circle().stroke(Color.cardWhite, lineWidth: 2))
+                    .overlay(Text(initial.isEmpty ? "U" : initial).font(.system(size: 15, weight: .regular)).foregroundStyle(Color.white))
+                    .overlay(Circle().stroke(Color.cardWhite, lineWidth: 1))
             }
         }
     }
@@ -877,7 +832,7 @@ struct ConnectionDoctorView: View {
                             ProgressView()
                                 .scaleEffect(1.5)
                             Text("Diagnosing Connection...")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.top, 60)
@@ -893,7 +848,7 @@ struct ConnectionDoctorView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: runDiag) {
@@ -933,10 +888,10 @@ struct ConnectionDoctorView: View {
                 .foregroundStyle(isHealthy ? Color.lime500 : Color.orange)
             
             Text(isHealthy ? "Connection Healthy" : "Issues Detected")
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .font(.system(size: 22, weight: .regular, design: .serif))
             
             Text("Your app is \(isHealthy ? "properly configured for syncing." : "experiencing problems syncing data.")")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -946,7 +901,7 @@ struct ConnectionDoctorView: View {
         if !diag.errors.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text("ERRORS")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.red)
                 
@@ -955,7 +910,7 @@ struct ConnectionDoctorView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.red)
                         Text(error)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(.red)
                     }
                     .padding()
@@ -994,7 +949,7 @@ struct ConnectionDoctorView: View {
         if diag.shareExists {
             VStack(alignment: .leading, spacing: 12) {
                 Text("CURRENT SHARE")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.secondary)
                 
@@ -1005,10 +960,10 @@ struct ConnectionDoctorView: View {
                             .foregroundStyle(Color.terra500)
                             .frame(width: 24)
                         Text(diag.shareOwner)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                         Spacer()
                         Text("Owner")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.terra100)
@@ -1027,12 +982,12 @@ struct ConnectionDoctorView: View {
                                 .foregroundStyle(Color.lilac500)
                                 .frame(width: 24)
                             Text(p.name)
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                             Spacer()
                             
                             let isAccepted = p.status.contains("Accepted")
                             Text(isAccepted ? "Connected" : "Pending")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(isAccepted ? Color.lime100 : Color.orange.opacity(0.15))
@@ -1053,7 +1008,7 @@ struct ConnectionDoctorView: View {
         }
         
         Text("Diagnostics logged at \(diag.timestamp.formatted(date: .omitted, time: .standard))")
-            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .font(.system(size: 11, weight: .regular))
             .foregroundStyle(.tertiary)
             .padding(.top, 8)
     }
@@ -1062,7 +1017,7 @@ struct ConnectionDoctorView: View {
     func statusCard(title: String, icon: String, color: Color, items: [(String, String, Color)]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(1)
                 .foregroundStyle(.secondary)
             
@@ -1077,11 +1032,11 @@ struct ConnectionDoctorView: View {
                             Spacer().frame(width: 24)
                         }
                         Text(item.0)
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.secondary)
                         Spacer()
                         Text(item.1)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(item.2)
                     }
                     .padding(16)

@@ -5,8 +5,15 @@ import SwiftUI
 struct PasteImportView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var scrapedRecipe: ScrapedRecipe?
+    private let sourceURL: String
 
-    @State private var recipeText: String = ""
+    @State private var recipeText: String
+
+    init(scrapedRecipe: Binding<ScrapedRecipe?>, initialText: String = "", sourceURL: String = "") {
+        _scrapedRecipe = scrapedRecipe
+        self.sourceURL = sourceURL
+        _recipeText = State(initialValue: initialText)
+    }
     @State private var isParsing = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
@@ -33,10 +40,15 @@ struct PasteImportView: View {
                         errorView(error)
                     }
 
-                    Spacer().frame(height: 80)
+                    Color.clear
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { KeyboardDismiss.resign() }
                 }
                 .padding(.horizontal, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.bgBase.ignoresSafeArea())
         .overlay(alignment: .bottom) { parseButton }
@@ -50,6 +62,7 @@ struct PasteImportView: View {
     // MARK: - Header
 
     private var header: some View {
+        VStack(spacing: 0) {
         HStack(alignment: .top) {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
@@ -58,8 +71,7 @@ struct PasteImportView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -67,12 +79,12 @@ struct PasteImportView: View {
 
             VStack(spacing: 2) {
                 Text("PASTE RECIPE")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
                 Text("FROM TEXT")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
             }
@@ -82,7 +94,18 @@ struct PasteImportView: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
-        .padding(.bottom, 24)
+        .padding(.bottom, sourceURL.isEmpty ? 24 : 12)
+
+        if !sourceURL.isEmpty {
+            Text(sourceURL)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Color.terra600)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+        }
+        }
     }
 
     // MARK: - Text Input Section
@@ -90,18 +113,18 @@ struct PasteImportView: View {
     private var textInputSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("RECIPE TEXT")
-                .font(.system(size: 14, weight: .black, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(.gray.opacity(0.6))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Paste recipe text from any source")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $recipeText)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(.black)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 240, maxHeight: 360)
@@ -113,7 +136,7 @@ struct PasteImportView: View {
 
                     if recipeText.isEmpty {
                         Text("Paste your recipe here...\n\nExample:\nChicken Stir Fry\n\nServings: 4\nPrep Time: 15 min\nCook Time: 20 min\n\nIngredients:\n2 chicken breasts, diced\n1 tbsp soy sauce\n2 cups vegetables\n\nInstructions:\n1. Heat oil in a wok\n2. Cook chicken until golden\n3. Add vegetables and sauce")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.35))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 18)
@@ -122,7 +145,7 @@ struct PasteImportView: View {
                 }
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(.black, size: 3, radius: 14)
 
                 HStack(spacing: 12) {
@@ -132,7 +155,7 @@ struct PasteImportView: View {
                             Image(systemName: "doc.on.clipboard")
                                 .font(.system(size: 12, weight: .bold))
                             Text("Paste from clipboard")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                         }
                         .foregroundStyle(Color.terra500)
                         .padding(.horizontal, 14)
@@ -150,7 +173,7 @@ struct PasteImportView: View {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 11, weight: .bold))
                                 Text("Clear")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .font(.system(size: 12, weight: .regular))
                             }
                             .foregroundStyle(.gray)
                             .padding(.horizontal, 14)
@@ -166,7 +189,7 @@ struct PasteImportView: View {
 
                     // Character count
                     Text("\(recipeText.count) chars")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(.gray.opacity(0.4))
                 }
                 .padding(.top, 4)
@@ -179,7 +202,7 @@ struct PasteImportView: View {
     private var tipsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("TIPS")
-                .font(.system(size: 14, weight: .black, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(.gray.opacity(0.6))
 
@@ -205,7 +228,7 @@ struct PasteImportView: View {
                 .frame(width: 16)
 
             Text(text)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.gray.opacity(0.7))
         }
     }
@@ -220,12 +243,12 @@ struct PasteImportView: View {
                     .font(.system(size: 16))
                     .foregroundStyle(.white)
                 Text("Parsing Issue")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.white)
             }
 
             Text(message)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.white.opacity(0.9))
                 .lineSpacing(4)
         }
@@ -233,7 +256,7 @@ struct PasteImportView: View {
         .padding(16)
         .background(Color.red)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(.black, size: 3, radius: 14)
         .transition(.scale.combined(with: .opacity))
     }
@@ -248,21 +271,16 @@ struct PasteImportView: View {
             VStack {
                 Button(action: parseRecipeText) {
                     Text("PARSE RECIPE")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: canParse ? [Color.terra400, Color.peach500] : [Color.gray.opacity(0.3), Color.gray.opacity(0.3)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            canParse ? Color.terra500 : Color.gray.opacity(0.3)
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(canParse ? Color.black : Color.gray.opacity(0.3), lineWidth: 2))
-                        .shadow(color: canParse ? Color.peach500.opacity(0.4) : .clear, radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(canParse ? Color.black.opacity(0.08) : Color.gray.opacity(0.2), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(!canParse || isParsing)
@@ -287,7 +305,7 @@ struct PasteImportView: View {
                     .symbolEffect(.bounce, value: showSuccess)
 
                 Text("Recipe Parsed!")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
             }
             .padding(40)
@@ -311,7 +329,12 @@ struct PasteImportView: View {
         isParsing = true
 
         let text = recipeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parsed = RecipeTextParser.parse(text)
+        var parsed = RecipeTextParser.parse(text)
+        if !sourceURL.isEmpty {
+            parsed.sourceURL = sourceURL
+            parsed.sourceDomain = URL(string: sourceURL)?.host?
+                .replacingOccurrences(of: "www.", with: "") ?? ""
+        }
 
         // Validate that we got something useful
         if parsed.ingredients.isEmpty && parsed.instructions.isEmpty {

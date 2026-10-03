@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import PhotosUI
 import CoreData
 
@@ -34,21 +35,32 @@ class ShoppingUndoStack {
     }
 }
 
+extension Notification.Name {
+    /// A grocery add-row took the keyboard, so the home meal field should let go.
+    static let shoppingItemFieldFocused = Notification.Name("shoppingItemFieldFocused")
+}
+
+private func shoppingTextInputIsFirstResponder() -> Bool {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    for window in scenes.flatMap(\.windows) {
+        if window.shoppingContainsFirstResponderTextInput { return true }
+    }
+    return false
+}
+
+private extension UIView {
+    var shoppingContainsFirstResponderTextInput: Bool {
+        if isFirstResponder, self is UITextField || self is UITextView { return true }
+        for subview in subviews where subview.shoppingContainsFirstResponderTextInput {
+            return true
+        }
+        return false
+    }
+}
+
 // MARK: - Shopping List View
 struct ShoppingListView: View {
     @Binding var showSharingSettings: Bool
-    @Environment(DataManager.self) private var dataManager
-    @State private var undoStack = ShoppingUndoStack()
-    
-    // Core data query 
-    @State private var shoppingLists: [ShoppingList] = []
-    
-    // Section reorder state
-    @State private var isReorderMode = false
-    @State private var draggedSectionID: NSManagedObjectID?
-    
-    // Sync modal state
-    @State private var showSyncModal = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -56,34 +68,86 @@ struct ShoppingListView: View {
                 ShoppingListHeader(showSharingSettings: $showSharingSettings)
                 MealPlanCarousel()
                     .padding(.top, 16)
-                ShoppingToolbar(
-                    undoStack: undoStack,
-                    isReorderMode: $isReorderMode,
-                    showSyncModal: $showSyncModal,
-                    shoppingLists: $shoppingLists,
-                    onListsChanged: { loadLists() }
-                )
-                    .padding(.top, 12)
+                ShoppingListBoard(reservesTabBarSpace: true, quietToolbar: true)
+            }
+        }
+        .background(Color.bgBase)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+    }
+}
 
-                // Reorder mode banner
-                if isReorderMode {
+/// Store sections, items, check-off, and add controls. Same lists as the Shop tab.
+/// The week meal cards stay on Shop only.
+struct ShoppingListBoard: View {
+    var reservesTabBarSpace: Bool = false
+    /// Home keeps these controls with the list. Shop keeps the color pills.
+    var quietToolbar: Bool = false
+
+    @Environment(DataManager.self) private var dataManager
+    @State private var undoStack = ShoppingUndoStack()
+    @State private var shoppingLists: [ShoppingList] = []
+    @State private var isReorderMode = false
+    @State private var showSyncModal = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ShoppingToolbar(
+                undoStack: undoStack,
+                isReorderMode: $isReorderMode,
+                showSyncModal: $showSyncModal,
+                shoppingLists: $shoppingLists,
+                onListsChanged: { loadLists() },
+                quiet: quietToolbar
+            )
+            .padding(.horizontal, quietToolbar ? 24 : 0)
+            .padding(.top, quietToolbar ? 22 : 12)
+            .padding(.bottom, quietToolbar ? 2 : 0)
+            .frame(maxWidth: .infinity)
+
+            if isReorderMode {
+                if quietToolbar {
+                    HStack(spacing: 12) {
+                        Text("Drag sections or use the arrows")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                        Spacer(minLength: 8)
+                        Button("Done") {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isReorderMode = false
+                            }
+                        }
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                } else {
                     HStack(spacing: 10) {
                         Image(systemName: "arrow.up.arrow.down.circle.fill")
                             .font(.system(size: 20, weight: .semibold))
                         Text("Drag sections or use arrows to reorder")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                         Spacer()
                         Button("Done") {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 isReorderMode = false
                             }
                         }
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(Color.white)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1))
                     }
                     .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
                     .padding(.horizontal, 16)
@@ -92,137 +156,151 @@ struct ShoppingListView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.sky200, lineWidth: 1.5)
+                            .stroke(Color.sky200, lineWidth: 1)
                     )
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
+            }
 
-                // Store sections
-                VStack(spacing: 20) {
-                    if shoppingLists.isEmpty {
+            VStack(spacing: quietToolbar ? 14 : 20) {
+                if shoppingLists.isEmpty {
+                    if quietToolbar {
+                        VStack(spacing: 8) {
+                            Text("No lists yet")
+                                .font(.system(size: 20, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                            Text("Add a section to start a store list.")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.vertical, 28)
+                        .frame(maxWidth: .infinity)
+                        .homeQuietCard()
+                    } else {
                         VStack(spacing: 12) {
                             Image(systemName: "cart.badge.plus")
                                 .font(.system(size: 40))
                                 .foregroundStyle(Color.terra400)
                             Text("No Shopping Lists Yet")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(.system(size: 18, weight: .regular, design: .serif))
                             Text("Use the Add Section button above to create a store list.")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                         }
                         .padding(.vertical, 40)
                         .frame(maxWidth: .infinity)
-                    } else {
-                        ForEach(Array(shoppingLists.enumerated()), id: \.element.objectID) { index, list in
-                            StoreSection(
-                                list: list,
-                                storeName: list.name ?? "Unknown Store",
-                                icon: getIcon(for: list.name ?? ""),
-                                accentColor: getAccentColor(for: list.name ?? ""),
-                                accentLight: getAccentLight(for: list.name ?? ""),
-                                borderColor: getAccentColor(for: list.name ?? ""),
-                                shadowColor: getAccentColor(for: list.name ?? ""),
-                                badgeBg: getAccentLight(for: list.name ?? ""),
-                                badgeText: getDarkerColor(for: list.name ?? ""),
-                                checkBorder: getAccentLight(for: list.name ?? "").opacity(0.8),
-                                checkFill: getAccentColor(for: list.name ?? ""),
-                                dividerColor: getAccentLight(for: list.name ?? ""),
-                                headerColor: getDarkerColor(for: list.name ?? ""),
-                                undoStack: undoStack,
-                                isReorderMode: isReorderMode,
-                                isFirst: index == 0,
-                                isLast: index == shoppingLists.count - 1,
-                                onMoveUp: {
-                                    guard index > 0 else { return }
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        shoppingLists.swapAt(index, index - 1)
-                                        dataManager.reorderShoppingLists(shoppingLists)
-                                    }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                },
-                                onMoveDown: {
-                                    guard index < shoppingLists.count - 1 else { return }
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        shoppingLists.swapAt(index, index + 1)
-                                        dataManager.reorderShoppingLists(shoppingLists)
-                                    }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                },
-                                onDelete: {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        dataManager.deleteShoppingList(list)
-                                        loadLists()
-                                    }
+                    }
+                } else {
+                    ForEach(Array(shoppingLists.enumerated()), id: \.element.objectID) { index, list in
+                        StoreSection(
+                            list: list,
+                            storeName: list.name ?? "Unknown Store",
+                            icon: icon(for: list.name ?? ""),
+                            accentColor: accentColor(for: list.name ?? ""),
+                            accentLight: accentLight(for: list.name ?? ""),
+                            borderColor: accentColor(for: list.name ?? ""),
+                            shadowColor: accentColor(for: list.name ?? ""),
+                            badgeBg: accentLight(for: list.name ?? ""),
+                            badgeText: darkerColor(for: list.name ?? ""),
+                            checkBorder: accentLight(for: list.name ?? "").opacity(0.8),
+                            checkFill: accentColor(for: list.name ?? ""),
+                            dividerColor: accentLight(for: list.name ?? ""),
+                            headerColor: darkerColor(for: list.name ?? ""),
+                            quiet: quietToolbar,
+                            undoStack: undoStack,
+                            isReorderMode: isReorderMode,
+                            isFirst: index == 0,
+                            isLast: index == shoppingLists.count - 1,
+                            onMoveUp: {
+                                guard index > 0 else { return }
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    shoppingLists.swapAt(index, index - 1)
+                                    dataManager.reorderShoppingLists(shoppingLists)
                                 }
-                            )
-                        }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            },
+                            onMoveDown: {
+                                guard index < shoppingLists.count - 1 else { return }
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    shoppingLists.swapAt(index, index + 1)
+                                    dataManager.reorderShoppingLists(shoppingLists)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            },
+                            onDelete: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    dataManager.deleteShoppingList(list)
+                                    loadLists()
+                                }
+                            }
+                        )
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
 
-                // Sync with Meal Plan CTA
-                Button(action: { showSyncModal = true }) {
+            Button(action: { showSyncModal = true }) {
+                if quietToolbar {
+                    Text("Sync with meal plan")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                } else {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.system(size: 18, weight: .bold))
                         Text("SYNC WITH MEAL PLAN")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .tracking(1)
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        LinearGradient(
-                            colors: [Color.terra400, Color.terra500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        Color.terra500
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.terra600, lineWidth: 2)
+                            .stroke(Color.terra600, lineWidth: 1)
                     )
                     .boldShadow(Color.terra600, size: 4)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 120)
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
+            .padding(.top, quietToolbar ? 16 : 24)
+            .padding(.bottom, reservesTabBarSpace ? 120 : 0)
         }
-        .background(Color.bgBase)
         .onAppear {
             loadLists()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadLists()
         }
-        .onTapGesture {
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        }
     }
-    
+
     private func loadLists() {
         shoppingLists = dataManager.fetchShoppingLists()
-        
-        // Auto-create defaults if completely empty (e.g., first install)
+
         if shoppingLists.isEmpty {
             _ = dataManager.createShoppingList(name: "Grocery Store")
             _ = dataManager.createShoppingList(name: "Costco")
             _ = dataManager.createShoppingList(name: "Trader Joe's")
-            
-            // Re-fetch after creation
             shoppingLists = dataManager.fetchShoppingLists()
         }
     }
-    
-    // MARK: - Color/Icon Helpers for dynamically generated lists
-    private func getIcon(for name: String) -> String {
+
+    private func icon(for name: String) -> String {
         let n = name.lowercased()
         if n.contains("grocery") || n.contains("smith") { return "storefront" }
         if n.contains("costco") || n.contains("sams") { return "tag" }
@@ -231,7 +309,7 @@ struct ShoppingListView: View {
         return "list.bullet.clipboard"
     }
 
-    private func getAccentColor(for name: String) -> Color {
+    private func accentColor(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color.lime500 }
         if n.contains("costco") { return Color.sky400 }
@@ -240,7 +318,7 @@ struct ShoppingListView: View {
         return Color.peach500
     }
 
-    private func getAccentLight(for name: String) -> Color {
+    private func accentLight(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color.lime100 }
         if n.contains("costco") { return Color.sky100 }
@@ -249,7 +327,7 @@ struct ShoppingListView: View {
         return Color.orange.opacity(0.1)
     }
 
-    private func getDarkerColor(for name: String) -> Color {
+    private func darkerColor(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color(red: 0.26, green: 0.53, blue: 0.09) }
         if n.contains("costco") { return Color(red: 0.03, green: 0.45, blue: 0.70) }
@@ -270,23 +348,17 @@ struct ShoppingListHeader: View {
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
+                Text("SHOP")
+                    .font(.system(size: 12, weight: .regular))
+                    .tracking(1.6)
+                    .foregroundStyle(HomeQuiet.quiet)
                 Text("Shopping")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .tracking(-0.5)
-                Text("List")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .italic()
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.peach500, Color.terra500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .font(.system(size: 40, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Text("GROUPED BY STORE")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(HomeQuiet.quiet)
                     .padding(.top, 4)
             }
             Spacer()
@@ -295,7 +367,6 @@ struct ShoppingListHeader: View {
                 AvatarButton(imageData: profileImageData)
             }
             .buttonStyle(.plain)
-            .shadow(color: .black.opacity(0.15), radius: 0, x: 4, y: 4)
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -316,10 +387,92 @@ struct ShoppingToolbar: View {
     @Binding var showSyncModal: Bool
     @Binding var shoppingLists: [ShoppingList]
     var onListsChanged: () -> Void
+    var quiet: Bool = false
     @State private var showAddSectionModal = false
     @State private var showEditModal = false
 
     var body: some View {
+        Group {
+            if quiet {
+                quietBar
+            } else {
+                colorPills
+            }
+        }
+        .sheet(isPresented: $showAddSectionModal) {
+            AddSectionModal(onAdd: onListsChanged, quiet: quiet)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showEditModal) {
+            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged, quiet: quiet)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSyncModal) {
+            SyncModal(quiet: quiet)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var quietBar: some View {
+        VStack(spacing: 10) {
+            quietPair(
+                leading: (isReorderMode ? "Done" : "Reorder", "arrow.up.arrow.down", {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isReorderMode.toggle()
+                    }
+                }),
+                trailing: ("Add section", "plus", { showAddSectionModal = true })
+            )
+
+            quietPair(
+                leading: ("Edit", "pencil", { showEditModal = true }),
+                trailing: ("Sync", "arrow.triangle.2.circlepath", { showSyncModal = true })
+            )
+
+            if undoStack.canUndo || undoStack.canRedo {
+                quietPair(
+                    leading: ("Undo", "arrow.uturn.backward", { undoStack.undo() }),
+                    trailing: ("Redo", "arrow.uturn.forward", { undoStack.redo() })
+                )
+            }
+        }
+    }
+
+    private func quietPair(
+        leading: (String, String, () -> Void),
+        trailing: (String, String, () -> Void)
+    ) -> some View {
+        HStack(spacing: 10) {
+            quietButton(title: leading.0, icon: leading.1, action: leading.2)
+            quietButton(title: trailing.0, icon: trailing.1, action: trailing.2)
+        }
+    }
+
+    private func quietButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .regular))
+                Text(title)
+                    .font(.system(size: 14, weight: .regular))
+            }
+            .foregroundStyle(HomeQuiet.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo))
+        .opacity((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo) ? 0.35 : 1)
+    }
+
+    private var colorPills: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ActionPill(icon: "arrow.up.arrow.down", label: isReorderMode ? "Done" : "Reorder",
@@ -363,21 +516,6 @@ struct ShoppingToolbar: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 4)
         }
-        .sheet(isPresented: $showAddSectionModal) {
-            AddSectionModal(onAdd: onListsChanged)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showEditModal) {
-            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showSyncModal) {
-            SyncModal()
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
     }
 }
 
@@ -396,7 +534,7 @@ struct ActionPill: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
                 Text(label)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .textCase(.uppercase)
                     .tracking(0.5)
             }
@@ -442,6 +580,7 @@ struct StoreSection: View {
     let checkFill: Color
     let dividerColor: Color
     let headerColor: Color
+    var quiet: Bool = false
     var undoStack: ShoppingUndoStack
     var isReorderMode: Bool = false
     var isFirst: Bool = false
@@ -557,10 +696,51 @@ struct StoreSection: View {
 
     @State private var showDeleteSectionConfirm = false
 
+    private var itemCountLabel: String {
+        let count = allItems.count
+        return "\(count) \(count == 1 ? "ITEM" : "ITEMS")"
+    }
+
+    private func quietMoveButton(_ systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(enabled ? HomeQuiet.ink : HomeQuiet.quiet)
+                .frame(width: 32, height: 32)
+                .background(Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+        }
+        .disabled(!enabled)
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             if isReorderMode {
+                if quiet {
+                    HStack(spacing: 8) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                        Text(storeName)
+                            .font(.system(size: 18, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        quietMoveButton("chevron.up", enabled: !isFirst, action: onMoveUp)
+                        quietMoveButton("chevron.down", enabled: !isLast, action: onMoveDown)
+                        Button(action: { showDeleteSectionConfirm = true }) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(Color.terra600)
+                                .frame(width: 32, height: 32)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, 4)
+                } else {
                 // Reorder mode header with move controls
                 HStack(spacing: 0) {
                     // Drag handle
@@ -574,7 +754,7 @@ struct StoreSection: View {
                         Image(systemName: icon)
                             .font(.system(size: 18, weight: .semibold))
                         Text(storeName.uppercased())
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .tracking(0.8)
                     }
                     .foregroundStyle(headerColor)
@@ -629,6 +809,7 @@ struct StoreSection: View {
                     }
                 }
                 .padding(.bottom, 4)
+                }
             } else {
                 // Normal mode header — tap to expand/collapse
                 Button(action: {
@@ -636,12 +817,30 @@ struct StoreSection: View {
                         isExpanded.toggle()
                     }
                 }) {
+                    if quiet {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(storeName)
+                                    .font(.system(size: 20, weight: .regular, design: .serif))
+                                    .foregroundStyle(HomeQuiet.ink)
+                                    .lineLimit(1)
+                                Text(itemCountLabel)
+                                    .font(.system(size: 11, weight: .regular))
+                                    .tracking(1.2)
+                                    .foregroundStyle(HomeQuiet.quiet)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                        }
+                    } else {
                     HStack {
                         HStack(spacing: 8) {
                             Image(systemName: icon)
                                 .font(.system(size: 18, weight: .semibold))
                             Text(storeName.uppercased())
-                                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .tracking(0.8)
                         }
                         .foregroundStyle(headerColor)
@@ -650,7 +849,7 @@ struct StoreSection: View {
 
                         // Item count badge
                         Text("\(allItems.count) \(allItems.count == 1 ? "Item" : "Items")")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(badgeText)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -665,6 +864,7 @@ struct StoreSection: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(headerColor)
                             .padding(.leading, 8)
+                    }
                     }
                 }
                 .buttonStyle(.plain)
@@ -685,6 +885,7 @@ struct StoreSection: View {
                                 checkBorder: checkBorder,
                                 checkFill: checkFill,
                                 accentColor: accentColor,
+                                quiet: quiet,
                                 onToggle: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         dataManager.toggleShoppingItem(item)
@@ -697,9 +898,15 @@ struct StoreSection: View {
                             )
                         }
 
-                        Divider()
-                            .background(dividerColor)
-                            .padding(.vertical, 2)
+                        if quiet {
+                            Rectangle()
+                                .fill(HomeQuiet.rule)
+                                .frame(height: 1)
+                        } else {
+                            Divider()
+                                .background(dividerColor)
+                                .padding(.vertical, 2)
+                        }
                     }
                     // Drag reorder — item follows finger, reorder on drop
                     .offset(y: draggedItemID == item.objectID ? dragOffset : 0)
@@ -744,6 +951,7 @@ struct StoreSection: View {
                         ),
                         checkBorder: checkBorder,
                         accentColor: accentColor,
+                        quiet: quiet,
                         isFocused: focusedAddRowID == rowID,
                         onFocus: { focusedAddRowID = rowID },
                         onSubmit: { commitRow(rowID) }
@@ -752,17 +960,23 @@ struct StoreSection: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(borderColor, lineWidth: 2)
-        )
-        .boldShadow(shadowColor)
+        .padding(quiet ? 16 : 20)
+        .modifier(StoreCardChrome(quiet: quiet, borderColor: borderColor, shadowColor: shadowColor))
         .onAppear {
             loadItems()
             ensureOneAddRow()
+        }
+        .onChange(of: focusedAddRowID) { _, new in
+            if new != nil {
+                NotificationCenter.default.post(name: .shoppingItemFieldFocused, object: nil)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            let row = focusedAddRowID
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                guard focusedAddRowID == row, row != nil, !shoppingTextInputIsFirstResponder() else { return }
+                focusedAddRowID = nil
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadItems()
@@ -772,9 +986,10 @@ struct StoreSection: View {
                 item: item,
                 accentColor: accentColor,
                 borderColor: borderColor,
+                quiet: quiet,
                 onSave: { name, quantity in
-                    item.name = name
-                    item.quantity = quantity
+                    item.name = CookingAmount.reformatLine(name)
+                    item.quantity = CookingAmount.reformatLine(quantity)
                     dataManager.save()
                     loadItems()
                 },
@@ -808,7 +1023,7 @@ struct SwipeToDeleteRow<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .trailing) {
-            // Red delete background
+            // Quiet delete control, revealed by the swipe
             HStack {
                 Spacer()
                 Button(action: {
@@ -818,13 +1033,13 @@ struct SwipeToDeleteRow<Content: View>: View {
                         showDeleteButton = false
                     }
                 }) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 60)
-                        .frame(maxHeight: .infinity)
-                        .background(Color(red: 0.90, green: 0.22, blue: 0.22))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    Image(systemName: "trash")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Color.terra600)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -887,25 +1102,25 @@ struct InlineAddItemRow: View {
     @Binding var text: String
     let checkBorder: Color
     let accentColor: Color
+    var quiet: Bool = false
     let isFocused: Bool
     let onFocus: () -> Void
     let onSubmit: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            // Empty circle (unchecked style)
             Circle()
-                .stroke(checkBorder.opacity(0.4), lineWidth: 1.5)
-                .frame(width: 20, height: 20)
+                .stroke(quiet ? HomeQuiet.ink.opacity(0.22) : checkBorder.opacity(0.4), lineWidth: quiet ? 1 : 1.5)
+                .frame(width: 18, height: 18)
                 .overlay(
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(checkBorder.opacity(0.5))
+                        .font(.system(size: 9, weight: .regular))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : checkBorder.opacity(0.5))
                 )
 
             TextField("Add item...", text: $text)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+                .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(quiet ? HomeQuiet.ink : .primary)
                 .submitLabel(.return)
                 .onSubmit(onSubmit)
                 .onTapGesture { onFocus() }
@@ -916,12 +1131,62 @@ struct InlineAddItemRow: View {
     }
 }
 
+private struct RenameFieldShadow: ViewModifier {
+    var quiet: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content
+        } else {
+            content.boldShadow(.black, size: 3, radius: 10)
+        }
+    }
+}
+
+private struct RenameControlShadow: ViewModifier {
+    var quiet: Bool
+    var size: CGFloat = 3
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content
+        } else {
+            content.boldShadow(.black, size: size, radius: 12)
+        }
+    }
+}
+
+private struct StoreCardChrome: ViewModifier {
+    var quiet: Bool
+    var borderColor: Color
+    var shadowColor: Color
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if quiet {
+            content.homeQuietCard()
+        } else {
+            content
+                .background(Color.cardWhite)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(borderColor, lineWidth: 1)
+                )
+                .boldShadow(shadowColor)
+        }
+    }
+}
+
 // MARK: - Edit Item Sheet
 struct EditItemSheet: View {
     @Environment(\.dismiss) private var dismiss
     let item: ShoppingItem
     let accentColor: Color
     let borderColor: Color
+    var quiet: Bool = false
     let onSave: (String, String) -> Void
     let onDelete: () -> Void
 
@@ -934,23 +1199,32 @@ struct EditItemSheet: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Edit Item")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Edit item" : "Edit Item")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("UPDATE DETAILS")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(accentColor)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(accentColor)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -959,18 +1233,18 @@ struct EditItemSheet: View {
             // Item name field
             VStack(alignment: .leading, spacing: 8) {
                 Text("ITEM NAME")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
 
                 TextField("Item name", text: $editName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
                     .padding(16)
                     .background(Color.cardWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                     )
             }
             .padding(.horizontal, 24)
@@ -980,19 +1254,19 @@ struct EditItemSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("QUANTITY")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                     Spacer()
                     Text("OPTIONAL")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .font(.system(size: 9, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(0.5)
-                        .foregroundStyle(.gray.opacity(0.3))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
                 }
 
                 HStack {
                     TextField("e.g. 5 tomatoes, 2 lbs...", text: $editQuantity)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
 
                     if !editQuantity.isEmpty {
                         Button(action: { editQuantity = "" }) {
@@ -1007,7 +1281,7 @@ struct EditItemSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                        .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                 )
             }
             .padding(.horizontal, 24)
@@ -1016,27 +1290,37 @@ struct EditItemSheet: View {
 
             // Action buttons
             VStack(spacing: 10) {
-                // Save button
                 Button(action: {
                     let cleanName = editName.trimmingCharacters(in: .whitespaces)
                     let cleanQty = editQuantity.trimmingCharacters(in: .whitespaces)
                     onSave(cleanName, cleanQty)
                     dismiss()
                 }) {
-                    Text("SAVE CHANGES")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(editName.isEmpty ? Color.gray.opacity(0.3) : accentColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                        )
-                        .boldShadow(editName.isEmpty ? Color.gray.opacity(0.2) : borderColor, size: 4)
+                    if quiet {
+                        Text("Save")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(editName.isEmpty ? HomeQuiet.quiet : Color.terra500)
+                            .clipShape(Capsule())
+                    } else {
+                        Text("SAVE CHANGES")
+                            .font(.system(size: 14, weight: .regular))
+                            .tracking(1)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(editName.isEmpty ? Color.gray.opacity(0.3) : accentColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                            )
+                            .boldShadow(editName.isEmpty ? Color.gray.opacity(0.2) : borderColor, size: 4)
+                    }
                 }
+                .buttonStyle(.plain)
                 .disabled(editName.isEmpty)
 
                 // Delete button
@@ -1045,7 +1329,7 @@ struct EditItemSheet: View {
                         Image(systemName: "trash")
                             .font(.system(size: 14, weight: .semibold))
                         Text("DELETE ITEM")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .tracking(0.5)
                     }
                     .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
@@ -1058,8 +1342,8 @@ struct EditItemSheet: View {
         }
         .background(Color.bgBase)
         .onAppear {
-            editName = item.name ?? ""
-            editQuantity = item.quantity ?? ""
+            editName = CookingAmount.reformatLine(item.name ?? "")
+            editQuantity = CookingAmount.reformatLine(item.quantity ?? "")
         }
         .alert("Delete Item?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -1080,42 +1364,41 @@ struct ShopListEntryRow: View {
     let checkBorder: Color
     let checkFill: Color
     let accentColor: Color
+    var quiet: Bool = false
     let onToggle: () -> Void
     let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            // Circular checkbox
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .stroke(isChecked ? checkFill : checkBorder, lineWidth: 2)
-                        .frame(width: 20, height: 20)
+                        .stroke(quiet ? (isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28)) : (isChecked ? checkFill : checkBorder), lineWidth: quiet ? 1 : 2)
+                        .frame(width: 18, height: 18)
                     if isChecked {
                         Circle()
-                            .fill(checkFill)
-                            .frame(width: 20, height: 20)
+                            .fill(quiet ? Color.terra500 : checkFill)
+                            .frame(width: 18, height: 18)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: quiet ? 9 : 12, weight: quiet ? .regular : .bold))
                             .foregroundStyle(.white)
                     }
                 }
             }
             .buttonStyle(.plain)
 
-            // Tappable item content
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name ?? "Unknown")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(isChecked ? .gray.opacity(0.5) : .primary)
-                        .strikethrough(isChecked, color: .gray.opacity(0.5))
+                    Text(CookingAmount.reformatLine(item.name ?? "Unknown"))
+                        .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(quiet ? (isChecked ? HomeQuiet.quiet : HomeQuiet.ink) : (isChecked ? Color.gray.opacity(0.5) : Color.primary))
+                        .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                     
                     if let quantity = item.quantity, !quantity.isEmpty {
-                        Text(quantity)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(isChecked ? .gray.opacity(0.3) : .gray)
-                            .strikethrough(isChecked, color: .gray.opacity(0.3))
+                        Text(CookingAmount.reformatLine(quantity))
+                            .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
+                            .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
                     }
                 }
             }
@@ -1123,15 +1406,14 @@ struct ShopListEntryRow: View {
 
             Spacer()
 
-            // Edit icon hint
             Button(action: onTap) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.gray.opacity(0.25))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, quiet ? 8 : 4)
         .frame(minHeight: 32)
     }
 }
@@ -1163,9 +1445,9 @@ struct SortOptionsModal: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sort Items")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(.system(size: 22, weight: .regular, design: .serif))
                     Text("CHOOSE SORT ORDER")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(.gray.opacity(0.5))
                 }
@@ -1177,7 +1459,7 @@ struct SortOptionsModal: View {
                         .frame(width: 32, height: 32)
                         .background(Color(red: 0.03, green: 0.45, blue: 0.70))
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
             .padding(.horizontal, 24)
@@ -1197,7 +1479,7 @@ struct SortOptionsModal: View {
                                 .font(.system(size: 18, weight: .semibold))
                                 .frame(width: 24)
                             Text(option.rawValue)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(.system(size: 15, weight: .regular))
                             Spacer()
                             if selectedSort == option {
                                 Image(systemName: "checkmark.circle.fill")
@@ -1205,7 +1487,7 @@ struct SortOptionsModal: View {
                                     .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
                             } else {
                                 Circle()
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                                     .frame(width: 22, height: 22)
                             }
                         }
@@ -1218,7 +1500,7 @@ struct SortOptionsModal: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
-                                .stroke(selectedSort == option ? Color.sky400 : Color.gray.opacity(0.15), lineWidth: 2)
+                                .stroke(selectedSort == option ? Color.sky400 : Color.gray.opacity(0.15), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -1231,7 +1513,7 @@ struct SortOptionsModal: View {
             // Done button
             Button(action: { dismiss() }) {
                 Text("APPLY SORT")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -1240,7 +1522,7 @@ struct SortOptionsModal: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
                     )
                     .boldShadow(Color.sky400, size: 4)
             }
@@ -1256,6 +1538,7 @@ struct AddSectionModal: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
     var onAdd: () -> Void = {}
+    var quiet: Bool = false
     @State private var sectionName = ""
     @State private var selectedColor: Color = .lime500
 
@@ -1272,23 +1555,32 @@ struct AddSectionModal: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Add Section")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Add section" : "Add Section")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("NEW STORE OR CATEGORY")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color(red: 0.26, green: 0.53, blue: 0.09))
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color(red: 0.26, green: 0.53, blue: 0.09))
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1297,27 +1589,28 @@ struct AddSectionModal: View {
             // Section name text field
             VStack(alignment: .leading, spacing: 8) {
                 Text("SECTION NAME")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                     .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
 
                 TextField("e.g. Whole Foods, Target...", text: $sectionName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
                     .padding(16)
                     .background(Color.cardWhite)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.gray.opacity(0.2), lineWidth: quiet ? 1 : 2)
                     )
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
 
+            if !quiet {
             // Color picker
             VStack(alignment: .leading, spacing: 12) {
                 Text("ACCENT COLOR")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray.opacity(0.5))
 
@@ -1328,7 +1621,7 @@ struct AddSectionModal: View {
                                 .fill(option.color)
                                 .frame(width: 40, height: 40)
                                 .overlay(
-                                    Circle().stroke(option.border, lineWidth: 2)
+                                    Circle().stroke(option.border, lineWidth: 1)
                                 )
                                 .overlay {
                                     if selectedColor == option.color {
@@ -1345,10 +1638,10 @@ struct AddSectionModal: View {
                 }
             }
             .padding(.horizontal, 24)
+            }
 
             Spacer()
 
-            // Add button
             Button(action: {
                 let name = sectionName.trimmingCharacters(in: .whitespaces)
                 guard !name.isEmpty else { return }
@@ -1356,36 +1649,132 @@ struct AddSectionModal: View {
                 onAdd()
                 dismiss()
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("ADD SECTION")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
+                if quiet {
+                    Text("Add section")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(sectionName.isEmpty ? HomeQuiet.quiet : Color.terra500)
+                        .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("ADD SECTION")
+                            .font(.system(size: 14, weight: .regular))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        sectionName.isEmpty
+                            ? Color.gray.opacity(0.3)
+                            : Color(red: 0.26, green: 0.53, blue: 0.09)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                    )
+                    .boldShadow(
+                        sectionName.isEmpty ? Color.gray.opacity(0.2) : Color.lime500,
+                        size: 4
+                    )
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    sectionName.isEmpty
-                        ? Color.gray.opacity(0.3)
-                        : Color(red: 0.26, green: 0.53, blue: 0.09)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                )
-                .boldShadow(
-                    sectionName.isEmpty ? Color.gray.opacity(0.2) : Color.lime500,
-                    size: 4
-                )
             }
+            .buttonStyle(.plain)
             .disabled(sectionName.isEmpty)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
         .background(Color.bgBase)
+    }
+}
+
+// MARK: - Section rename tap-away
+/// Resigns the section-name field when the edit sheet is tapped outside that field.
+/// Touches still reach Save, so the button can commit in the same turn.
+private struct SectionRenameTapInstaller: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.scheduleInstall(from: uiView)
+    }
+
+    final class Coordinator: NSObject {
+        private weak var installedOn: UIScrollView?
+        private var waitingToInstall = false
+        private let tapName = "ourweek.sectionRenameDismiss"
+
+        func scheduleInstall(from view: UIView) {
+            guard installedOn == nil, !waitingToInstall else { return }
+            waitingToInstall = true
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                self.waitingToInstall = false
+                guard let view, self.installedOn == nil else { return }
+                self.install(from: view)
+            }
+        }
+
+        func install(from view: UIView) {
+            var current: UIView? = view
+            var scroll: UIScrollView?
+            while let candidate = current {
+                if let found = candidate as? UIScrollView {
+                    scroll = found
+                    break
+                }
+                current = candidate.superview
+            }
+            guard let scroll, installedOn == nil else { return }
+            if scroll.gestureRecognizers?.contains(where: { $0.name == tapName }) == true {
+                installedOn = scroll
+                return
+            }
+            let tap = UITapGestureRecognizer(
+                target: SectionRenameTapRelay.shared,
+                action: #selector(SectionRenameTapRelay.handleTap)
+            )
+            tap.name = tapName
+            tap.cancelsTouchesInView = false
+            tap.delegate = SectionRenameTapRelay.shared
+            scroll.addGestureRecognizer(tap)
+            installedOn = scroll
+        }
+    }
+}
+
+private final class SectionRenameTapRelay: NSObject, UIGestureRecognizerDelegate {
+    static let shared = SectionRenameTapRelay()
+
+    @objc func handleTap() {
+        KeyboardDismiss.resign()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        var view = touch.view
+        while let current = view {
+            if current is UITextField || current is UITextView { return false }
+            view = current.superview
+        }
+        return true
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }
 
@@ -1395,6 +1784,7 @@ struct EditListModal: View {
     @Environment(DataManager.self) private var dataManager
     @Binding var shoppingLists: [ShoppingList]
     var onListsChanged: () -> Void = {}
+    var quiet: Bool = false
     @State private var showDeleteConfirm = false
     @State private var checkedDeleted = false
 
@@ -1403,23 +1793,32 @@ struct EditListModal: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Edit List")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    Text(quiet ? "Edit list" : "Edit List")
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("MANAGE YOUR ITEMS")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.terra600)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.terra600)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1449,7 +1848,8 @@ struct EditListModal: View {
                                 icon: checkedDeleted ? "checkmark.circle.fill" : "trash",
                                 title: checkedDeleted ? "Checked Items Removed!" : "Delete Checked Items",
                                 subtitle: checkedDeleted ? "All completed items have been removed" : "Remove all completed items from every section",
-                                accentColor: checkedDeleted ? Color.lime500 : Color.terra500
+                                accentColor: checkedDeleted ? Color.lime500 : Color.terra500,
+                                quiet: quiet
                             )
                         }
                         .buttonStyle(.plain)
@@ -1459,7 +1859,8 @@ struct EditListModal: View {
                                 icon: "xmark.circle",
                                 title: "Clear All Sections",
                                 subtitle: "Remove all items from every section — can't be undone",
-                                accentColor: Color(red: 0.85, green: 0.20, blue: 0.20)
+                                accentColor: Color(red: 0.85, green: 0.20, blue: 0.20),
+                                quiet: quiet
                             )
                         }
                         .buttonStyle(.plain)
@@ -1469,12 +1870,14 @@ struct EditListModal: View {
 
                     // Sections Editor
                     ForEach(shoppingLists, id: \.objectID) { list in
-                        EditSectionCard(list: list, onListsChanged: onListsChanged)
+                        EditSectionCard(list: list, onListsChanged: onListsChanged, quiet: quiet)
                     }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
+                .background(SectionRenameTapInstaller())
             }
+            .scrollDismissesKeyboard(.immediately)
         }
         .background(Color.bgBase)
         .alert("Clear All Sections?", isPresented: $showDeleteConfirm) {
@@ -1502,46 +1905,129 @@ struct EditSectionCard: View {
     @ObservedObject var list: ShoppingList
     @Environment(DataManager.self) private var dataManager
     var onListsChanged: () -> Void = {}
+    var quiet: Bool = false
 
     @State private var editName: String = ""
+    @State private var isRenaming = false
+    @State private var commitInFlight = false
+    @FocusState private var nameFieldFocused: Bool
     @State private var showClearConfirm = false
-    
+
+    private var storedName: String { list.name ?? "" }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Section Header: Edit name and clear button
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+            // Section Header: rename commits only from Save or the keyboard Done key.
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("SECTION NAME")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .heavy, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
-                    
-                    TextField("Store or Section", text: $editName)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .padding(12)
-                        .background(Color.bgBase)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .onChange(of: editName) { _, newValue in
-                            list.name = newValue
-                            dataManager.save()
-                            onListsChanged()
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
+
+                    if isRenaming {
+                        TextField("Store or Section", text: $editName)
+                            .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
+                            .padding(12)
+                            .background(Color.cardWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
+                            )
+                            .modifier(RenameFieldShadow(quiet: quiet))
+                            .focused($nameFieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit(commitRename)
+
+                        HStack(spacing: 10) {
+                            Button(action: commitRename) {
+                                Text(quiet ? "Save" : "SAVE")
+                                    .font(quiet ? .system(size: 15, weight: .regular) : .system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.8)
+                                    .foregroundStyle(quiet ? Color.white : Color.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(quiet ? Color.terra500 : Color.lime400)
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 12)
+                                            .stroke(quiet ? Color.clear : Color.black, lineWidth: quiet ? 0 : 2)
+                                    )
+                                    .modifier(RenameControlShadow(quiet: quiet))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Save section name")
+
+                            Button(action: cancelRename) {
+                                Text(quiet ? "Cancel" : "CANCEL")
+                                    .font(quiet ? .system(size: 15, weight: .regular) : .system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.8)
+                                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 12)
+                                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
+                                    )
+                                    .modifier(RenameControlShadow(quiet: quiet))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Cancel rename")
                         }
-                }
-                
-                Spacer()
-                
-                Button(action: { showClearConfirm = true }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("CLEAR")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                    } else {
+                        HStack(spacing: 10) {
+                            Text(storedName.isEmpty ? "Store or Section" : storedName)
+                                .font(quiet ? .system(size: 18, weight: .regular, design: .serif) : .system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button(action: beginRename) {
+                                Text(quiet ? "Rename" : "RENAME")
+                                    .font(quiet ? .system(size: 14, weight: .regular) : .system(size: 12, weight: .heavy, design: .rounded))
+                                    .tracking(quiet ? 0 : 0.6)
+                                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.black)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(quiet ? Color.white : Color.lime100)
+                                    .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: quiet ? 22 : 10)
+                                            .stroke(quiet ? HomeQuiet.buttonStroke : Color.black, lineWidth: quiet ? 1 : 2)
+                                    )
+                                    .modifier(RenameControlShadow(quiet: quiet, size: 2))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rename section")
+                        }
                     }
-                    .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+
+                if !isRenaming {
+                    Button(action: { showClearConfirm = true }) {
+                        if quiet {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundStyle(Color.terra600)
+                                .frame(width: 36, height: 36)
+                        } else {
+                            VStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14, weight: .bold))
+                                Text("CLEAR")
+                                    .font(.system(size: 9, weight: .regular))
+                            }
+                            .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear section")
                 }
             }
             
@@ -1549,7 +2035,7 @@ struct EditSectionCard: View {
             if let items = list.items as? Set<ShoppingItem>, !items.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(items).sorted { ($0.name ?? "") < ($1.name ?? "") }, id: \.objectID) { item in
-                        EditItemRow(item: item)
+                        EditItemRow(item: item, quiet: quiet)
                         if item != Array(items).sorted(by: { ($0.name ?? "") < ($1.name ?? "") }).last {
                             Divider().background(Color.gray.opacity(0.1))
                         }
@@ -1559,7 +2045,7 @@ struct EditSectionCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.1), lineWidth: 1))
             } else {
                 Text("No items in this section.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.5))
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1567,10 +2053,24 @@ struct EditSectionCard: View {
         }
         .padding(16)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.12), lineWidth: 2))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
+        )
         .onAppear {
-            editName = list.name ?? ""
+            if !isRenaming {
+                editName = storedName
+            }
+        }
+        .onChange(of: nameFieldFocused) { _, focused in
+            guard !focused, isRenaming else { return }
+            // Save and Done run in the same turn as the field resigning. Wait
+            // so a tap on Save still commits, while a tap away reverts.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                guard isRenaming, !commitInFlight else { return }
+                cancelRename()
+            }
         }
         .alert("Clear Section?", isPresented: $showClearConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -1588,11 +2088,50 @@ struct EditSectionCard: View {
             Text("This will remove all items from \(list.name ?? "this section"). Cannot be undone.")
         }
     }
+
+    private func beginRename() {
+        editName = storedName
+        isRenaming = true
+        DispatchQueue.main.async {
+            nameFieldFocused = true
+        }
+    }
+
+    private func commitRename() {
+        let trimmed = editName.trimmingCharacters(in: .whitespacesAndNewlines)
+        commitInFlight = true
+        isRenaming = false
+        nameFieldFocused = false
+        KeyboardDismiss.resign()
+
+        guard !trimmed.isEmpty else {
+            editName = storedName
+            commitInFlight = false
+            return
+        }
+
+        if trimmed != storedName {
+            list.name = trimmed
+            dataManager.save()
+            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+            onListsChanged()
+        }
+        editName = list.name ?? trimmed
+        commitInFlight = false
+    }
+
+    private func cancelRename() {
+        editName = storedName
+        isRenaming = false
+        nameFieldFocused = false
+        KeyboardDismiss.resign()
+    }
 }
 
 // MARK: - Edit Item Row
 struct EditItemRow: View {
     @ObservedObject var item: ShoppingItem
+    var quiet: Bool = false
     @Environment(DataManager.self) private var dataManager
     
     var body: some View {
@@ -1604,7 +2143,7 @@ struct EditItemRow: View {
                     dataManager.save()
                 }
             ))
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .semibold, design: .rounded))
             
             Spacer()
             
@@ -1629,37 +2168,39 @@ struct EditActionRow: View {
     let title: String
     let subtitle: String
     let accentColor: Color
+    var quiet: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(accentColor)
+                .font(.system(size: quiet ? 16 : 20, weight: quiet ? .regular : .semibold))
+                .foregroundStyle(quiet ? HomeQuiet.ink : accentColor)
                 .frame(width: 40, height: 40)
-                .background(accentColor.opacity(0.12))
+                .background(quiet ? HomeQuiet.rule : accentColor.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                 Text(subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.6))
+                    .font(.system(size: 12, weight: quiet ? .regular : .medium, design: quiet ? .default : .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.6))
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.gray.opacity(0.3))
+                .font(.system(size: 12, weight: quiet ? .regular : .bold))
+                .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.gray.opacity(0.12), lineWidth: 2)
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
         )
     }
 }
@@ -1668,6 +2209,7 @@ struct EditActionRow: View {
 struct SyncModal: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(DataManager.self) private var dataManager
+    var quiet: Bool = false
     @State private var isSyncing = false
     @State private var syncComplete = false
     @AppStorage("autoSync") private var autoSync = true
@@ -1679,22 +2221,31 @@ struct SyncModal: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sync")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(quiet ? .system(size: 22, weight: .regular, design: .serif) : .system(size: 22, weight: .heavy, design: .rounded))
+                        .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                     Text("MEAL PLAN INTEGRATION")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: quiet ? .regular : .bold, design: quiet ? .default : .rounded))
                         .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                        .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 }
                 Spacer()
                 Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac600)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    if quiet {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.lilac600)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                    }
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.top, 24)
@@ -1704,35 +2255,36 @@ struct SyncModal: View {
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(syncComplete ? Color.lime100 : Color.lilac100)
+                        .fill(quiet ? HomeQuiet.rule : (syncComplete ? Color.lime100 : Color.lilac100))
                         .frame(width: 64, height: 64)
 
                     if isSyncing {
                         ProgressView()
                             .scaleEffect(1.3)
-                            .tint(Color.lilac600)
+                            .tint(quiet ? Color.terra500 : Color.lilac600)
                     } else {
                         Image(systemName: syncComplete ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(syncComplete ? Color.lime500 : Color.lilac600)
+                            .font(.system(size: 28, weight: quiet ? .regular : .bold))
+                            .foregroundStyle(quiet ? (syncComplete ? Color.terra500 : HomeQuiet.ink) : (syncComplete ? Color.lime500 : Color.lilac600))
                     }
                 }
 
                 Text(isSyncing ? "Syncing..." : (syncComplete ? "All Synced!" : "Ready to Sync"))
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(quiet ? .system(size: 18, weight: .regular, design: .serif) : .system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
 
                 Text("Last synced: Today, 2:30 PM")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.5))
                     .tracking(0.3)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
             .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.lilac200, lineWidth: 2)
+                RoundedRectangle(cornerRadius: quiet ? 22 : 16, style: .continuous)
+                    .stroke(quiet ? HomeQuiet.cardStroke : Color.lilac200, lineWidth: quiet ? 1 : 2)
             )
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
@@ -1740,9 +2292,9 @@ struct SyncModal: View {
             // Toggle options
             VStack(spacing: 10) {
                 SyncToggleRow(icon: "clock.arrow.2.circlepath", title: "Auto-Sync",
-                              subtitle: "Sync when meal plan changes", isOn: $autoSync)
+                              subtitle: "Sync when meal plan changes", isOn: $autoSync, quiet: quiet)
                 SyncToggleRow(icon: "book", title: "Include Recipes",
-                              subtitle: "Add recipe ingredients automatically", isOn: $syncRecipes)
+                              subtitle: "Add recipe ingredients automatically", isOn: $syncRecipes, quiet: quiet)
             }
             .padding(.horizontal, 24)
 
@@ -1762,30 +2314,37 @@ struct SyncModal: View {
                     }
                 }
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("SYNC NOW")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [Color.lilac500, Color.lilac600],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                if quiet {
+                    Text(isSyncing ? "Syncing" : "Sync now")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("SYNC NOW")
+                            .font(.system(size: 14, weight: .regular))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        Color.terra500
                     )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.black.opacity(0.2), lineWidth: 2)
-                )
-                .boldShadow(Color.lilac400, size: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                    )
+                    .boldShadow(Color.lilac400, size: 4)
+                }
             }
+            .buttonStyle(.plain)
             .disabled(isSyncing)
             .opacity(isSyncing ? 0.6 : 1.0)
             .padding(.horizontal, 24)
@@ -1800,37 +2359,39 @@ struct SyncToggleRow: View {
     let title: String
     let subtitle: String
     @Binding var isOn: Bool
+    var quiet: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.lilac600)
+                .font(.system(size: 16, weight: quiet ? .regular : .semibold))
+                .foregroundStyle(quiet ? HomeQuiet.ink : Color.lilac600)
                 .frame(width: 36, height: 36)
-                .background(Color.lilac100)
+                .background(quiet ? HomeQuiet.rule : Color.lilac100)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(quiet ? .system(size: 15, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
                 Text(subtitle)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .font(.system(size: 11, weight: quiet ? .regular : .medium, design: quiet ? .default : .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
             }
 
             Spacer()
 
             Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .tint(Color.lilac500)
+                .tint(quiet ? Color.terra500 : Color.lilac500)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.gray.opacity(0.12), lineWidth: 2)
+            RoundedRectangle(cornerRadius: quiet ? 22 : 14, style: .continuous)
+                .stroke(quiet ? HomeQuiet.cardStroke : Color.gray.opacity(0.12), lineWidth: quiet ? 1 : 2)
         )
     }
 }

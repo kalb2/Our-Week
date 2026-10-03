@@ -19,11 +19,11 @@ struct PersistenceController {
         let result = PersistenceController(inMemory: true)
         let viewContext = result.container.viewContext
 
-        // Seed a sample Household
+        // In-memory preview household only. Never assign a personal name here —
+        // this must not be copied into the CloudKit or on-device profile.
         let household = Household(context: viewContext)
         household.id = UUID()
         household.name = "Our Home"
-        household.ownerName = "Alex"
         household.createdAt = Date()
 
         // Seed sample events

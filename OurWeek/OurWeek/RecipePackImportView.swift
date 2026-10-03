@@ -52,8 +52,7 @@ struct RecipePackImportView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -61,12 +60,12 @@ struct RecipePackImportView: View {
 
             VStack(spacing: 2) {
                 Text("RECIPE PACK")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
                 Text(summary == nil ? "REVIEW · THEN IMPORT" : "IMPORT COMPLETE")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
             }
@@ -87,7 +86,7 @@ struct RecipePackImportView: View {
                 packMeta
 
                 Text("RECIPES")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
 
@@ -111,12 +110,12 @@ struct RecipePackImportView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(loaded.fileName)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(Color.terra600)
                     .lineLimit(1)
 
                 Text("\(totalCount) recipe\(totalCount == 1 ? "" : "s") in this pack")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
             }
 
@@ -124,18 +123,18 @@ struct RecipePackImportView: View {
 
             if alreadyInLibraryCount > 0 {
                 Text("\(alreadyInLibraryCount) DUP")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(Color.terra100)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1))
             }
         }
         .padding(14)
         .background(Color.terra100.opacity(0.4))
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.terra200, lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.terra200, lineWidth: 1))
     }
 
     private func recipeRow(_ entry: RecipePackEntry) -> some View {
@@ -145,12 +144,12 @@ struct RecipePackImportView: View {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.title)
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(.black)
                         .lineLimit(2)
 
                     Text(entry.displaySource)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(Color.terra500)
                         .lineLimit(1)
                 }
@@ -159,7 +158,7 @@ struct RecipePackImportView: View {
 
                 if isDup {
                     Text("SKIP")
-                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(Color.terra600)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -170,30 +169,30 @@ struct RecipePackImportView: View {
             }
 
             HStack(spacing: 8) {
-                countChip("\(entry.ingredientCount) ingredients", color: Color.lime400, foreground: .black)
-                countChip("\(entry.stepCount) steps", color: Color.lilac400, foreground: .white)
+                countChip("\(entry.ingredientCount) ingredients", color: Color.white, foreground: HomeQuiet.quiet)
+                countChip("\(entry.stepCount) steps", color: Color.white, foreground: HomeQuiet.quiet)
                 if let cats = entry.categories, !cats.isEmpty {
-                    countChip(cats, color: Color.terra100, foreground: Color.terra600)
+                    countChip(cats, color: Color.white, foreground: HomeQuiet.quiet)
                 }
             }
         }
         .padding(14)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.black, size: 2, radius: 14)
         .opacity(isDup ? 0.7 : 1)
     }
 
     private func countChip(_ text: String, color: Color, foreground: Color) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .black, design: .rounded))
+            .font(.system(size: 10, weight: .regular))
             .foregroundStyle(foreground)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(color)
             .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.black, lineWidth: 1.5))
+            .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
             .lineLimit(1)
     }
 
@@ -207,27 +206,22 @@ struct RecipePackImportView: View {
             VStack(spacing: 8) {
                 if alreadyInLibraryCount > 0 {
                     Text("\(alreadyInLibraryCount) already in your library will be skipped")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.gray)
                 }
 
                 Button(action: startImport) {
                     Text(importButtonTitle)
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: [Color.terra400, Color.peach500],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            Color.terra500
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                        .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(isImporting || totalCount == 0)
@@ -256,7 +250,7 @@ struct RecipePackImportView: View {
                     .foregroundStyle(summary.imported > 0 ? Color.lime500 : Color.terra400)
 
                 Text(summary.imported > 0 ? "Pack imported" : "Nothing new to add")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
 
                 VStack(spacing: 10) {
                     summaryRow(label: "Imported", value: summary.imported, color: Color.lime500)
@@ -269,19 +263,19 @@ struct RecipePackImportView: View {
                 .padding(16)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(Color.black, size: 3, radius: 14)
 
                 if !summary.failedTitles.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("COULDN'T IMPORT")
-                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .tracking(1)
                             .foregroundStyle(.gray.opacity(0.6))
 
                         ForEach(Array(summary.failedTitles.enumerated()), id: \.offset) { _, title in
                             Text(title)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(.red.opacity(0.8))
                         }
                     }
@@ -290,21 +284,16 @@ struct RecipePackImportView: View {
 
                 Button(action: { dismiss() }) {
                     Text("DONE")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: [Color.terra400, Color.peach500],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            Color.terra500
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                        .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 8)
@@ -321,10 +310,10 @@ struct RecipePackImportView: View {
                 .fill(color)
                 .frame(width: 10, height: 10)
             Text(label)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(size: 15, weight: .regular))
             Spacer()
             Text("\(value)")
-                .font(.system(size: 18, weight: .black, design: .rounded))
+                .font(.system(size: 18, weight: .regular, design: .serif))
         }
     }
 
@@ -341,16 +330,16 @@ struct RecipePackImportView: View {
                     .padding(.horizontal, 8)
 
                 Text("Importing recipes…")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
 
                 Text("\(progressCompleted) of \(totalCount)")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.white.opacity(0.7))
 
                 if !progressTitle.isEmpty {
                     Text(progressTitle)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.white.opacity(0.55))
                         .lineLimit(1)
                 }

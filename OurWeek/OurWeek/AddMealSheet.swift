@@ -3,6 +3,10 @@ import CoreData
 
 struct AddMealSheet: View {
     let dataManager: DataManager
+    /// When set, a pick is returned and nothing is written. Plan Week Review uses this so Save stays the confirm.
+    var onSelect: ((String, Recipe?) -> Void)? = nil
+    /// Home day planning uses the library only. Takeout is typed as a dinner line, not a separate button.
+    var showsQuickAdds: Bool = true
     
     @Environment(\.dismiss) private var dismiss
     
@@ -12,8 +16,10 @@ struct AddMealSheet: View {
     @State private var isSaving = false
     @FocusState private var isSearchFocused: Bool
     
-    init(date: Date, dataManager: DataManager) {
+    init(date: Date, dataManager: DataManager, showsQuickAdds: Bool = true, onSelect: ((String, Recipe?) -> Void)? = nil) {
         self.dataManager = dataManager
+        self.onSelect = onSelect
+        self.showsQuickAdds = showsQuickAdds
         self._mealDate = State(initialValue: date)
     }
     
@@ -53,12 +59,15 @@ struct AddMealSheet: View {
                 .frame(width: 36, height: 5)
                 .padding(.top, 10)
                 .padding(.bottom, 14)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { isSearchFocused = false }
             
             // Header
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add a Meal")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .font(.system(size: 24, weight: .regular, design: .serif))
                         .foregroundStyle(.black)
                     
                     HStack(spacing: 4) {
@@ -66,12 +75,14 @@ struct AddMealSheet: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Color.terra500)
                         Text(dateLabel)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(Color.terra500)
                             .textCase(.uppercase)
                             .tracking(0.5)
                     }
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { isSearchFocused = false }
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
@@ -80,120 +91,131 @@ struct AddMealSheet: View {
                         .frame(width: 34, height: 34)
                         .background(Color.white)
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                        .background(Circle().fill(.black).offset(x: 2, y: 2))
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
             
-            // Search Input — Return key saves immediately
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(Color.terra400)
-                
-                TextField("What's for dinner?", text: $searchText)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.black)
-                    .focused($isSearchFocused)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        quickSave(title: searchText)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Search Input — Return key saves immediately
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.terra400)
+                        
+                        TextField("What's for dinner?", text: $searchText)
+                            .font(.system(size: 18, weight: .regular, design: .serif))
+                            .foregroundStyle(.black)
+                            .focused($isSearchFocused)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                quickSave(title: searchText)
+                            }
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(.gray.opacity(0.4))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.gray.opacity(0.4))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2.5))
-            .boldShadow(Color.terra400, size: 3, radius: 14)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            
-            // Quick-Add Buttons
-            HStack(spacing: 10) {
-                quickAddButton(
-                    title: "Takeout",
-                    icon: "takeoutbag.and.cup.and.straw.fill",
-                    bgColor: Color.lilac100,
-                    fgColor: Color.lilac600,
-                    borderColor: Color.lilac400
-                ) {
-                    quickSave(title: "Take Out")
-                }
-                
-                quickAddButton(
-                    title: "Leftovers",
-                    icon: "fork.knife",
-                    bgColor: Color.sky100,
-                    fgColor: Color.sky500,
-                    borderColor: Color.sky400
-                ) {
-                    quickSave(title: "Leftovers")
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            
-            // Recipe Suggestions
-            if !allRecipes.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text(searchText.isEmpty ? "FROM YOUR LIBRARY" : "MATCHES")
-                            .font(.system(size: 10, weight: .black, design: .rounded))
-                            .tracking(1.5)
-                            .foregroundStyle(.gray.opacity(0.45))
-                        Spacer()
-                        if !displayedRecipes.isEmpty {
-                            Text("\(displayedRecipes.count) recipe\(displayedRecipes.count == 1 ? "" : "s")")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.terra400)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
+                    .boldShadow(Color.terra400, size: 3, radius: 14)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                    
+                    if showsQuickAdds {
+                    HStack(spacing: 10) {
+                        quickAddButton(
+                            title: "Takeout",
+                            icon: "takeoutbag.and.cup.and.straw.fill",
+                            bgColor: Color.white,
+                            fgColor: HomeQuiet.ink,
+                            borderColor: HomeQuiet.buttonStroke
+                        ) {
+                            quickSave(title: "Take Out")
+                        }
+                        
+                        quickAddButton(
+                            title: "Leftovers",
+                            icon: "fork.knife",
+                            bgColor: Color.white,
+                            fgColor: HomeQuiet.ink,
+                            borderColor: HomeQuiet.buttonStroke
+                        ) {
+                            quickSave(title: "Leftovers")
                         }
                     }
                     .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                    }
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(displayedRecipes, id: \.objectID) { recipe in
-                                recipeChip(recipe: recipe)
+                    // Recipe Suggestions
+                    if !allRecipes.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text(searchText.isEmpty ? "FROM YOUR LIBRARY" : "MATCHES")
+                                    .font(.system(size: 10, weight: .regular))
+                                    .tracking(1.5)
+                                    .foregroundStyle(.gray.opacity(0.45))
+                                Spacer()
+                                if !displayedRecipes.isEmpty {
+                                    Text("\(displayedRecipes.count) recipe\(displayedRecipes.count == 1 ? "" : "s")")
+                                        .font(.system(size: 10, weight: .regular))
+                                        .foregroundStyle(Color.terra400)
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(displayedRecipes, id: \.objectID) { recipe in
+                                        recipeChip(recipe: recipe)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
                             }
                         }
-                        .padding(.horizontal, 20)
                     }
+                    
+                    if !searchText.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "return")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color.terra400)
+                                .padding(4)
+                                .background(Color.terra100)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.terra200, lineWidth: 1)
+                                )
+                            Text(onSelect == nil
+                                 ? "Press return to save \"\(searchText)\""
+                                 : "Press return to use \"\(searchText)\"")
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundStyle(.gray.opacity(0.5))
+                        }
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
+                    }
+
+                    Color.clear
+                        .frame(minHeight: 220)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { isSearchFocused = false }
                 }
             }
-            
-            Spacer()
-            
-            // Hint text at bottom
-            if !searchText.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "return")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.terra400)
-                        .padding(4)
-                        .background(Color.terra100)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.terra200, lineWidth: 1)
-                        )
-                    Text("Press return to save \"\(searchText)\"")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.5))
-                }
-                .padding(.bottom, 20)
-            }
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.bgBase.ignoresSafeArea())
         .onAppear {
@@ -219,7 +241,7 @@ struct AddMealSheet: View {
                 Image(systemName: icon)
                     .font(.system(size: 16))
                 Text(title)
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .textCase(.uppercase)
                     .tracking(0.5)
             }
@@ -230,7 +252,7 @@ struct AddMealSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
             )
             .boldShadowSm(borderColor, radius: 12)
         }
@@ -252,24 +274,19 @@ struct AddMealSheet: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.terra100, Color.terra200],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Color(red: 0.98, green: 0.96, blue: 0.94))
                             .frame(width: 36, height: 36)
                             .overlay(
-                                Text("🍽️")
-                                    .font(.system(size: 16))
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
                             )
                     }
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recipe.name ?? "Untitled")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .lineLimit(1)
                         .foregroundStyle(.black)
                     
@@ -278,7 +295,7 @@ struct AddMealSheet: View {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 8))
                             Text("Favorite")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .regular))
                         }
                         .foregroundStyle(Color.peach500)
                     } else if recipe.prepTime + recipe.cookTime > 0 {
@@ -286,7 +303,7 @@ struct AddMealSheet: View {
                             Image(systemName: "clock")
                                 .font(.system(size: 8))
                             Text("\(recipe.prepTime + recipe.cookTime) min")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .regular))
                         }
                         .foregroundStyle(Color.terra400)
                     }
@@ -298,7 +315,7 @@ struct AddMealSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
             )
             .boldShadowSm(.black, radius: 12)
         }
@@ -313,6 +330,13 @@ struct AddMealSheet: View {
         isSaving = true
         
         let finalTitle = title.trimmingCharacters(in: .whitespaces)
+
+        if let onSelect {
+            onSelect(finalTitle, recipe)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            dismiss()
+            return
+        }
         
         // Build ingredients from recipe if available
         var ingredientString: String? = nil
@@ -322,14 +346,7 @@ struct AddMealSheet: View {
                 let name = ing.name ?? ""
                 let amount = ing.amount
                 let unit = ing.unit ?? ""
-                var text = name
-                if amount > 0 {
-                    let formatter = NumberFormatter()
-                    formatter.minimumFractionDigits = 0
-                    formatter.maximumFractionDigits = 2
-                    let amtStr = formatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
-                    text = "\(amtStr) \(unit) \(name)".trimmingCharacters(in: .whitespaces)
-                }
+                let text = CookingAmount.line(amount: amount, unit: unit, name: name, notes: ing.notes ?? "")
                 return "0|\(text)"
             }
             if !items.isEmpty {

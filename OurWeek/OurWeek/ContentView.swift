@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 import PhotosUI
 import EventKit
+import CoreData
 
 // MARK: - Design Tokens (from Tailwind config)
 extension Color {
@@ -52,29 +54,17 @@ struct BoldShadow: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(color)
-                    .offset(x: x, y: y)
-            )
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 }
 
 extension View {
     func boldShadow(_ color: Color, size: CGFloat = 4, radius: CGFloat = 16) -> some View {
-        self.background(
-            RoundedRectangle(cornerRadius: radius)
-                .fill(color)
-                .offset(x: size, y: size)
-        )
+        self.shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 
     func boldShadowSm(_ color: Color, radius: CGFloat = 8) -> some View {
-        self.background(
-            RoundedRectangle(cornerRadius: radius)
-                .fill(color)
-                .offset(x: 2, y: 2)
-        )
+        self.shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
     }
 }
 
@@ -166,6 +156,36 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .preferredColorScheme(.light)
+        .onAppear { openSharedImportIfNeeded() }
+        .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
+            openSharedImportIfNeeded()
+        }
+    }
+
+    private func openSharedImportIfNeeded() {
+        if ShareImportStore.hasPending {
+            selectedTab = .meals
+        }
+    }
+}
+
+// MARK: - Home quiet language
+/// Shared by the week card and the rest of Home. Shop keeps its own controls.
+enum HomeQuiet {
+    static let ink = Color(red: 0.12, green: 0.11, blue: 0.10)
+    static let quiet = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.45)
+    static let rule = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.10)
+    static let cardStroke = Color.black.opacity(0.06)
+    static let buttonStroke = Color.black.opacity(0.14)
+    static var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
+}
+
+extension View {
+    func homeQuietCard() -> some View {
+        background(Color.white)
+            .clipShape(HomeQuiet.card)
+            .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
     }
 }
 
@@ -173,64 +193,107 @@ struct ContentView: View {
 struct HomeView: View {
     @Binding var showSharingSettings: Bool
     @Binding var triggerAddTodo: Bool
+    @State private var keyboardOverlap: CGFloat = 0
+    @State private var focusedLineID: String?
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                GreetingHeader(showSharingSettings: $showSharingSettings)
-                WeeklyCalendarCard()
-                    .padding(.bottom, 24)
-                TodoSection(triggerAdd: $triggerAddTodo)
-                    .padding(.bottom, 24)
-                DailyGoalsSection()
-                Spacer().frame(height: 120)
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    GreetingHeader(showSharingSettings: $showSharingSettings)
+                    WeeklyCalendarCard { id in
+                        focusedLineID = id
+                        reveal(id, proxy: proxy)
+                    }
+                    ShoppingListBoard(quietToolbar: true)
+                        .padding(.bottom, 24)
+                    TodoSection(triggerAdd: $triggerAddTodo)
+                        .padding(.bottom, 24)
+                    DailyGoalsSection()
+                    Spacer().frame(height: 120 + keyboardOverlap)
+                }
+            }
+            .scrollDismissesKeyboard(.immediately)
+            .background(Color.bgBase)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                let overlap = keyboardOverlapHeight(from: note)
+                withAnimation(.easeOut(duration: 0.25)) {
+                    keyboardOverlap = overlap
+                }
+                if overlap > 0, let id = focusedLineID {
+                    reveal(id, proxy: proxy)
+                }
             }
         }
-        .background(Color.bgBase)
+    }
+
+    private func reveal(_ id: String, proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                proxy.scrollTo(id, anchor: UnitPoint(x: 0.5, y: 0.22))
+            }
+        }
+    }
+
+    private func keyboardOverlapHeight(from note: Notification) -> CGFloat {
+        guard let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return 0 }
+        let screenHeight = note.object.flatMap { $0 as? UIWindow }?.bounds.height ?? UIScreen.main.bounds.height
+        return max(0, screenHeight - frame.minY)
     }
 }
 
 // MARK: - Greeting Header
 struct GreetingHeader: View {
+    private static let headerInk = Color(red: 0.12, green: 0.11, blue: 0.10)
+    private static let headerQuiet = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.45)
+
     @Binding var showSharingSettings: Bool
     @Environment(DataManager.self) var dataManager
     
     @AppStorage("profileImageData") private var profileImageData: Data?
+    @AppStorage("userProfileName") private var profileName = ""
     @State private var showCalendarSettings = false
     @State private var showProfileMenu = false
+
+    /// The person holding the phone. Local profile wins. Household owner is only a
+    /// fallback. Never invent a demo name when both are empty.
+    private var greetingName: String? {
+        let profile = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !profile.isEmpty { return profile }
+        let owner = dataManager.currentHousehold?.ownerName?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !owner.isEmpty { return owner }
+        return nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Good Morning,")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .tracking(-0.5)
-                    // Gradient text: peach-500 → terra-500
-                    Text(dataManager.currentHousehold?.ownerName ?? "Alex")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .italic()
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.peach500, Color.terra500],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                VStack(alignment: .leading, spacing: 2) {
+                    if greetingName != nil {
+                        Text("GOOD MORNING,")
+                            .font(.system(size: 12, weight: .regular))
+                            .tracking(1.8)
+                            .foregroundStyle(Self.headerQuiet)
+                    }
+                    Text(greetingName ?? "Good morning")
+                        .font(.system(size: 40, weight: .regular, design: .serif))
+                        .foregroundStyle(Self.headerInk)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text("HERE'S YOUR WEEK.")
+                        .font(.system(size: 12, weight: .regular))
+                        .tracking(1.6)
+                        .foregroundStyle(Self.headerQuiet)
+                        .padding(.top, 6)
                 }
-                Spacer()
+                Spacer(minLength: 12)
                 Button(action: { showProfileMenu = true }) {
-                    AvatarButton(imageData: profileImageData)
+                    AvatarButton(imageData: profileImageData, soft: true)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, 8)
-
-            Text("READY TO SEIZE THE WEEK?")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray)
-                .tracking(1)
-                .padding(.bottom, 16)
+            .padding(.bottom, 18)
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
@@ -250,13 +313,38 @@ struct GreetingHeader: View {
     }
 }
 
-// MARK: - Avatar Button (Neo-Brutalist)
+// MARK: - Avatar Button
 struct AvatarButton: View {
     let imageData: Data?
-    
+    /// Thin ring. The heavier mark stays available for an explicit opt-out.
+    var soft: Bool = true
+
     var body: some View {
+        if soft {
+            softMark
+        } else {
+            markedCircle
+        }
+    }
+
+    private var softMark: some View {
         ZStack(alignment: .topTrailing) {
-            // Container with bold shadow
+            Circle()
+                .fill(Color(white: 0.94))
+                .frame(width: 48, height: 48)
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                .overlay(face.frame(width: 40, height: 40))
+
+            Circle()
+                .fill(Color(red: 0.45, green: 0.70, blue: 0.32))
+                .frame(width: 10, height: 10)
+                .overlay(Circle().stroke(Color.bgBase, lineWidth: 1))
+                .offset(x: 1, y: 1)
+        }
+    }
+
+    private var markedCircle: some View {
+        ZStack(alignment: .topTrailing) {
             Circle()
                 .fill(Color.black)
                 .frame(width: 52, height: 52)
@@ -265,64 +353,418 @@ struct AvatarButton: View {
             Circle()
                 .fill(Color.cardWhite)
                 .frame(width: 52, height: 52)
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .overlay(
-                    Circle().stroke(Color.black, lineWidth: 2)
-                )
-                .overlay(
-                    Group {
-                        if let imageData, let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.terra100, Color.terra200],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 22))
-                                        .foregroundStyle(Color.terra500)
-                                )
-                        }
-                    }
-                    .clipShape(Circle())
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Circle().stroke(Color.black, lineWidth: 1)
-                    )
+                    face
+                        .frame(width: 44, height: 44)
+                        .overlay(Circle().stroke(Color.black, lineWidth: 1))
                 )
 
-            // Green status dot
             Circle()
                 .fill(Color.lime400)
                 .frame(width: 12, height: 12)
-                .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .offset(x: -2, y: 2)
+        }
+    }
+
+    @ViewBuilder
+    private var face: some View {
+        if let imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .clipShape(Circle())
+        } else if soft {
+            Image(systemName: "person.fill")
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(Color.black.opacity(0.28))
+        } else {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.terra100, Color.terra200],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color.terra500)
+                )
+                .clipShape(Circle())
         }
     }
 }
 
 // MARK: - Weekly Calendar Card
+
+private enum DinnerField: Hashable {
+    case line(day: Date, id: String)
+}
+
+/// Tap outside a meal field to drop the keyboard. Text fields are left alone so a tap still focuses them.
+private struct MealKeyboardDismissInstaller: UIViewRepresentable {
+    var focusStamp: () -> Int
+    var onDismiss: (Int) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        MealKeyboardDismissRelay.shared.focusStamp = focusStamp
+        MealKeyboardDismissRelay.shared.onDismiss = onDismiss
+        context.coordinator.scheduleInstall(from: uiView)
+    }
+
+    final class Coordinator: NSObject {
+        private weak var installedOn: UIScrollView?
+        private var waitingToInstall = false
+        private let tapName = "ourweek.mealKeyboardDismiss"
+
+        func scheduleInstall(from view: UIView) {
+            guard installedOn == nil, !waitingToInstall else { return }
+            waitingToInstall = true
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                self.waitingToInstall = false
+                guard let view, self.installedOn == nil else { return }
+                self.install(from: view)
+                guard self.installedOn == nil else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self, weak view] in
+                    guard let self, let view, self.installedOn == nil else { return }
+                    self.install(from: view)
+                }
+            }
+        }
+
+        func install(from view: UIView) {
+            guard installedOn == nil, let scroll = view.enclosingScrollView() else { return }
+            if scroll.gestureRecognizers?.contains(where: { $0.name == tapName }) == true {
+                installedOn = scroll
+                return
+            }
+            let relay = MealKeyboardDismissRelay.shared
+            let tap = UITapGestureRecognizer(target: relay, action: #selector(MealKeyboardDismissRelay.handleTap))
+            tap.name = tapName
+            tap.cancelsTouchesInView = false
+            tap.delegate = relay
+            scroll.addGestureRecognizer(tap)
+            installedOn = scroll
+        }
+    }
+}
+
+/// Lives for the app so the scroll-view tap never points at a released coordinator.
+private final class MealKeyboardDismissRelay: NSObject, UIGestureRecognizerDelegate {
+    static let shared = MealKeyboardDismissRelay()
+
+    var focusStamp: () -> Int = { 0 }
+    var onDismiss: (Int) -> Void = { _ in }
+    private var stampAtTouchDown = 0
+
+    @objc func handleTap() {
+        onDismiss(stampAtTouchDown)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        stampAtTouchDown = focusStamp()
+        guard let view = touch.view else { return true }
+        return !view.isInsideTextInput
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
+    }
+}
+
+private extension UIView {
+    func enclosingScrollView() -> UIScrollView? {
+        var current: UIView? = self
+        while let view = current {
+            if let scroll = view as? UIScrollView { return scroll }
+            current = view.superview
+        }
+        return nil
+    }
+
+    var isInsideTextInput: Bool {
+        var current: UIView? = self
+        while let view = current {
+            if view is UITextField || view is UITextView { return true }
+            current = view.superview
+        }
+        return false
+    }
+
+    var currentFirstResponder: UIView? {
+        if isFirstResponder { return self }
+        for subview in subviews {
+            if let found = subview.currentFirstResponder { return found }
+        }
+        return nil
+    }
+}
+
+private struct DinnerLine: Identifiable {
+    var id: String
+    var mealID: NSManagedObjectID?
+    var text: String
+    var recipeID: NSManagedObjectID?
+}
+
+private struct WeekShareSnapshot {
+    var title: String
+    var range: String
+    var days: [WeekShareDay]
+}
+
+private struct WeekShareDay: Identifiable {
+    var id: String
+    var weekday: String
+    var dayNumber: String
+    var isToday: Bool
+    var groups: [WeekShareMealGroup]
+    var events: [WeekShareEvent]
+}
+
+private struct WeekShareMealGroup: Identifiable {
+    var id: String
+    var label: String
+    var titles: [String]
+}
+
+private struct WeekShareEvent: Identifiable {
+    var id: String
+    var text: String
+    var color: UIColor?
+}
+
+/// The week card, without navigation, grocery, or the week action buttons.
+private struct WeekShareCard: View {
+    let snapshot: WeekShareSnapshot
+
+    private var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(snapshot.title)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .lineLimit(1)
+                Text(snapshot.range)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            Rectangle()
+                .fill(HomeQuiet.rule)
+                .frame(height: 1)
+
+            ForEach(Array(snapshot.days.enumerated()), id: \.element.id) { index, day in
+                dayRow(day)
+                if index < snapshot.days.count - 1 {
+                    Rectangle()
+                        .fill(HomeQuiet.rule)
+                        .frame(height: 1)
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(card)
+        .overlay(card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
+    }
+
+    private func dayRow(_ day: WeekShareDay) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(spacing: 2) {
+                Text(day.weekday)
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(HomeQuiet.quiet)
+                Text(day.dayNumber)
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(day.isToday ? Color.terra500 : HomeQuiet.ink)
+                if day.isToday {
+                    Text("TODAY")
+                        .font(.system(size: 9, weight: .semibold))
+                        .tracking(0.6)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                        .padding(.top, 2)
+                }
+            }
+            .frame(width: 56)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(day.groups) { group in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                            Text(group.label)
+                                .font(.system(size: 10, weight: .medium))
+                                .tracking(1.3)
+                                .foregroundStyle(HomeQuiet.quiet)
+                        }
+                        ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                            Text(title)
+                                .font(.system(size: 20, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                if !day.events.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(day.events) { event in
+                            HStack(alignment: .center, spacing: 8) {
+                                Circle()
+                                    .fill(event.color.map { Color(uiColor: $0) } ?? Color.black.opacity(0.28))
+                                    .frame(width: 7, height: 7)
+                                Text(event.text)
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.ink.opacity(0.55))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .padding(.vertical, 14)
+    }
+}
+
+@MainActor
+private enum WeekShareImage {
+    /// Instagram story pixels. The card is drawn on the cream field and scaled to fit.
+    static let storySize = CGSize(width: 1080, height: 1920)
+
+    static func render(_ snapshot: WeekShareSnapshot) -> UIImage? {
+        let card = WeekShareCard(snapshot: snapshot)
+            .frame(width: 312)
+            .padding(16)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        renderer.isOpaque = false
+        guard let cardImage = renderer.uiImage else { return nil }
+        return compose(cardImage)
+    }
+
+    private static func compose(_ card: UIImage) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let canvas = storySize
+        return UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
+            UIColor(red: 1, green: 0.976, blue: 0.965, alpha: 1).setFill()
+            UIBezierPath(rect: CGRect(origin: .zero, size: canvas)).fill()
+            let margin: CGFloat = 72
+            let maxWidth = canvas.width - margin * 2
+            let maxHeight = canvas.height - margin * 2
+            let pixelSize = CGSize(
+                width: card.size.width * card.scale,
+                height: card.size.height * card.scale
+            )
+            guard pixelSize.width > 0, pixelSize.height > 0 else { return }
+            let fit = min(maxWidth / pixelSize.width, maxHeight / pixelSize.height)
+            let drawSize = CGSize(width: pixelSize.width * fit, height: pixelSize.height * fit)
+            let rect = CGRect(
+                x: (canvas.width - drawSize.width) / 2,
+                y: (canvas.height - drawSize.height) / 2,
+                width: drawSize.width,
+                height: drawSize.height
+            )
+            card.draw(in: rect)
+        }
+    }
+}
+
+@MainActor
+private enum WeekSharePresenter {
+    static func present(_ image: UIImage) {
+        let controller = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        guard let presenter = topViewController() else { return }
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(
+                x: presenter.view.bounds.midX,
+                y: presenter.view.bounds.midY,
+                width: 1,
+                height: 1
+            )
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(controller, animated: true)
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let root = scenes.flatMap(\.windows).first(where: \.isKeyWindow)?.rootViewController
+        var presenter = root
+        while let presented = presenter?.presentedViewController {
+            presenter = presented
+        }
+        return presenter
+    }
+}
+
 struct WeeklyCalendarCard: View {
+    var onFocusScroll: (String) -> Void = { _ in }
+
     @Environment(DataManager.self) private var dataManager
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var weekMeals: [MealPlan] = []
     @State private var weekEvents: [CalendarEvent] = []
     @State private var appleEvents: [AppleCalendarEvent] = []
-    @State private var selectedMeal: MealPlan?
-    @State private var addingMealDate: Date?
-    @State private var showAddMealSheet = false
     @State private var addingEventDate: Date?
     @State private var showEventSheet = false
     @State private var selectedEvent: CalendarEvent?
     @State private var selectedAppleEvent: AppleCalendarEvent?
-    @State private var viewingRecipe: Recipe?
     @State private var weekOffset: Int = 0
+    @State private var showWeekPlanner = false
+    @State private var recipes: [Recipe] = []
+    @State private var linesByDay: [Date: [DinnerLine]] = [:]
+    @State private var skipNextCommitID: String?
+    @State private var suppressBlankEcho: [Date: String] = [:]
+    @State private var showCalendarSettings = false
+    @State private var showClearWeek = false
+    @State private var suppressCommit = false
+    @State private var mealFocusStamp = 0
+    @State private var expandedDay: Date?
+    @FocusState private var focusedField: DinnerField?
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -335,18 +777,34 @@ struct WeeklyCalendarCard: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
     }
 
+    /// This week starts at today. Thursday shows Thursday–Sunday. Other weeks stay whole.
+    private var listedWeekDates: [Date] {
+        guard weekOffset == 0 else { return weekDates }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return weekDates.filter { calendar.startOfDay(for: $0) >= today }
+    }
+
     private var weekRangeLabel: String {
         guard let first = weekDates.first, let last = weekDates.last else { return "" }
-        let cal = Calendar.current
         let df = DateFormatter()
         df.dateFormat = "MMM d"
-        let firstStr = df.string(from: first)
-        if cal.component(.month, from: first) == cal.component(.month, from: last) {
-            let dayFmt = DateFormatter()
-            dayFmt.dateFormat = "d"
-            return "\(firstStr) – \(dayFmt.string(from: last))"
+        return "\(df.string(from: first)) – \(df.string(from: last))"
+    }
+
+    private var weekTitle: String {
+        switch weekOffset {
+        case 0: return "This week"
+        case -1: return "Last week"
+        case 1: return "Next week"
+        default:
+            let count = abs(weekOffset)
+            return weekOffset < 0 ? "\(count) weeks ago" : "\(count) weeks ahead"
         }
-        return "\(firstStr) – \(df.string(from: last))"
+    }
+
+    private func dayKey(_ date: Date) -> Date {
+        Calendar.current.startOfDay(for: date)
     }
 
     private func meals(for date: Date) -> [MealPlan] {
@@ -357,171 +815,103 @@ struct WeeklyCalendarCard: View {
         }
     }
 
+    private func dinners(for date: Date) -> [MealPlan] {
+        meals(for: date)
+            .filter { ($0.mealType ?? "dinner").lowercased() == "dinner" }
+            .sorted { lhs, rhs in
+                let left = lhs.date ?? .distantPast
+                let right = rhs.date ?? .distantPast
+                if left != right { return left < right }
+                return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+            }
+    }
+
     private func events(for date: Date) -> [CalendarEvent] {
         let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return [] }
         return weekEvents.filter { event in
-            guard let d = event.date else { return false }
-            return calendar.isDate(d, inSameDayAs: date)
+            guard let eventStart = event.date else { return false }
+            if let eventEnd = event.endDate, eventEnd > eventStart {
+                return eventStart < end && eventEnd > start
+            }
+            return calendar.isDate(eventStart, inSameDayAs: date)
         }
     }
 
     private func appleEventsForDate(_ date: Date) -> [AppleCalendarEvent] {
-        let calendar = Calendar.current
-        return appleEvents.filter { ev in
-            calendar.isDate(ev.startDate, inSameDayAs: date)
-        }
+        appleEvents.filter { $0.occurs(on: date) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Week Navigation
-            HStack(spacing: 12) {
-                Button(action: { weekOffset -= 1 }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                VStack(spacing: 2) {
-                    HStack(spacing: 4) {
-                        if let hh = dataManager.currentHousehold, dataManager.persistenceController.isShared(object: hh) {
-                            Image(systemName: "cloud.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.sky500)
-                        }
-                        Text(weekRangeLabel)
-                            .font(.system(size: 15, weight: .heavy, design: .rounded))
-                            .tracking(-0.3)
-                    }
-                    if weekOffset == 0 {
-                        Text("THIS WEEK")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.lime500)
-                            .tracking(1)
-                    }
-                }
-
-                Spacer()
-
-                if weekOffset != 0 {
-                    Button(action: { weekOffset = 0 }) {
-                        Text("Today")
-                            .font(.system(size: 11, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.lime500)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.lime100)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.lime400, lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button(action: { weekOffset += 1 }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .heavy))
-                        .foregroundStyle(Color.lilac500)
-                        .frame(width: 32, height: 32)
-                        .background(Color.lilac100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.lilac200, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
-
-            // Column Headers
-            CalendarHeaderRow()
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-
-            // Day Rows
-            ForEach(Array(weekDates.enumerated()), id: \.offset) { _, date in
-                CalDayRow(
-                    date: date,
-                    meals: meals(for: date),
-                    events: events(for: date),
-                    appleEvents: appleEventsForDate(date),
-                    onMealTap: { meal in
-                        selectedMeal = meal
-                    },
-                    onRecipeViewTap: { recipe in
-                        viewingRecipe = recipe
-                    },
-                    onAddMealTap: {
-                        addingMealDate = date
-                        showAddMealSheet = true
-                    },
-                    onMealDelete: { meal in
-                        dataManager.deleteMealPlan(meal)
-                        loadData()
-                    },
-                    onEventTap: { event in
-                        selectedAppleEvent = nil
-                        selectedEvent = event
-                    },
-                    onAddEventTap: {
-                        addingEventDate = date
-                        showEventSheet = true
-                    },
-                    onAppleEventTap: { appleEvent in
-                        selectedEvent = nil
-                        selectedAppleEvent = appleEvent
-                    }
+        homeSurface
+            .padding(.horizontal, 24)
+            .background {
+                MealKeyboardDismissInstaller(
+                    focusStamp: { mealFocusStamp },
+                    onDismiss: dismissMealKeyboard(fromStamp:)
                 )
             }
-        }
-        .padding(.vertical, 16)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.lilac500, lineWidth: 2)
-        )
-        .boldShadow(Color.lilac400)
-        .padding(.horizontal, 24)
-        .onAppear { loadData() }
-        .onChange(of: weekOffset) { _, _ in loadData() }
-        .sheet(item: $selectedMeal, onDismiss: { loadData() }) { meal in
-            MealEditSheet(
-                meal: meal,
-                date: meal.date ?? Date(),
-                dataManager: dataManager
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showAddMealSheet, onDismiss: { loadData() }) {
-            AddMealSheet(
-                date: addingMealDate ?? Date(),
-                dataManager: dataManager
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(item: $viewingRecipe) { recipe in
-            RecipeDetailView(recipe: recipe)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showEventSheet, onDismiss: { loadData() }) {
+            .onReceive(NotificationCenter.default.publisher(for: .shoppingItemFieldFocused)) { _ in
+                if focusedField != nil {
+                    focusedField = nil
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+                let stamp = mealFocusStamp
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    guard stamp == mealFocusStamp, focusedField != nil, !Self.textInputIsFirstResponder() else { return }
+                    focusedField = nil
+                }
+            }
+            .onAppear {
+                dataManager.replaceDemoOwnerNameIfNeeded()
+                loadData()
+                refreshAppleEvents()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                refreshAppleEvents()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                refreshAppleEvents()
+            }
+            .sheet(isPresented: $showCalendarSettings, onDismiss: { refreshAppleEvents() }) {
+                CalendarSettingsView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+            .onChange(of: weekOffset) { _, _ in
+                expandedDay = nil
+                if case .line(let day, let id) = focusedField {
+                    commitLine(day: day, lineID: id)
+                }
+                focusedField = nil
+                loadData()
+                refreshAppleEvents()
+            }
+            .onChange(of: focusedField) { old, new in
+                if new != nil {
+                    mealFocusStamp += 1
+                }
+                if case .line(let day, let id) = old {
+                    DispatchQueue.main.async {
+                        commitLine(day: day, lineID: id)
+                    }
+                }
+                if case .line(let day, let id) = new {
+                    onFocusScroll(scrollID(day: day, lineID: id))
+                }
+            }
+            .onDisappear {
+                if case .line(let day, let id) = focusedField {
+                    commitLine(day: day, lineID: id)
+                }
+            }
+            .sheet(isPresented: $showEventSheet, onDismiss: {
+                loadData()
+                refreshAppleEvents()
+            }) {
             AddEventSheet(
                 date: addingEventDate ?? Date(),
                 dataManager: dataManager
@@ -529,41 +919,1079 @@ struct WeeklyCalendarCard: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(item: $selectedEvent, onDismiss: { loadData() }) { event in
+        .sheet(item: $selectedEvent, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) { event in
             EventDetailSheet(event: event)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $selectedAppleEvent, onDismiss: { loadData() }) { appleEvent in
+        .sheet(item: $selectedAppleEvent, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) { appleEvent in
             AppleEventDetailSheet(event: appleEvent)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .fullScreenCover(isPresented: $showWeekPlanner, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) {
+            WeekPlannerView(weekStart: weekDates.first ?? Date())
+        }
+        .fullScreenCover(isPresented: $showClearWeek) {
+            clearWeekPrompt
+                .presentationBackground(.clear)
+        }
+    }
+
+    /// Quiet cream card. Today is a terracotta pill. Meals stay near-black.
+    private static let weekInk = Color(red: 0.12, green: 0.11, blue: 0.10)
+    private static let weekQuiet = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.45)
+    private static let weekRule = Color(red: 0.12, green: 0.11, blue: 0.10).opacity(0.10)
+
+    private var weekCardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+    }
+
+    private var weekHairline: some View {
+        Rectangle()
+            .fill(Self.weekRule)
+            .frame(height: 1)
+    }
+
+    private var homeSurface: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let cue = calendarSyncManager.calendarSelectionCue {
+                Button {
+                    showCalendarSettings = true
+                } label: {
+                    Text(cue)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .buttonStyle(.plain)
+                .padding(.bottom, 8)
+                .accessibilityLabel("Choose calendars")
+            }
+
+            Group {
+                if let expandedDay {
+                    dayExpanded(expandedDay)
+                } else {
+                    weekContent
+                }
+            }
+            .background(Color.white)
+            .clipShape(weekCardShape)
+            .overlay(weekCardShape.stroke(Color.black.opacity(0.06), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
+
+            weekFooterActions
+        }
+        .padding(.top, 2)
+        .padding(.bottom, 4)
+    }
+
+    private var weekContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            weekHeader
+
+            weekHairline
+
+            ForEach(Array(listedWeekDates.enumerated()), id: \.offset) { index, date in
+                dayRow(date)
+                if index < listedWeekDates.count - 1 {
+                    weekHairline
+                }
+            }
+        }
+    }
+
+    private func dayExpanded(_ date: Date) -> some View {
+        let key = dayKey(date)
+        let lines = linesByDay[key] ?? [blankLine(for: key)]
+        let isToday = Calendar.current.isDateInToday(date)
+        let title = expandedDayTitle(date)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 8) {
+                Button {
+                    dismissMealKeyboard()
+                    expandedDay = nil
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back to week")
+
+                Text(title)
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(Self.weekInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                if isToday {
+                    todayPill
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+
+            if !otherMealGroups(on: date).isEmpty {
+                otherMealBlocks(on: date)
+                    .padding(.horizontal, 16)
+            }
+
+            dinnerBlock(lines, on: key, dayName: isToday ? "Today" : title)
+                .padding(.horizontal, 16)
+
+            if !homeEventLines(on: date).isEmpty {
+                eventLines(on: date)
+                    .padding(.horizontal, 16)
+            }
+        }
+        .padding(.bottom, 16)
+    }
+
+    private func expandedDayTitle(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter.string(from: date)
+    }
+
+    private var weekHeader: some View {
+        HStack(spacing: 4) {
+            weekChevron("chevron.left") { weekOffset -= 1 }
+
+            HStack(spacing: 8) {
+                if let household = dataManager.currentHousehold, dataManager.persistenceController.isShared(object: household) {
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                }
+                Text(weekTitle)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(Self.weekInk)
+                    .lineLimit(1)
+                Text(weekRangeLabel)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Self.weekQuiet)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                if weekOffset != 0 {
+                    Button(action: { weekOffset = 0 }) {
+                        Text("Today")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Color.terra600)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back to this week")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { dismissMealKeyboard() }
+
+            weekChevron("chevron.right") { weekOffset += 1 }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 8)
+    }
+
+    private func weekChevron(_ systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(Self.weekQuiet)
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var weekFooterActions: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            HStack(spacing: 10) {
+                weekActionButton("Swipe to plan", enabled: !weekDates.isEmpty) {
+                    showWeekPlanner = true
+                }
+                weekActionButton("Share", enabled: !listedWeekDates.isEmpty) {
+                    shareCurrentWeek()
+                }
+                .accessibilityLabel("Share week")
+                if !weekMeals.isEmpty {
+                    weekActionButton("Clear week") {
+                        showClearWeek = true
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 2)
+    }
+
+    private func weekActionButton(
+        _ title: String,
+        enabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(Self.weekInk)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
+    }
+
+    /// Renders the week card off-screen and opens the system share sheet.
+    private func shareCurrentWeek() {
+        let snapshot = weekShareSnapshot()
+        guard let image = WeekShareImage.render(snapshot) else { return }
+        WeekSharePresenter.present(image)
+    }
+
+    /// Same rows the home week is showing: past days omitted on this week, titles only, no ingredients.
+    private func weekShareSnapshot() -> WeekShareSnapshot {
+        let days = listedWeekDates.map { date -> WeekShareDay in
+            let calendar = Calendar.current
+            let isToday = calendar.isDateInToday(date)
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.dateFormat = "EEE"
+            let numberFormatter = DateFormatter()
+            numberFormatter.dateFormat = "d"
+            var groups: [WeekShareMealGroup] = []
+            if isToday {
+                groups.append(contentsOf: otherMealGroups(on: date).map {
+                    WeekShareMealGroup(id: $0.id, label: $0.label, titles: $0.titles)
+                })
+            }
+            let key = dayKey(date)
+            let dinnerTitles = (linesByDay[key] ?? [])
+                .map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !dinnerTitles.isEmpty {
+                groups.append(WeekShareMealGroup(id: "DINNER", label: "DINNER", titles: dinnerTitles))
+            }
+            let events = homeEventLines(on: date)
+                .filter { !$0.sideText.isEmpty }
+                .map { WeekShareEvent(id: $0.id, text: $0.sideText, color: $0.calendarColor) }
+            return WeekShareDay(
+                id: String(calendar.startOfDay(for: date).timeIntervalSince1970),
+                weekday: weekdayFormatter.string(from: date).uppercased(),
+                dayNumber: numberFormatter.string(from: date),
+                isToday: isToday,
+                groups: groups,
+                events: events
+            )
+        }
+        return WeekShareSnapshot(title: weekTitle, range: weekRangeLabel, days: days)
+    }
+
+    private var todayPill: some View {
+        Text("TODAY")
+            .font(.system(size: 9, weight: .semibold))
+            .tracking(0.6)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Color.terra500)
+            .clipShape(Capsule())
+    }
+
+    private func dayRow(_ date: Date) -> some View {
+        let calendar = Calendar.current
+        let key = dayKey(date)
+        let isToday = calendar.isDateInToday(date)
+        let dayFocused = isDayFocused(key)
+        let lines = linesByDay[key] ?? [blankLine(for: key)]
+        let dayEvents = events(for: date)
+        let dayApple = appleEventsForDate(date)
+        let weekday: String = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE"
+            return formatter.string(from: date).uppercased()
+        }()
+        let dayNumber: String = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "d"
+            return formatter.string(from: date)
+        }()
+        let dayName = isToday ? "Today" : weekday
+        let showEvents = !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
+
+        return HStack(alignment: .top, spacing: 8) {
+            VStack(spacing: 2) {
+                Text(weekday)
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(Self.weekQuiet)
+                Text(dayNumber)
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(isToday ? Color.terra500 : Self.weekInk)
+                if isToday {
+                    todayPill
+                        .padding(.top, 2)
+                }
+            }
+            .frame(width: 56)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissMealKeyboard()
+                expandedDay = key
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
+
+            VStack(alignment: .leading, spacing: 10) {
+                if isToday, !otherMealGroups(on: date).isEmpty {
+                    otherMealBlocks(on: date)
+                }
+                dinnerBlock(lines, on: key, dayName: dayName)
+                if showEvents {
+                    eventLines(on: date)
+                        .transition(.opacity)
+                }
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+
+            if !dayFocused {
+                Button {
+                    dismissMealKeyboard()
+                    expandedDay = key
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(Color.black.opacity(0.22))
+                        .frame(width: 18, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
+            }
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .padding(.vertical, 14)
+        .animation(.easeInOut(duration: 0.22), value: dayFocused)
+    }
+
+    private struct MealTitleGroup: Identifiable {
+        let id: String
+        let label: String
+        let titles: [String]
+    }
+
+    /// Breakfast, lunch, and anything that is not the editable dinner line.
+    private func otherMealBlocks(on date: Date) -> some View {
+        let groups = otherMealGroups(on: date)
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(groups) { group in
+                VStack(alignment: .leading, spacing: 4) {
+                    mealKindLabel(group.label)
+                    ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                        Text(title)
+                            .font(.system(size: 20, weight: .regular, design: .serif))
+                            .foregroundStyle(Self.weekInk)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    private func otherMealGroups(on date: Date) -> [MealTitleGroup] {
+        let others = meals(for: date).filter { ($0.mealType ?? "dinner").lowercased() != "dinner" }
+        let order = ["breakfast": 0, "lunch": 1, "snack": 2]
+        let sorted = others.sorted { lhs, rhs in
+            let left = order[(lhs.mealType ?? "").lowercased()] ?? 3
+            let right = order[(rhs.mealType ?? "").lowercased()] ?? 3
+            if left != right { return left < right }
+            let leftDate = lhs.date ?? .distantPast
+            let rightDate = rhs.date ?? .distantPast
+            if leftDate != rightDate { return leftDate < rightDate }
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+        }
+        var groups: [MealTitleGroup] = []
+        for meal in sorted {
+            let title = (meal.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            let label = (meal.mealType ?? "Meal").trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = (label.isEmpty ? "Meal" : label).uppercased()
+            if let index = groups.firstIndex(where: { $0.label == name }) {
+                groups[index] = MealTitleGroup(id: name, label: name, titles: groups[index].titles + [title])
+            } else {
+                groups.append(MealTitleGroup(id: name, label: name, titles: [title]))
+            }
+        }
+        return groups
+    }
+
+    private func mealKindLabel(_ title: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "fork.knife")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Self.weekQuiet)
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .tracking(1.3)
+                .foregroundStyle(Self.weekQuiet)
+        }
+    }
+
+    private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "fork.knife")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Self.weekQuiet)
+                Text("DINNER")
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1.3)
+                    .foregroundStyle(Self.weekQuiet)
+            }
+            ForEach(lines) { line in
+                dinnerLine(line, on: day, dayName: dayName, spare: lines.count > 1)
+                    .id(scrollID(day: day, lineID: line.id))
+            }
+        }
+    }
+
+    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String, spare: Bool) -> some View {
+        let focused = focusedField == .line(day: day, id: line.id)
+        let linked = linkedRecipe(for: line)
+        let text = line.text
+        let matches = focused ? suggestions(matching: text, excluding: linked?.objectID) : []
+        let shown = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mealFont = Font.system(size: 20, weight: .regular, design: .serif)
+        let placeholder = spare ? "Add another" : "Add dinner"
+        let placeholderFont = spare
+            ? Font.system(size: 15, weight: .regular, design: .serif)
+            : mealFont
+
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                ZStack(alignment: .leading) {
+                    TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
+                        .font(mealFont)
+                        .foregroundStyle(Self.weekInk)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(focused ? 3 : 1)
+                        .truncationMode(.tail)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled(true)
+                        .focused($focusedField, equals: .line(day: day, id: line.id))
+                        .submitLabel(submitLabel(for: line, on: day))
+                        .onSubmit { submitLine(day: day, lineID: line.id) }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .opacity(focused ? 1 : 0)
+                        .accessibilityLabel("\(dayName) dinner")
+                    if !focused {
+                        Text(shown.isEmpty ? placeholder : shown)
+                            .font(shown.isEmpty ? placeholderFont : mealFont)
+                            .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                focusedField = .line(day: day, id: line.id)
+                            }
+                    }
+                }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+
+                if focused && !shown.isEmpty {
+                    Button {
+                        clearLine(day: day, lineID: line.id)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(Self.weekQuiet)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear dinner")
+                }
+            }
+
+            if focused {
+                Rectangle()
+                    .fill(Self.weekRule)
+                    .frame(height: 1)
+            }
+
+            if !matches.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(matches, id: \.objectID) { recipe in
+                        Button {
+                            applyRecipe(recipe, on: day, lineID: line.id)
+                        } label: {
+                            HStack(spacing: 8) {
+                                if let data = recipe.imageData, let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 28, height: 28)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                Text(recipe.name ?? "")
+                                    .font(.system(size: 16, weight: .regular, design: .serif))
+                                    .foregroundStyle(Self.weekInk)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color.bgBase)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Self.weekRule, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private struct HomeEventLine: Identifiable {
+        let id: String
+        let timeLabel: String
+        let title: String
+        let sortDate: Date
+        /// EventKit or in-app calendar color. Nil uses a neutral dot.
+        let calendarColor: UIColor?
+        let open: () -> Void
+
+        var sideText: String {
+            if timeLabel.isEmpty { return title }
+            if title.isEmpty { return timeLabel }
+            return "\(timeLabel) · \(title)"
+        }
+
+        var detailText: String { sideText }
+    }
+
+    private func eventTimeLabel(date: Date?, allDay: Bool) -> String {
+        if allDay { return "All day" }
+        return eventTime(date, allDay: false) ?? ""
+    }
+
+    private func homeEventLines(on date: Date) -> [HomeEventLine] {
+        var lines: [HomeEventLine] = []
+        for event in events(for: date) {
+            let title = event.title ?? "Event"
+            lines.append(HomeEventLine(
+                id: event.objectID.uriRepresentation().absoluteString,
+                timeLabel: eventTimeLabel(date: event.date, allDay: event.isAllDay),
+                title: title,
+                sortDate: event.date ?? .distantPast,
+                calendarColor: uiColor(fromHex: event.color)
+            ) {
+                selectedAppleEvent = nil
+                selectedEvent = event
+            })
+        }
+        for event in appleEventsForDate(date) {
+            lines.append(HomeEventLine(
+                id: event.id,
+                timeLabel: eventTimeLabel(date: event.startDate, allDay: event.isAllDay),
+                title: event.title,
+                sortDate: event.startDate,
+                calendarColor: event.calendarColor
+            ) {
+                selectedEvent = nil
+                selectedAppleEvent = event
+            })
+        }
+        return lines.sorted {
+            if $0.sortDate != $1.sortDate { return $0.sortDate < $1.sortDate }
+            return $0.id < $1.id
+        }
+    }
+
+    /// Calendar events sit under the meal: one colored dot, then time · name.
+    private func eventLines(on date: Date) -> some View {
+        let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(lines) { line in
+                Button(action: line.open) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Circle()
+                            .fill(line.calendarColor.map { Color(uiColor: $0) } ?? Color.black.opacity(0.28))
+                            .frame(width: 7, height: 7)
+                        Text(line.sideText)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Self.weekInk.opacity(0.55))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(line.sideText)
+            }
+        }
+    }
+
+    private func uiColor(fromHex token: String?) -> UIColor? {
+        guard var hex = token?.trimmingCharacters(in: .whitespacesAndNewlines), !hex.isEmpty else { return nil }
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        guard hex.count == 6, let value = UInt64(hex, radix: 16) else { return nil }
+        let red = CGFloat((value >> 16) & 0xFF) / 255
+        let green = CGFloat((value >> 8) & 0xFF) / 255
+        let blue = CGFloat(value & 0xFF) / 255
+        return UIColor(red: red, green: green, blue: blue, alpha: 1)
+    }
+
+    /// Drops the keyboard unless this same tap moved focus into a meal field.
+    private func dismissMealKeyboard() {
+        dismissMealKeyboard(fromStamp: mealFocusStamp)
+    }
+
+    private func dismissMealKeyboard(fromStamp stamp: Int) {
+        DispatchQueue.main.async {
+            guard stamp == mealFocusStamp else { return }
+            if focusedField != nil {
+                focusedField = nil
+            }
+            KeyboardDismiss.resign()
+        }
+    }
+
+    private static func textInputIsFirstResponder() -> Bool {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for window in scenes.flatMap(\.windows) {
+            if let responder = window.currentFirstResponder, responder.isInsideTextInput {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func eventTime(_ date: Date?, allDay: Bool) -> String? {
+        guard let date, !allDay else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
+    }
+
+    private var clearWeekPrompt: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { showClearWeek = false }
+
+            VStack(spacing: 16) {
+                Text("Clear this week?")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                Text("Meals on this week will be removed. Events stay.")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 10) {
+                    Button {
+                        showClearWeek = false
+                    } label: {
+                        Text("Keep meals")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.terra500)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        clearWeekMeals()
+                    } label: {
+                        Text("Clear week")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(22)
+            .background(Color.white)
+            .clipShape(HomeQuiet.card)
+            .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 8)
+            .padding(.horizontal, 28)
+        }
+        .preferredColorScheme(.light)
+    }
+
+    private func clearWeekMeals() {
+        suppressCommit = true
+        focusedField = nil
+        showClearWeek = false
+        guard let monday = weekDates.first else {
+            suppressCommit = false
+            return
+        }
+        let meals = dataManager.fetchWeekMealPlans(from: monday)
+        dataManager.deleteMealPlans(meals)
+        loadData()
+        DispatchQueue.main.async {
+            suppressCommit = false
+        }
+    }
+
+    private func lineBinding(day: Date, lineID: String) -> Binding<String> {
+        Binding(
+            get: { linesByDay[day]?.first { $0.id == lineID }?.text ?? "" },
+            set: { newValue in
+                if suppressCommit { return }
+                let submitted = newValue.contains { $0 == "\n" || $0 == "\r" }
+                let cleaned = newValue
+                    .replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: "\r", with: "")
+                if submitted, skipNextCommitID == lineID { return }
+                guard var lines = linesByDay[day],
+                      let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+                lines[index].text = cleaned
+                if let recipeID = lines[index].recipeID,
+                   let recipe = recipes.first(where: { $0.objectID == recipeID }),
+                   !namesMatch(recipe.name, cleaned) {
+                    lines[index].recipeID = nil
+                }
+                if !submitted && cleaned.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    lines[index].recipeID = nil
+                    if let mealID = lines[index].mealID,
+                       let meal = meal(mealID, on: day) {
+                        lines[index].mealID = nil
+                        DayDinnerStore.remove(meal, dataManager: dataManager)
+                    }
+                }
+                linesByDay[day] = lines
+                if submitted {
+                    submitLine(day: day, lineID: lineID)
+                }
+            }
+        )
+    }
+
+    private func suggestions(matching text: String, excluding linkedID: NSManagedObjectID?) -> [Recipe] {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        let needle = query.lowercased()
+        return recipes
+            .filter { recipe in
+                let name = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty, recipe.objectID != linkedID else { return false }
+                let tags = (recipe.tags ?? "").lowercased()
+                return name.lowercased().contains(needle) || tags.contains(needle)
+            }
+            .sorted { a, b in
+                let rankA = matchRank(a, query: needle)
+                let rankB = matchRank(b, query: needle)
+                if rankA != rankB { return rankA < rankB }
+                if a.isFavorite != b.isFavorite { return a.isFavorite }
+                return (a.name ?? "").localizedCaseInsensitiveCompare(b.name ?? "") == .orderedAscending
+            }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    private func matchRank(_ recipe: Recipe, query: String) -> Int {
+        let name = (recipe.name ?? "").lowercased()
+        if name == query { return 0 }
+        if name.hasPrefix(query) { return 1 }
+        if name.contains(query) { return 2 }
+        return 3
+    }
+
+    private func linkedRecipe(for line: DinnerLine) -> Recipe? {
+        let trimmed = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let id = line.recipeID else { return nil }
+        guard let recipe = recipes.first(where: { $0.objectID == id }) else { return nil }
+        return namesMatch(recipe.name, trimmed) ? recipe : nil
+    }
+
+    private func namesMatch(_ name: String?, _ text: String) -> Bool {
+        (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(text) == .orderedSame
+    }
+
+    private func savedTitle(of recipe: Recipe) -> String? {
+        let title = (recipe.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? nil : title
+    }
+
+    private func scrollID(day: Date, lineID: String) -> String {
+        "dinner-\(day.timeIntervalSince1970)-\(lineID)"
+    }
+
+    private func blankID(for day: Date) -> String {
+        "blank-\(day.timeIntervalSince1970)"
+    }
+
+    private func blankLine(for day: Date) -> DinnerLine {
+        DinnerLine(id: blankID(for: day), mealID: nil, text: "", recipeID: nil)
+    }
+
+    private func lineID(for meal: MealPlan) -> String {
+        meal.objectID.uriRepresentation().absoluteString
+    }
+
+    private func isDayFocused(_ day: Date) -> Bool {
+        if case .line(let focusedDay, _) = focusedField {
+            return focusedDay == day
+        }
+        return false
+    }
+
+    private func meal(_ id: NSManagedObjectID, on day: Date) -> MealPlan? {
+        dinners(for: day).first { $0.objectID == id }
+            ?? DayDinnerStore.dinners(on: day, dataManager: dataManager).first { $0.objectID == id }
+    }
+
+    private func submitLabel(for line: DinnerLine, on day: Date) -> SubmitLabel {
+        if isLastWeekDay(day), line.id == blankID(for: day) { return .done }
+        let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty, isLastWeekDay(day) { return .done }
+        return .next
+    }
+
+    private func isLastWeekDay(_ date: Date) -> Bool {
+        guard let last = weekDates.last else { return true }
+        return Calendar.current.isDate(date, inSameDayAs: last)
+    }
+
+    private func submitLine(day: Date, lineID: String) {
+        let text = (linesByDay[day]?.first { $0.id == lineID }?.text ?? "")
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: "\r", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty {
+            focusNextDay(after: day)
+            return
+        }
+        commitLine(day: day, lineID: lineID)
+        skipNextCommitID = lineID
+        // The new row on the last day uses the blank id. Focusing that same id
+        // never blurs, so Return stays in the field and the events column stays hidden.
+        if isLastWeekDay(day), lineID == blankID(for: day) {
+            focusedField = nil
+            KeyboardDismiss.resign()
+            return
+        }
+        focusedField = .line(day: day, id: blankID(for: day))
+    }
+
+    private func focusNextDay(after day: Date) {
+        guard let index = weekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: day) }),
+              index + 1 < weekDates.count else {
+            focusedField = nil
+            return
+        }
+        let next = dayKey(weekDates[index + 1])
+        let id = linesByDay[next]?.first?.id ?? blankID(for: next)
+        focusedField = .line(day: next, id: id)
+    }
+
+    private func applyRecipe(_ recipe: Recipe, on day: Date, lineID: String) {
+        guard let title = savedTitle(of: recipe) else { return }
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        lines[index].text = title
+        lines[index].recipeID = recipe.objectID
+        linesByDay[day] = lines
+        skipNextCommitID = lineID
+        let meal = lines[index].mealID.flatMap { meal($0, on: day) }
+        if let meal {
+            DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
+        } else {
+            let created = DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+            lines[index].mealID = created.objectID
+            lines[index].text = ""
+            lines[index].recipeID = nil
+            linesByDay[day] = lines
+        }
+        suppressBlankEcho[day] = title
+        focusedField = nil
+        reloadMeals()
+    }
+
+    private func clearLine(day: Date, lineID: String) {
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        // Hold commits until after the field blurs, so leaving focus cannot save the title again.
+        suppressCommit = true
+        if let mealID = lines[index].mealID, let meal = meal(mealID, on: day) {
+            DayDinnerStore.remove(meal, dataManager: dataManager)
+        }
+        lines[index].text = ""
+        lines[index].recipeID = nil
+        lines[index].mealID = nil
+        linesByDay[day] = lines
+        focusedField = nil
+        KeyboardDismiss.resign()
+        reloadMeals()
+        DispatchQueue.main.async {
+            suppressCommit = false
+        }
+    }
+
+    private func commitLine(day: Date, lineID: String) {
+        if suppressCommit { return }
+        if skipNextCommitID == lineID {
+            skipNextCommitID = nil
+            return
+        }
+        guard var lines = linesByDay[day],
+              let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+        let line = lines[index]
+        let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty {
+            // The placeholder can briefly carry a meal id after save. Do not delete that dinner.
+            if lineID != blankID(for: day) {
+                if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+                    DayDinnerStore.remove(meal, dataManager: dataManager)
+                }
+                reloadMeals()
+            }
+            return
+        }
+        let recipe = linkedRecipe(for: line)
+        let title = recipe.flatMap { savedTitle(of: $0) } ?? text
+        lines[index].text = title
+        lines[index].recipeID = recipe?.objectID
+        linesByDay[day] = lines
+        if let mealID = line.mealID, let meal = meal(mealID, on: day) {
+            let sameTitle = (meal.title ?? "") == title
+            let sameRecipe = meal.recipe?.objectID == recipe?.objectID
+            if sameTitle && sameRecipe { return }
+            DayDinnerStore.update(meal, title: title, recipe: recipe, dataManager: dataManager)
+        } else {
+            let created = DayDinnerStore.append(on: day, title: title, recipe: recipe, dataManager: dataManager)
+            if var fresh = linesByDay[day], let blankIndex = fresh.firstIndex(where: { $0.id == lineID }) {
+                fresh[blankIndex].mealID = created.objectID
+                fresh[blankIndex].text = ""
+                fresh[blankIndex].recipeID = nil
+                linesByDay[day] = fresh
+            }
+            suppressBlankEcho[day] = title
+        }
+        reloadMeals()
     }
 
     private func loadData() {
         guard let monday = weekDates.first else { return }
+        recipes = dataManager.fetchRecipes()
         weekMeals = dataManager.fetchWeekMealPlans(from: monday)
         weekEvents = dataManager.fetchWeekEvents(from: monday)
-        appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
+        syncLines()
+    }
+
+    /// Reload Apple events after the saved EventKit grant and calendar
+    /// selection are applied. Does not rebuild dinner lines.
+    private func refreshAppleEvents() {
+        Task {
+            await calendarSyncManager.prepareForReading()
+            guard let monday = weekDates.first else { return }
+            appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
+        }
+    }
+
+    private func reloadMeals() {
+        guard let monday = weekDates.first else { return }
+        let focus = focusedField
+        weekMeals = dataManager.fetchWeekMealPlans(from: monday)
+        syncLines(keeping: focus)
+        if focusedField != focus {
+            focusedField = focus
+        }
+    }
+
+    private func syncLines(keeping focus: DinnerField? = nil) {
+        let protected = focus ?? focusedField
+        var next: [Date: [DinnerLine]] = [:]
+        for date in weekDates {
+            let key = dayKey(date)
+            var lines = dinners(for: date).map { meal in
+                DinnerLine(
+                    id: lineID(for: meal),
+                    mealID: meal.objectID,
+                    text: meal.title ?? "",
+                    recipeID: meal.recipe?.objectID
+                )
+            }
+            if case .line(let focusedDay, let lineID) = protected, focusedDay == key,
+               let draft = linesByDay[key]?.first(where: { $0.id == lineID }),
+               let index = lines.firstIndex(where: { $0.id == lineID }) {
+                lines[index].text = draft.text
+                lines[index].recipeID = draft.recipeID
+            }
+            let lastHasText = lines.last.map {
+                !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            } ?? false
+            if lines.isEmpty || lastHasText {
+                var blank = blankLine(for: key)
+                if case .line(let focusedDay, let lineID) = protected,
+                   focusedDay == key, lineID == blank.id,
+                   let draft = linesByDay[key]?.first(where: { $0.id == lineID }) {
+                    let draftText = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let echoed = suppressBlankEcho[key].map { namesMatch($0, draftText) } ?? false
+                    let alreadyListed = lines.contains { namesMatch($0.text, draftText) }
+                    if !echoed && !alreadyListed {
+                        blank.text = draft.text
+                        blank.recipeID = draft.recipeID
+                    }
+                }
+                if suppressBlankEcho[key] != nil {
+                    suppressBlankEcho[key] = nil
+                }
+                lines.append(blank)
+            }
+            next[key] = lines
+        }
+        linesByDay = next
     }
 }
 
 struct CalendarHeaderRow: View {
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             Text("DATE")
                 .frame(width: 56, alignment: .leading)
                 .foregroundStyle(.gray.opacity(0.6))
             Text("MEALS")
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(Color.terra500)
-            Spacer().frame(width: 12)
             Text("EVENTS")
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(Color.lilac500)
         }
-        .font(.system(size: 10, weight: .heavy, design: .rounded))
+        .font(.system(size: 10, weight: .regular))
         .tracking(1)
     }
 }
@@ -692,7 +2120,7 @@ struct CalDayRow: View {
                         Circle().fill(Color.terra500)
                             .frame(width: 6, height: 6)
                         Text("+\(meals.count - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.5))
                     }
                 }
@@ -754,7 +2182,7 @@ struct CalDayRow: View {
                         Circle().fill(Color.lilac500)
                             .frame(width: 6, height: 6)
                         Text("+\(allEventCount - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.5))
                     }
                 }
@@ -781,7 +2209,7 @@ struct CalDayRow: View {
     @ViewBuilder
     func mealPill(_ text: String, filled: Bool) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .font(.system(size: 10, weight: .regular))
             .lineLimit(1)
             .foregroundStyle(filled ? .white : Color.terra600)
             .padding(.horizontal, 8)
@@ -806,7 +2234,7 @@ struct CalDayRow: View {
                 }
             }) {
                 Text(text)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .lineLimit(1)
                     .foregroundStyle(filled ? .white : Color.terra600)
             }
@@ -842,7 +2270,7 @@ struct CalDayRow: View {
     func mealPillWithEdit(_ text: String, filled: Bool) -> some View {
         HStack(spacing: 4) {
             Text(text)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .font(.system(size: 10, weight: .regular))
                 .lineLimit(1)
             Spacer(minLength: 0)
             Image(systemName: "pencil")
@@ -866,7 +2294,7 @@ struct CalDayRow: View {
     @ViewBuilder
     func eventPill(_ text: String, filled: Bool) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .font(.system(size: 10, weight: .regular))
             .lineLimit(1)
             .foregroundStyle(filled ? .white : Color.lilac600)
             .padding(.horizontal, 8)
@@ -896,7 +2324,7 @@ struct CalDayRow: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(filled ? .white.opacity(0.8) : Color(uiColor: event.calendarColor))
                 Text(event.title)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .lineLimit(1)
             }
             .padding(.horizontal, 6)
@@ -915,7 +2343,7 @@ struct CalDayRow: View {
     func dashedAddButton(color1: Color, fill: Color, iconColor: Color) -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(
-                style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                style: StrokeStyle(lineWidth: 1, dash: [5, 4])
             )
             .foregroundStyle(color1)
             .frame(height: 32)
@@ -934,7 +2362,7 @@ struct CalDayRow: View {
     func dashedPlaceholder() -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(
-                style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                style: StrokeStyle(lineWidth: 1, dash: [5, 4])
             )
             .foregroundStyle(Color.gray.opacity(0.15))
             .frame(height: 32)
@@ -973,33 +2401,43 @@ struct TodoSection: View {
     @State private var selectedTodo: TodoTask?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Today's To-Do")
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .tracking(-0.3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TO-DO")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Text("Today")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                }
                 Spacer()
                 Button(action: {
                     isAddingTodo = true
-                    // Small delay to ensure the TextField is in the hierarchy before focusing
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isNewTodoFocused = true
                     }
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Color.lilac600)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 36, height: 36)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add task")
             }
 
-            // Card
             VStack(spacing: 0) {
                 if todos.isEmpty && !isAddingTodo {
-                    Text("No tasks yet. Add one!")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.gray)
-                        .padding(.vertical, 20)
+                    Text("No tasks yet")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
                 } else {
                     ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
                         TodoItem(
@@ -1015,21 +2453,22 @@ struct TodoSection: View {
                         )
                         
                         if index < todos.count - 1 || isAddingTodo {
-                            Divider().background(Color.terra100)
+                            Rectangle()
+                                .fill(HomeQuiet.rule)
+                                .frame(height: 1)
                         }
                     }
                 }
                 
                 if isAddingTodo {
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .stroke(Color.terra300, lineWidth: 2)
-                                .frame(width: 24, height: 24)
-                        }
+                        Circle()
+                            .stroke(HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                            .frame(width: 18, height: 18)
                         
-                        TextField("New task...", text: $newTodoTitle)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                        TextField("New task", text: $newTodoTitle)
+                            .font(.system(size: 16, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
                             .focused($isNewTodoFocused)
                             .onSubmit {
                                 submitNewTodo()
@@ -1041,14 +2480,8 @@ struct TodoSection: View {
                     .padding(.vertical, 12)
                 }
             }
-            .padding(20)
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.terra500, lineWidth: 2)
-            )
-            .boldShadow(Color.terra500)
+            .padding(16)
+            .homeQuietCard()
         }
         .padding(.horizontal, 24)
         .sheet(item: $selectedTodo) { todo in
@@ -1130,17 +2563,16 @@ struct TodoItem: View {
                             onDelete?()
                         }
                     } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: "trash.fill")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Delete")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .frame(width: 80)
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(Color.terra600)
+                            .frame(width: 36, height: 36)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                            .padding(.trailing, 8)
                     }
                 }
-                .background(Color.red)
             }
 
             // Foreground content
@@ -1148,8 +2580,8 @@ struct TodoItem: View {
                 // Circular checkbox
                 ZStack {
                     Circle()
-                        .stroke(todo.isChecked ? Color.terra500 : Color.terra300, lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                        .frame(width: 18, height: 18)
                         .background(
                             Circle()
                                 .fill(todo.isChecked ? Color.terra500 : Color.clear)
@@ -1157,7 +2589,7 @@ struct TodoItem: View {
 
                     if todo.isChecked {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.white)
                     }
                 }
@@ -1169,18 +2601,16 @@ struct TodoItem: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(todo.title)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(todo.isChecked ? .gray.opacity(0.4) : .primary)
-                        .strikethrough(todo.isChecked, color: .gray.opacity(0.4))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(todo.isChecked ? HomeQuiet.quiet : HomeQuiet.ink)
+                        .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
                         .lineLimit(1)
                     if !todo.subtitle.isEmpty {
                         Text(todo.subtitle)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(todo.isChecked ? .gray.opacity(0.3) : todo.subtitleColor)
-                            .tracking(0.5)
-                            .textCase(.uppercase)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
                             .lineLimit(1)
-                            .strikethrough(todo.isChecked, color: .gray.opacity(0.3))
+                            .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1197,7 +2627,7 @@ struct TodoItem: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 2)
-            .background(Color.cardWhite)
+            .background(Color.white)
             .offset(x: offset)
         }
         .contentShape(Rectangle())
@@ -1298,10 +2728,9 @@ struct EditTodoSheet: View {
         VStack(spacing: 24) {
             // Header
             HStack {
-                Text("EDIT TASK")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundStyle(Color.terra500)
+                Text("Edit task")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Spacer()
                 Button(action: {
                     onDelete(todo)
@@ -1317,38 +2746,36 @@ struct EditTodoSheet: View {
             // Form
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Title")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.8))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
+                    Text("TITLE")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .tracking(1.2)
                     
                     TextField("What needs to be done?", text: $todo.title)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(16)
-                        .background(Color.gray.opacity(0.05))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
                         )
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Subtitle")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.8))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
+                    Text("NOTE")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .tracking(1.2)
                     
                     TextField("e.g. 7:30 AM • Studio", text: $todo.subtitle)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .padding(16)
-                        .background(Color.gray.opacity(0.05))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
                         )
                 }
                 
@@ -1380,15 +2807,12 @@ struct EditTodoSheet: View {
                 onSave(todo)
                 dismiss()
             }) {
-                Text("Save Changes")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text("Save")
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.terra500)
-                    )
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.terra500))
             }
             .padding(.bottom, 8)
         }
@@ -1471,25 +2895,24 @@ struct DailyGoalsSection: View {
     @State private var editingGoal: DailyGoal? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack(alignment: .center, spacing: 8) {
-                Text("DAILY GOALS")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .tracking(1)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("GOALS")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Text("Daily")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                }
 
                 Spacer()
 
-                // Badge pill
-                Text("TAP TO LOG • HOLD TO EDIT")
-                    .font(.system(size: 8, weight: .heavy, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule().fill(Color(red: 0.2, green: 0.2, blue: 0.25))
-                    )
+                Text("TAP TO LOG")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.1)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.horizontal, 24)
 
@@ -1513,28 +2936,23 @@ struct DailyGoalsSection: View {
                         VStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                    .foregroundStyle(.gray.opacity(0.3))
+                                    .stroke(HomeQuiet.ink.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                                 Image(systemName: "plus")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundStyle(.gray.opacity(0.5))
+                                    .font(.system(size: 18, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
                             }
-                            .frame(width: 96, height: 96)
+                            .frame(width: 72, height: 72)
                             
-                            Text("New Goal")
-                                .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.gray.opacity(0.6))
+                            Text("New goal")
+                                .font(.system(size: 16, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
                         }
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 18)
                         .padding(.horizontal, 16)
-                        .frame(width: 160)
-                        .background(Color.gray.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.gray.opacity(0.1), lineWidth: 2)
-                        )
+                        .frame(width: 148)
+                        .homeQuietCard()
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 8)
@@ -1637,65 +3055,56 @@ struct GoalRingCard: View {
         VStack(spacing: 12) {
             // Circular progress ring with icon & percentage
             ZStack {
-                // Track
                 Circle()
-                    .stroke(goal.ringTrack, lineWidth: 8)
+                    .stroke(HomeQuiet.rule, lineWidth: 1)
 
-                // Progress arc
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
                     .stroke(
-                        goal.ringColor,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        Color.terra500,
+                        style: StrokeStyle(lineWidth: 1, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.4), value: progress)
 
-                // Icon + percentage inside ring
                 VStack(spacing: 2) {
                     Image(systemName: goal.icon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(goal.ringColor)
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
 
                     Text("\(percentDone)%")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
                 }
             }
-            .frame(width: 96, height: 96)
+            .frame(width: 72, height: 72)
 
-            // Value + unit below ring
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(displayValue)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 if goal.unitShort != "k" {
                     Text(displayUnitSuffix)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.5))
-                } else if goal.unitShort == "k" { // special case handling similar to old steps logic
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                } else if goal.unitShort == "k" {
                      Text("k")
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
                         .offset(x: -2)
                 }
             }
 
-            // Label
-            Text(goal.unit)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray.opacity(0.5))
-                .tracking(0.5)
-                .textCase(.uppercase)
+            Text(goal.unit.uppercased())
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .tracking(1.1)
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 18)
         .padding(.horizontal, 16)
-        .frame(width: 160)
+        .frame(width: 148)
         .background(cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(goal.borderColor, lineWidth: 2)
-        )
-        .boldShadow(goal.shadowColor, size: 6, radius: 24)
+        .homeQuietCard()
         .onTapGesture {
             onTap()
         }
@@ -1720,10 +3129,9 @@ struct QuickEditGoalSheet: View {
         VStack(spacing: 24) {
             // Header with delete button
             HStack {
-                Text("QUICK EDIT GOAL")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.5)
-                    .foregroundStyle(goal.ringColor)
+                Text("Edit goal")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Spacer()
                 Button(action: {
                     onDelete(goal)
@@ -1738,7 +3146,8 @@ struct QuickEditGoalSheet: View {
 
             // Goal name
             Text(goal.title)
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .font(.system(size: 20, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
 
             // +/- controls
             HStack(spacing: 24) {
@@ -1762,14 +3171,15 @@ struct QuickEditGoalSheet: View {
                 // Current value display
                 VStack(spacing: 2) {
                     Text(editTarget == floor(editTarget) ? String(format: "%.0f", editTarget) : String(format: "%.1f", editTarget))
-                        .font(.system(size: 42, weight: .heavy, design: .rounded))
+                        .font(.system(size: 40, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
                         .contentTransition(.numericText())
                         .animation(.snappy, value: editTarget)
 
-                    Text(goal.unit)
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                        .foregroundStyle(.gray.opacity(0.5))
+                    Text(goal.unit.uppercased())
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.1)
+                        .foregroundStyle(HomeQuiet.quiet)
                 }
 
                 // Plus button
@@ -1797,15 +3207,15 @@ struct QuickEditGoalSheet: View {
                     in: goal.rangeLower...goal.rangeUpper,
                     step: goal.step
                 )
-                .tint(goal.ringColor)
+                .tint(Color.terra500)
 
                 HStack {
                     Text(formatRangeLabel(goal.rangeLower))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(goal.ringColor)
                     Spacer()
                     Text(formatRangeLabel(goal.rangeUpper))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(.gray.opacity(0.5))
                 }
             }
@@ -1818,23 +3228,18 @@ struct QuickEditGoalSheet: View {
                 onSave(updated)
                 dismiss()
             }) {
-                Text("Set New Goal")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                Text("Save")
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(goal.ringColor)
-                    )
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.terra500))
             }
 
-            // Cancel
             Button(action: { dismiss() }) {
-                Text("CANCEL")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                Text("Cancel")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
         }
         .padding(.horizontal, 32)
@@ -1882,12 +3287,12 @@ struct AddGoalSheet: View {
                 VStack(spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Title")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
                         TextField("e.g. Reading", text: $title)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .padding(16)
                             .background(Color.gray.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1897,13 +3302,13 @@ struct AddGoalSheet: View {
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Daily Target")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 10, weight: .regular))
                                 .foregroundStyle(.gray.opacity(0.8))
                                 .textCase(.uppercase)
                             
                             TextField("e.g. 30", text: $target)
                                 .keyboardType(.decimalPad)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .padding(16)
                                 .background(Color.gray.opacity(0.05))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1912,12 +3317,12 @@ struct AddGoalSheet: View {
                         
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Unit")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 10, weight: .regular))
                                 .foregroundStyle(.gray.opacity(0.8))
                                 .textCase(.uppercase)
                             
                             TextField("e.g. mins", text: $unit)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .padding(16)
                                 .background(Color.gray.opacity(0.05))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1927,12 +3332,12 @@ struct AddGoalSheet: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Short Unit (Optional)")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
                         TextField("e.g. m", text: $unitShort)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .padding(16)
                             .background(Color.gray.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1942,7 +3347,7 @@ struct AddGoalSheet: View {
                     // Icon Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Icon")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
@@ -1965,7 +3370,7 @@ struct AddGoalSheet: View {
                     // Color Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Color")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
@@ -2007,15 +3412,12 @@ struct AddGoalSheet: View {
                         onAdd(newGoal)
                         dismiss()
                     }) {
-                        Text("Add Goal")
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                        Text("Add goal")
+                            .font(.system(size: 15, weight: .regular))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(colorFor(hex: selectedColor))
-                            )
+                            .padding(.vertical, 12)
+                            .background(Capsule().fill(Color.terra500))
                     }
                     .disabled(title.isEmpty || target.isEmpty || unit.isEmpty)
                     .opacity((title.isEmpty || target.isEmpty || unit.isEmpty) ? 0.5 : 1)
@@ -2023,7 +3425,7 @@ struct AddGoalSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
             }
-            .navigationTitle("New Goal")
+            .navigationTitle("New goal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -2061,17 +3463,14 @@ struct MainTabBar: View {
                 ZStack {
                     Circle()
                         .fill(Color.terra500)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Circle().stroke(Color.white, lineWidth: 4)
-                        )
-                        .shadow(color: Color.terra500.opacity(0.4), radius: 10, x: 0, y: 4)
+                        .frame(width: 48, height: 48)
+                        .overlay(Circle().stroke(Color.bgBase, lineWidth: 3))
                     Image(systemName: "plus")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(.white)
                 }
             }
-            .offset(y: -20)
+            .offset(y: -10)
             .frame(maxWidth: .infinity)
 
             // Meals
@@ -2109,22 +3508,14 @@ struct TabItem: View {
     var body: some View {
         VStack(spacing: 4) {
             // Selected: pill bg behind icon
-            if isSelected {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color.lilac600)
-                    .frame(width: 48, height: 32)
-                    .background(Color.lilac100)
-                    .clipShape(Capsule())
-            } else {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(.gray.opacity(0.45))
-                    .frame(width: 48, height: 32)
-            }
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(isSelected ? Color.terra600 : HomeQuiet.quiet)
+                .frame(width: 48, height: 32)
             Text(label)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(isSelected ? Color.lilac600 : .gray.opacity(0.45))
+                .font(.system(size: 10, weight: .regular))
+                .tracking(0.6)
+                .foregroundStyle(isSelected ? Color.terra600 : HomeQuiet.quiet)
         }
         .frame(maxWidth: .infinity)
     }
@@ -2142,13 +3533,13 @@ struct AddActionSheet: View {
         VStack(spacing: 24) {
             // Title
             Text("QUICK ADD")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(Color.terra500)
                 .padding(.top, 8)
 
             Text("What would you like to add?")
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .font(.system(size: 22, weight: .regular, design: .serif))
 
             // 2×2 Grid of options
             LazyVGrid(columns: [
@@ -2158,11 +3549,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "calendar.badge.plus",
                     label: "Event",
-                    subtitle: "Add to calendar",
-                    iconBg: Color.lilac100,
-                    iconColor: Color.lilac600,
-                    borderColor: Color.lilac200,
-                    shadowColor: Color.lilac400
+                    subtitle: "Add to calendar"
                 ) {
                     dismiss()
                     onAddEvent()
@@ -2171,11 +3558,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "fork.knife",
                     label: "Meal",
-                    subtitle: "Plan a meal",
-                    iconBg: Color.terra100,
-                    iconColor: Color.terra500,
-                    borderColor: Color.terra200,
-                    shadowColor: Color.terra500
+                    subtitle: "Plan a meal"
                 ) {
                     dismiss()
                     onAddMeal()
@@ -2184,11 +3567,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "checkmark.circle",
                     label: "To-Do",
-                    subtitle: "Add a task",
-                    iconBg: Color.lime100,
-                    iconColor: Color.lime500,
-                    borderColor: Color(red: 0.80, green: 0.92, blue: 0.60),
-                    shadowColor: Color.lime500
+                    subtitle: "Add a task"
                 ) {
                     dismiss()
                     onAddTodo()
@@ -2197,11 +3576,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "cart",
                     label: "Shopping",
-                    subtitle: "Add to list",
-                    iconBg: Color.sky100,
-                    iconColor: Color.sky500,
-                    borderColor: Color.sky200,
-                    shadowColor: Color.sky400
+                    subtitle: "Add to list"
                 ) {
                     dismiss()
                     onAddShopping()
@@ -2211,10 +3586,9 @@ struct AddActionSheet: View {
 
             // Cancel
             Button(action: { dismiss() }) {
-                Text("CANCEL")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                Text("Cancel")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.bottom, 8)
         }
@@ -2227,48 +3601,28 @@ struct AddOptionButton: View {
     let icon: String
     let label: String
     let subtitle: String
-    let iconBg: Color
-    let iconColor: Color
-    let borderColor: Color
-    let shadowColor: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 10) {
-                // Icon circle
-                ZStack {
-                    Circle()
-                        .fill(iconBg)
-                        .frame(width: 52, height: 52)
-                        .overlay(
-                            Circle().stroke(borderColor, lineWidth: 1.5)
-                        )
-                    Image(systemName: icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(iconColor)
-                }
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 36, height: 36)
 
-                // Label
                 Text(label)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
 
-                // Subtitle
-                Text(subtitle)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
-                    .tracking(0.3)
+                Text(subtitle.uppercased())
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .tracking(0.8)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(borderColor, lineWidth: 2)
-            )
-            .boldShadow(shadowColor, size: 3, radius: 16)
+            .padding(.vertical, 18)
+            .homeQuietCard()
         }
         .buttonStyle(.plain)
     }

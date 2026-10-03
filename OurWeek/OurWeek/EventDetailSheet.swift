@@ -39,7 +39,7 @@ struct EventDetailSheet: View {
                     // Hero header
                     VStack(alignment: .leading, spacing: 8) {
                         Text(event.title ?? "Event")
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .font(.system(size: 28, weight: .regular, design: .serif))
                             .foregroundStyle(.primary)
                         
                         if event.appleEventID != nil {
@@ -47,13 +47,11 @@ struct EventDetailSheet: View {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                                     .font(.system(size: 10, weight: .bold))
                                 Text("Synced to Apple Calendar")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .font(.system(size: 11, weight: .regular))
                             }
-                            .foregroundStyle(Color.lime500)
+                            .foregroundStyle(HomeQuiet.quiet)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(Color.lime100)
-                            .clipShape(Capsule())
                         }
                     }
                     .padding(.horizontal, 24)
@@ -64,7 +62,7 @@ struct EventDetailSheet: View {
                     VStack(spacing: 0) {
                         detailRow(
                             icon: "calendar",
-                            iconColor: Color.lilac500,
+                            iconColor: HomeQuiet.ink,
                             title: "Date",
                             value: dateString
                         )
@@ -83,7 +81,7 @@ struct EventDetailSheet: View {
                             
                             detailRow(
                                 icon: "note.text",
-                                iconColor: Color.sky500,
+                                iconColor: HomeQuiet.ink,
                                 title: "Notes",
                                 value: notes
                             )
@@ -93,7 +91,7 @@ struct EventDetailSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.lilac200, lineWidth: 1)
+                            .stroke(HomeQuiet.cardStroke, lineWidth: 1)
                     )
                     .padding(.horizontal, 20)
                     
@@ -107,17 +105,14 @@ struct EventDetailSheet: View {
                         HStack {
                             Image(systemName: "trash")
                             Text("Delete Event")
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(.system(size: 15, weight: .regular))
                         }
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.terra600)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Color.red.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.red.opacity(0.2), lineWidth: 1)
-                        )
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                     }
                     .padding(.horizontal, 20)
                 }
@@ -127,8 +122,8 @@ struct EventDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.lilac500)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra600)
                 }
             }
         }
@@ -146,11 +141,11 @@ struct EventDetailSheet: View {
             
             VStack(alignment: .leading, spacing: 3) {
                 Text(title.uppercased())
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.gray)
                     .tracking(0.5)
                 Text(value)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.primary)
             }
             
@@ -188,7 +183,7 @@ struct AppleEventDetailSheet: View {
                     // Hero header
                     VStack(alignment: .leading, spacing: 8) {
                         Text(event.title)
-                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .font(.system(size: 28, weight: .regular, design: .serif))
                             .foregroundStyle(.primary)
                         
                         HStack(spacing: 6) {
@@ -198,7 +193,7 @@ struct AppleEventDetailSheet: View {
                             Image(systemName: "calendar")
                                 .font(.system(size: 10, weight: .bold))
                             Text(event.calendarTitle)
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                         }
                         .foregroundStyle(Color(uiColor: event.calendarColor))
                         .padding(.horizontal, 10)
@@ -244,7 +239,7 @@ struct AppleEventDetailSheet: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.sky500)
                         Text("This event is from Apple Calendar. Edit it in the Calendar app.")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(.gray)
                     }
                     .padding(14)
@@ -258,8 +253,8 @@ struct AppleEventDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.lilac500)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra600)
                 }
             }
         }
@@ -277,11 +272,11 @@ struct AppleEventDetailSheet: View {
             
             VStack(alignment: .leading, spacing: 3) {
                 Text(title.uppercased())
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.gray)
                     .tracking(0.5)
                 Text(value)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.primary)
             }
             

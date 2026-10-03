@@ -1,19 +1,79 @@
 import SwiftUI
 
+/// What we still know after a URL import fails, so the next step can keep the link.
+struct URLImportFailure: Equatable {
+    var url: String
+    var html: String
+    var suggestedTitle: String
+    var pasteSeed: String
+    var aiAttempted: Bool
+
+    var canTryAI: Bool {
+        !aiAttempted
+            && !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && KeychainManager.hasGeminiAPIKey()
+    }
+
+    static func from(url: String, error: Error, aiAttempted: Bool) -> URLImportFailure? {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let html: String
+        if let scraperError = error as? ScraperError {
+            switch scraperError {
+            case .invalidURL:
+                return nil
+            case .noRecipeFound(let page), .paywallDetected(let page):
+                html = page
+            case .networkError(_), .timeout, .parsingFailed(_):
+                html = ""
+            }
+        } else {
+            html = ""
+        }
+
+        let title = RecipeScraperService.suggestedTitle(from: html) ?? ""
+        return URLImportFailure(
+            url: trimmed,
+            html: html,
+            suggestedTitle: title,
+            pasteSeed: RecipeScraperService.pasteSeed(from: html, title: title),
+            aiAttempted: aiAttempted
+        )
+    }
+}
+
 // MARK: - URL Import View
 
 struct URLImportView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var scrapedRecipe: ScrapedRecipe?
     @Binding var showPreview: Bool
+    var onPaste: (String, String) -> Void
+    var onManual: (String, String) -> Void
 
-    @State private var urlText: String = ""
+    @State private var urlText: String
+    @State private var recovery: URLImportFailure?
+
+    init(
+        scrapedRecipe: Binding<ScrapedRecipe?>,
+        showPreview: Binding<Bool>,
+        initialURL: String = "",
+        initialFailure: URLImportFailure? = nil,
+        onPaste: @escaping (String, String) -> Void = { _, _ in },
+        onManual: @escaping (String, String) -> Void = { _, _ in }
+    ) {
+        _scrapedRecipe = scrapedRecipe
+        _showPreview = showPreview
+        self.onPaste = onPaste
+        self.onManual = onManual
+        _urlText = State(initialValue: initialFailure?.url ?? initialURL)
+        _recovery = State(initialValue: initialFailure)
+    }
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var loadingMessage = "Fetching recipe..."
     @State private var showSuccess = false
-    @State private var showAIErrorOption = false
-    @State private var failedHTMLContent: String?
 
     private var isValidURL: Bool {
         let trimmed = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,18 +96,23 @@ struct URLImportView: View {
                     // URL Input Section
                     urlInputSection
 
-                    // Example Sites
-                    exampleSites
-
-                    // Error State
-                    if let error = errorMessage {
-                        errorView(error)
+                    if let recovery {
+                        recoveryCard(recovery)
+                    } else if let errorMessage {
+                        Text(errorMessage)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(.black)
                     }
 
-                    Spacer().frame(height: 80)
+                    Color.clear
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { KeyboardDismiss.resign() }
                 }
                 .padding(.horizontal, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(Color.bgBase.ignoresSafeArea())
         .overlay(alignment: .bottom) { importButton }
@@ -74,8 +139,7 @@ struct URLImportView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -83,12 +147,12 @@ struct URLImportView: View {
 
             VStack(spacing: 2) {
                 Text("IMPORT RECIPE")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
                 Text("FROM URL")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
             }
@@ -106,13 +170,13 @@ struct URLImportView: View {
     private var urlInputSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("RECIPE URL")
-                .font(.system(size: 14, weight: .black, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(.gray.opacity(0.6))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Paste a link from any recipe website")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 HStack(spacing: 10) {
@@ -121,13 +185,17 @@ struct URLImportView: View {
                         .foregroundStyle(Color.terra400)
 
                     TextField("https://example.com/recipe/...", text: $urlText)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
                         .foregroundStyle(.black)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .onChange(of: urlText) { _, _ in
+                        .onChange(of: urlText) { _, newValue in
                             errorMessage = nil
+                            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if let recovery, trimmed != recovery.url {
+                                self.recovery = nil
+                            }
                         }
 
                     if !urlText.isEmpty {
@@ -143,7 +211,7 @@ struct URLImportView: View {
                 .padding(.vertical, 14)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(.black, size: 3, radius: 14)
 
                 // Paste from clipboard button
@@ -152,7 +220,7 @@ struct URLImportView: View {
                         Image(systemName: "doc.on.clipboard")
                             .font(.system(size: 12, weight: .bold))
                         Text("Paste from clipboard")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                     }
                     .foregroundStyle(Color.terra500)
                     .padding(.horizontal, 14)
@@ -167,91 +235,57 @@ struct URLImportView: View {
         }
     }
 
-    // MARK: - Example Sites
+    private func recoveryCard(_ failure: URLImportFailure) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Couldn't read this page")
+                .font(.system(size: 20, weight: .regular, design: .serif))
+                .foregroundStyle(.black)
 
-    private var exampleSites: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("SUPPORTED SITES")
-                .font(.system(size: 14, weight: .black, design: .rounded))
-                .tracking(1.5)
-                .foregroundStyle(.gray.opacity(0.6))
+            Text(failure.url)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Color.terra600)
+                .lineLimit(3)
 
-            Text("Works with most recipe websites that use structured data")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.gray)
-
-            FlowLayout(spacing: 8) {
-                ForEach(["AllRecipes", "Food Network", "Bon Appétit", "Serious Eats",
-                         "BBC Good Food", "Budget Bytes", "Tasty", "Smitten Kitchen"], id: \.self) { site in
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.lime500)
-                        Text(site)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.terra600)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.terra100.opacity(0.4))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1))
+            if failure.canTryAI {
+                Button {
+                    startAIImport(html: failure.html)
+                } label: {
+                    recoveryButtonLabel("Try AI", filled: true)
                 }
+                .buttonStyle(.plain)
             }
+
+            Button {
+                onPaste(failure.url, failure.pasteSeed)
+            } label: {
+                recoveryButtonLabel("Paste page text", filled: false)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onManual(failure.url, failure.suggestedTitle)
+            } label: {
+                recoveryButtonLabel("Add manually", filled: false)
+            }
+            .buttonStyle(.plain)
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
+        .boldShadow(Color.terra500, size: 4, radius: 18)
     }
 
-    // MARK: - Error View
-
-    @ViewBuilder
-    private func errorView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                Text("Error")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-
-            Text(message)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.9))
-                .lineSpacing(4)
-                
-            if showAIErrorOption && KeychainManager.hasGeminiAPIKey() {
-                Button(action: {
-                    if let html = failedHTMLContent {
-                        startAIImport(html: html)
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                        Text("Try AI Parsing")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.2))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.5), lineWidth: 1))
-                }
-                .padding(.top, 4)
-            } else {
-                Text("Make sure it's a valid recipe page and try again. Some sites block automated access.")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.red)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-        .boldShadow(.black, size: 3, radius: 14)
-        .transition(.scale.combined(with: .opacity))
+    private func recoveryButtonLabel(_ title: String, filled: Bool) -> some View {
+        Text(title)
+            .font(.system(size: 16, weight: .regular, design: .serif))
+            .foregroundStyle(filled ? .white : .black)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(filled ? Color.terra500 : Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
     }
 
     // MARK: - Import Button
@@ -264,21 +298,16 @@ struct URLImportView: View {
             VStack {
                 Button(action: startImport) {
                     Text("IMPORT RECIPE")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: isValidURL ? [Color.terra400, Color.peach500] : [Color.gray.opacity(0.3), Color.gray.opacity(0.3)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            isValidURL ? Color.terra500 : Color.gray.opacity(0.3)
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(isValidURL ? Color.black : Color.gray.opacity(0.3), lineWidth: 2))
-                        .shadow(color: isValidURL ? Color.peach500.opacity(0.4) : .clear, radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(isValidURL ? Color.black.opacity(0.08) : Color.gray.opacity(0.2), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(!isValidURL || isLoading)
@@ -302,11 +331,11 @@ struct URLImportView: View {
                     .tint(Color.terra500)
 
                 Text(loadingMessage)
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
 
                 Text("This usually takes 3-5 seconds")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.white.opacity(0.6))
             }
             .padding(32)
@@ -331,7 +360,7 @@ struct URLImportView: View {
                     .symbolEffect(.bounce, value: showSuccess)
 
                 Text("Recipe Found!")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
             }
             .padding(40)
@@ -352,8 +381,7 @@ struct URLImportView: View {
     private func startImport() {
         guard isValidURL else { return }
         errorMessage = nil
-        showAIErrorOption = false
-        failedHTMLContent = nil
+        recovery = nil
         isLoading = true
         loadingMessage = "Fetching recipe..."
 
@@ -383,47 +411,34 @@ struct URLImportView: View {
                     showSuccess = false
                     dismiss()
                 }
-            } catch let error as ScraperError {
-                progressTask.cancel()
-                
-                // If it's a parsing error, we might have the HTML and can try AI fallback
-                if case .noRecipeFound(let html) = error {
-                    await MainActor.run {
-                        isLoading = false
-                        errorMessage = "Standard recipe parsing failed."
-                        failedHTMLContent = html
-                        showAIErrorOption = true
-                    }
-                } else {
-                    await MainActor.run {
-                        isLoading = false
-                        errorMessage = error.localizedDescription
-                        showAIErrorOption = false
-                    }
-                }
             } catch {
                 progressTask.cancel()
+                let failedURL = urlText
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = "Something went wrong. Please try again."
-                    showAIErrorOption = false
+                    if let failure = URLImportFailure.from(url: failedURL, error: error, aiAttempted: false) {
+                        recovery = failure
+                        errorMessage = nil
+                    } else {
+                        errorMessage = "Enter a full link"
+                    }
                 }
             }
         }
     }
-    
+
     private func startAIImport(html: String) {
+        guard !html.isEmpty else { return }
         errorMessage = nil
-        showAIErrorOption = false
         isLoading = true
-        loadingMessage = "AI parsing recipe..."
+        loadingMessage = "Reading recipe..."
         
         Task {
             // Show progress update after delay
             let progressTask = Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 await MainActor.run {
-                    if isLoading { loadingMessage = "AI is thinking..." }
+                    if isLoading { loadingMessage = "Still reading..." }
                 }
             }
             
@@ -446,10 +461,23 @@ struct URLImportView: View {
                 }
             } catch {
                 progressTask.cancel()
+                let failedURL = urlText
+                let page = html
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = "AI parsing failed: \(error.localizedDescription)"
-                    showAIErrorOption = false
+                    if var current = recovery {
+                        current.aiAttempted = true
+                        recovery = current
+                    } else {
+                        let title = RecipeScraperService.suggestedTitle(from: page) ?? ""
+                        recovery = URLImportFailure(
+                            url: failedURL.trimmingCharacters(in: .whitespacesAndNewlines),
+                            html: page,
+                            suggestedTitle: title,
+                            pasteSeed: RecipeScraperService.pasteSeed(from: page, title: title),
+                            aiAttempted: true
+                        )
+                    }
                 }
             }
         }
