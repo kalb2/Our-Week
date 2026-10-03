@@ -997,9 +997,6 @@ struct WeeklyCalendarCard: View {
                     otherMealBlocks(on: date)
                 }
                 dinnerBlock(lines, on: key, dayName: dayName)
-                if isToday, hasIngredientPreview(on: date) {
-                    ingredientPreview(on: date)
-                }
                 if showEvents {
                     eventLines(on: date)
                         .transition(.opacity)
@@ -1088,41 +1085,6 @@ struct WeeklyCalendarCard: View {
                 .font(.system(size: 10, weight: .medium))
                 .tracking(1.3)
                 .foregroundStyle(Self.weekQuiet)
-        }
-    }
-
-    private func hasIngredientPreview(on date: Date) -> Bool {
-        dinners(for: date).contains { !ingredientLines(from: $0.ingredients).isEmpty }
-    }
-
-    /// A few ingredient lines under today’s dinners, so the row is more than the title.
-    private func ingredientPreview(on date: Date) -> some View {
-        let lines = dinners(for: date)
-            .flatMap { ingredientLines(from: $0.ingredients) }
-            .prefix(4)
-        return VStack(alignment: .leading, spacing: 2) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                Text(line)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Self.weekQuiet)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private func ingredientLines(from raw: String?) -> [String] {
-        guard let raw else { return [] }
-        return raw.split(separator: "\n", omittingEmptySubsequences: true).compactMap { piece in
-            let parts = piece.split(separator: "|", maxSplits: 1).map(String.init)
-            let text: String
-            if parts.count == 2, parts[0] == "0" || parts[0] == "1" {
-                text = parts[1]
-            } else {
-                text = String(piece)
-            }
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
         }
     }
 
