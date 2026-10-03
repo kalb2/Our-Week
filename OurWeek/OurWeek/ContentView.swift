@@ -890,6 +890,7 @@ struct WeeklyCalendarCard: View {
                     Text(numberFormatter.string(from: date))
                         .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundStyle(.black)
+                    eventDots(on: date)
                 }
                 .frame(width: 36, alignment: .leading)
 
@@ -1096,6 +1097,7 @@ struct WeeklyCalendarCard: View {
                 Text(dayNumber)
                     .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(.black)
+                eventDots(on: date)
             }
             .frame(width: 48, alignment: .leading)
             .contentShape(Rectangle())
@@ -1270,6 +1272,35 @@ struct WeeklyCalendarCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black, lineWidth: 1.5))
             .accessibilityLabel(line.sideText)
+    }
+
+    /// Apple Calendar-style dots. Meals are not events. Extra events past three add no mark.
+    private func eventDotColors(on date: Date) -> [Color] {
+        appleEventsForDate(date)
+            .sorted { lhs, rhs in
+                if lhs.startDate != rhs.startDate { return lhs.startDate < rhs.startDate }
+                return lhs.id < rhs.id
+            }
+            .prefix(3)
+            .map { Color(uiColor: $0.calendarColor) }
+    }
+
+    @ViewBuilder
+    private func eventDots(on date: Date) -> some View {
+        let colors = eventDotColors(on: date)
+        if !colors.isEmpty {
+            let count = appleEventsForDate(date).count
+            HStack(spacing: 3) {
+                ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
+                    Circle()
+                        .fill(color)
+                        .frame(width: 5, height: 5)
+                }
+            }
+            .padding(.top, 2)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(count == 1 ? "1 calendar event" : "\(count) calendar events")
+        }
     }
 
     private func eventTimeLabel(date: Date?, allDay: Bool) -> String {
