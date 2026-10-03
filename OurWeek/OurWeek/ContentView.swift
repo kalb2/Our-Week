@@ -556,6 +556,14 @@ struct WeeklyCalendarCard: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
     }
 
+    /// This week starts at today. Thursday shows Thursday–Sunday. Other weeks stay whole.
+    private var listedWeekDates: [Date] {
+        guard weekOffset == 0 else { return weekDates }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return weekDates.filter { calendar.startOfDay(for: $0) >= today }
+    }
+
     private var weekRangeLabel: String {
         guard let first = weekDates.first, let last = weekDates.last else { return "" }
         let df = DateFormatter()
@@ -784,7 +792,7 @@ struct WeeklyCalendarCard: View {
 
             weekHairline
 
-            ForEach(Array(weekDates.enumerated()), id: \.offset) { _, date in
+            ForEach(Array(listedWeekDates.enumerated()), id: \.offset) { _, date in
                 dayRow(date)
                 weekHairline
             }
@@ -827,6 +835,11 @@ struct WeeklyCalendarCard: View {
             }
             .padding(.horizontal, 14)
             .padding(.top, 14)
+
+            if !otherMealGroups(on: date).isEmpty {
+                otherMealBlocks(on: date)
+                    .padding(.horizontal, 16)
+            }
 
             dinnerBlock(lines, on: key, dayName: isToday ? "Today" : title)
                 .padding(.horizontal, 16)
@@ -979,8 +992,14 @@ struct WeeklyCalendarCard: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                if isToday, !otherMealGroups(on: date).isEmpty {
+                    otherMealBlocks(on: date)
+                }
                 dinnerBlock(lines, on: key, dayName: dayName)
+                if isToday, hasIngredientPreview(on: date) {
+                    ingredientPreview(on: date)
+                }
                 if showEvents {
                     eventLines(on: date)
                         .transition(.opacity)
@@ -1006,6 +1025,105 @@ struct WeeklyCalendarCard: View {
         .padding(.trailing, 10)
         .padding(.vertical, 14)
         .animation(.easeInOut(duration: 0.22), value: dayFocused)
+    }
+
+    private struct MealTitleGroup: Identifiable {
+        let id: String
+        let label: String
+        let titles: [String]
+    }
+
+    /// Breakfast, lunch, and anything that is not the editable dinner line.
+    private func otherMealBlocks(on date: Date) -> some View {
+        let groups = otherMealGroups(on: date)
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(groups) { group in
+                VStack(alignment: .leading, spacing: 4) {
+                    mealKindLabel(group.label)
+                    ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                        Text(title)
+                            .font(.system(size: 20, weight: .regular, design: .serif))
+                            .foregroundStyle(Self.weekInk)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    private func otherMealGroups(on date: Date) -> [MealTitleGroup] {
+        let others = meals(for: date).filter { ($0.mealType ?? "dinner").lowercased() != "dinner" }
+        let order = ["breakfast": 0, "lunch": 1, "snack": 2]
+        let sorted = others.sorted { lhs, rhs in
+            let left = order[(lhs.mealType ?? "").lowercased()] ?? 3
+            let right = order[(rhs.mealType ?? "").lowercased()] ?? 3
+            if left != right { return left < right }
+            let leftDate = lhs.date ?? .distantPast
+            let rightDate = rhs.date ?? .distantPast
+            if leftDate != rightDate { return leftDate < rightDate }
+            return (lhs.id?.uuidString ?? "") < (rhs.id?.uuidString ?? "")
+        }
+        var groups: [MealTitleGroup] = []
+        for meal in sorted {
+            let title = (meal.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            let label = (meal.mealType ?? "Meal").trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = (label.isEmpty ? "Meal" : label).uppercased()
+            if let index = groups.firstIndex(where: { $0.label == name }) {
+                groups[index] = MealTitleGroup(id: name, label: name, titles: groups[index].titles + [title])
+            } else {
+                groups.append(MealTitleGroup(id: name, label: name, titles: [title]))
+            }
+        }
+        return groups
+    }
+
+    private func mealKindLabel(_ title: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "fork.knife")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Self.weekQuiet)
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .tracking(1.3)
+                .foregroundStyle(Self.weekQuiet)
+        }
+    }
+
+    private func hasIngredientPreview(on date: Date) -> Bool {
+        dinners(for: date).contains { !ingredientLines(from: $0.ingredients).isEmpty }
+    }
+
+    /// A few ingredient lines under today’s dinners, so the row is more than the title.
+    private func ingredientPreview(on date: Date) -> some View {
+        let lines = dinners(for: date)
+            .flatMap { ingredientLines(from: $0.ingredients) }
+            .prefix(4)
+        return VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Self.weekQuiet)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func ingredientLines(from raw: String?) -> [String] {
+        guard let raw else { return [] }
+        return raw.split(separator: "\n", omittingEmptySubsequences: true).compactMap { piece in
+            let parts = piece.split(separator: "|", maxSplits: 1).map(String.init)
+            let text: String
+            if parts.count == 2, parts[0] == "0" || parts[0] == "1" {
+                text = parts[1]
+            } else {
+                text = String(piece)
+            }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
     }
 
     private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String) -> some View {
