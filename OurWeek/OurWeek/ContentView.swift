@@ -721,11 +721,33 @@ private enum WeekShareImage {
     }
 }
 
-/// Quiet sheet for the three Home display choices. Stored on this phone.
+/// How the home week lists its days. The first two match the original bool.
+private enum HomeWeekDisplay: String {
+    case fromToday
+    case everyDay
+    case rolling
+
+    static func resolve(stored: String, showPastDays: Bool) -> HomeWeekDisplay {
+        if let mode = HomeWeekDisplay(rawValue: stored) { return mode }
+        return showPastDays ? .everyDay : .fromToday
+    }
+}
+
+/// Quiet sheet for the Home display choices. Stored on this phone.
 private struct HomeDisplaySheet: View {
+    @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
+
+    private var weekDisplay: HomeWeekDisplay {
+        HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
+    }
+
+    private func selectWeek(_ mode: HomeWeekDisplay) {
+        homeWeekDisplayRaw = mode.rawValue
+        showPastDays = mode == .everyDay
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -753,14 +775,20 @@ private struct HomeDisplaySheet: View {
                     .foregroundStyle(HomeQuiet.quiet)
 
                 VStack(spacing: 0) {
-                    weekChoice("From today", selected: !showPastDays) {
-                        showPastDays = false
+                    weekChoice("From today", selected: weekDisplay == .fromToday) {
+                        selectWeek(.fromToday)
                     }
                     Rectangle()
                         .fill(HomeQuiet.rule)
                         .frame(height: 1)
-                    weekChoice("Every day", selected: showPastDays) {
-                        showPastDays = true
+                    weekChoice("Every day", selected: weekDisplay == .everyDay) {
+                        selectWeek(.everyDay)
+                    }
+                    Rectangle()
+                        .fill(HomeQuiet.rule)
+                        .frame(height: 1)
+                    weekChoice("Next 7 days", selected: weekDisplay == .rolling) {
+                        selectWeek(.rolling)
                     }
                 }
                 .background(Color.white)
@@ -882,8 +910,13 @@ struct WeeklyCalendarCard: View {
     @State private var mealFocusStamp = 0
     @State private var expandedDay: Date?
     @FocusState private var focusedField: DinnerField?
+    @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
+
+    private var weekDisplay: HomeWeekDisplay {
+        HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
+    }
 
     // Week dates (Mon-Sun) offset by weekOffset
     private var weekDates: [Date] {
@@ -896,17 +929,31 @@ struct WeeklyCalendarCard: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
     }
 
-    /// This week starts at today unless Display is set to every day.
-    /// Thursday shows Thursday–Sunday. Other weeks stay whole.
+    /// From today drops earlier days of this calendar week. Every day keeps all seven.
+    /// Next 7 days, on this week only, is today and the six days after it.
+    /// Another week is always that calendar week's seven days.
     private var listedWeekDates: [Date] {
-        guard weekOffset == 0, !showPastDays else { return weekDates }
         let calendar = Calendar.current
+        if weekOffset == 0, weekDisplay == .rolling {
+            let today = calendar.startOfDay(for: Date())
+            return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
+        }
+        guard weekOffset == 0, weekDisplay == .fromToday else { return weekDates }
         let today = calendar.startOfDay(for: Date())
         return weekDates.filter { calendar.startOfDay(for: $0) >= today }
     }
 
+    /// Meals and events load with the days on screen. Other modes stay on the calendar week.
+    private var loadedWeekStart: Date? {
+        if weekOffset == 0, weekDisplay == .rolling {
+            return Calendar.current.startOfDay(for: Date())
+        }
+        return weekDates.first
+    }
+
     private var weekRangeLabel: String {
-        guard let first = weekDates.first, let last = weekDates.last else { return "" }
+        let span = (weekOffset == 0 && weekDisplay == .rolling) ? listedWeekDates : weekDates
+        guard let first = span.first, let last = span.last else { return "" }
         let df = DateFormatter()
         df.dateFormat = "MMM d"
         return "\(df.string(from: first)) – \(df.string(from: last))"
@@ -1007,6 +1054,11 @@ struct WeeklyCalendarCard: View {
                     commitLine(day: day, lineID: id)
                 }
                 focusedField = nil
+                loadData()
+                refreshAppleEvents()
+            }
+            .onChange(of: homeWeekDisplayRaw) { _, _ in
+                expandedDay = nil
                 loadData()
                 refreshAppleEvents()
             }
@@ -1801,11 +1853,11 @@ struct WeeklyCalendarCard: View {
         suppressCommit = true
         focusedField = nil
         showClearWeek = false
-        guard let monday = weekDates.first else {
+        guard let start = loadedWeekStart else {
             suppressCommit = false
             return
         }
-        let meals = dataManager.fetchWeekMealPlans(from: monday)
+        let meals = dataManager.fetchWeekMealPlans(from: start)
         dataManager.deleteMealPlans(meals)
         loadData()
         DispatchQueue.main.async {
@@ -1929,7 +1981,7 @@ struct WeeklyCalendarCard: View {
     }
 
     private func isLastWeekDay(_ date: Date) -> Bool {
-        guard let last = weekDates.last else { return true }
+        guard let last = listedWeekDates.last else { return true }
         return Calendar.current.isDate(date, inSameDayAs: last)
     }
 
@@ -1955,12 +2007,12 @@ struct WeeklyCalendarCard: View {
     }
 
     private func focusNextDay(after day: Date) {
-        guard let index = weekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: day) }),
-              index + 1 < weekDates.count else {
+        guard let index = listedWeekDates.firstIndex(where: { Calendar.current.isDate($0, inSameDayAs: day) }),
+              index + 1 < listedWeekDates.count else {
             focusedField = nil
             return
         }
-        let next = dayKey(weekDates[index + 1])
+        let next = dayKey(listedWeekDates[index + 1])
         let id = linesByDay[next]?.first?.id ?? blankID(for: next)
         focusedField = .line(day: next, id: id)
     }
@@ -2052,10 +2104,10 @@ struct WeeklyCalendarCard: View {
     }
 
     private func loadData() {
-        guard let monday = weekDates.first else { return }
+        guard let start = loadedWeekStart else { return }
         recipes = dataManager.fetchRecipes()
-        weekMeals = dataManager.fetchWeekMealPlans(from: monday)
-        weekEvents = dataManager.fetchWeekEvents(from: monday)
+        weekMeals = dataManager.fetchWeekMealPlans(from: start)
+        weekEvents = dataManager.fetchWeekEvents(from: start)
         syncLines()
     }
 
@@ -2064,15 +2116,15 @@ struct WeeklyCalendarCard: View {
     private func refreshAppleEvents() {
         Task {
             await calendarSyncManager.prepareForReading()
-            guard let monday = weekDates.first else { return }
-            appleEvents = calendarSyncManager.fetchWeekEvents(from: monday)
+            guard let start = loadedWeekStart else { return }
+            appleEvents = calendarSyncManager.fetchWeekEvents(from: start)
         }
     }
 
     private func reloadMeals() {
-        guard let monday = weekDates.first else { return }
+        guard let start = loadedWeekStart else { return }
         let focus = focusedField
-        weekMeals = dataManager.fetchWeekMealPlans(from: monday)
+        weekMeals = dataManager.fetchWeekMealPlans(from: start)
         syncLines(keeping: focus)
         if focusedField != focus {
             focusedField = focus
@@ -2082,7 +2134,8 @@ struct WeeklyCalendarCard: View {
     private func syncLines(keeping focus: DinnerField? = nil) {
         let protected = focus ?? focusedField
         var next: [Date: [DinnerLine]] = [:]
-        for date in weekDates {
+        let dates = (weekOffset == 0 && weekDisplay == .rolling) ? listedWeekDates : weekDates
+        for date in dates {
             let key = dayKey(date)
             var lines = dinners(for: date).map { meal in
                 DinnerLine(
