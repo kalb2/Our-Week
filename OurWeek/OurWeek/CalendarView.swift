@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CoreData
 import EventKit
 
@@ -13,6 +14,8 @@ struct CalendarView: View {
     @State private var events: [CalendarEvent] = []
     @State private var meals: [MealPlan] = []
     @State private var appleEvents: [AppleCalendarEvent] = []
+    @State private var monthEvents: [CalendarEvent] = []
+    @State private var monthAppleEvents: [AppleCalendarEvent] = []
     
     private var calendar: Calendar { Calendar.current }
     
@@ -99,16 +102,25 @@ struct CalendarView: View {
             .onAppear {
                 loadData()
                 refreshAppleEvents()
+                loadMonthDots()
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 refreshAppleEvents()
+                loadMonthDots()
             }
             .onChange(of: selectedDate, loadData)
+            .onChange(of: monthOffset) { _, _ in
+                loadMonthDots()
+            }
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
                 refreshAppleEvents()
+                loadMonthDots()
             }
-            .sheet(isPresented: $showAddEventSheet, onDismiss: loadData) {
+            .sheet(isPresented: $showAddEventSheet, onDismiss: {
+                loadData()
+                loadMonthDots()
+            }) {
                 AddEventSheet(date: selectedDate, dataManager: dataManager)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
@@ -161,7 +173,8 @@ struct CalendarView: View {
                     date: date,
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                     isToday: calendar.isDateInToday(date),
-                    isCurrentMonth: calendar.isDate(date, equalTo: calendar.date(byAdding: .month, value: offset, to: Date()) ?? Date(), toGranularity: .month)
+                    isCurrentMonth: calendar.isDate(date, equalTo: calendar.date(byAdding: .month, value: offset, to: Date()) ?? Date(), toGranularity: .month),
+                    dotColors: dotColors(on: date)
                 )
                 .onTapGesture {
                     selectedDate = calendar.startOfDay(for: date)
@@ -212,7 +225,66 @@ struct CalendarView: View {
             let start = Calendar.current.startOfDay(for: selectedDate)
             let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
             appleEvents = calendarSyncManager.fetchEvents(from: start, to: end)
+            loadMonthDots()
         }
+    }
+
+    /// Dots for the visible month and its neighbors, so a swipe already has marks.
+    private func loadMonthDots() {
+        let gridDays = [-1, 0, 1].flatMap { days(for: monthOffset + $0) }
+        guard let first = gridDays.min(), let last = gridDays.max(),
+              let start = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: first)),
+              let end = calendar.date(byAdding: .day, value: 2, to: calendar.startOfDay(for: last)) else { return }
+        monthEvents = dataManager.fetchEvents(from: start, to: end)
+        monthAppleEvents = calendarSyncManager.fetchEvents(from: start, to: end)
+    }
+
+    /// Calendar events only. Meals stay in the day list and do not add a dot.
+    private func dotColors(on date: Date) -> [Color] {
+        var marks: [(when: Date, color: Color, id: String)] = []
+        for event in monthEvents where appEvent(event, occursOn: date) {
+            marks.append((
+                event.date ?? .distantPast,
+                dotColor(for: event),
+                event.objectID.uriRepresentation().absoluteString
+            ))
+        }
+        for event in monthAppleEvents where event.occurs(on: date) {
+            marks.append((event.startDate, Color(uiColor: event.calendarColor), event.id))
+        }
+        return marks
+            .sorted { lhs, rhs in
+                if lhs.when != rhs.when { return lhs.when < rhs.when }
+                return lhs.id < rhs.id
+            }
+            .map(\.color)
+    }
+
+    private func appEvent(_ event: CalendarEvent, occursOn date: Date) -> Bool {
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay),
+              let eventStart = event.date else { return false }
+        if let eventEnd = event.endDate, eventEnd > eventStart {
+            return eventStart < endOfDay && eventEnd > startOfDay
+        }
+        return calendar.isDate(eventStart, inSameDayAs: date)
+    }
+
+    private func dotColor(for event: CalendarEvent) -> Color {
+        if let color = uiColor(fromHex: event.color) {
+            return Color(uiColor: color)
+        }
+        return Color.lilac500
+    }
+
+    private func uiColor(fromHex token: String?) -> UIColor? {
+        guard var hex = token?.trimmingCharacters(in: .whitespacesAndNewlines), !hex.isEmpty else { return nil }
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        guard hex.count == 6, let value = UInt64(hex, radix: 16) else { return nil }
+        let red = CGFloat((value >> 16) & 0xFF) / 255
+        let green = CGFloat((value >> 8) & 0xFF) / 255
+        let blue = CGFloat(value & 0xFF) / 255
+        return UIColor(red: red, green: green, blue: blue, alpha: 1)
     }
 }
 
@@ -221,31 +293,55 @@ struct DayCell: View {
     let isSelected: Bool
     let isToday: Bool
     let isCurrentMonth: Bool
+    var dotColors: [Color] = []
     
     var body: some View {
         let dayString = String(Calendar.current.component(.day, from: date))
+        let shownDots = Array(dotColors.prefix(3))
         
-        ZStack {
-            if isSelected {
-                Circle()
-                    .fill(Color.lilac500)
-                    .frame(width: 36, height: 36)
-            } else if isToday {
-                Circle()
-                    .fill(Color.lime100)
-                    .frame(width: 36, height: 36)
-                    .overlay(Circle().stroke(Color.lime500, lineWidth: 2))
+        VStack(spacing: 2) {
+            ZStack {
+                if isSelected {
+                    Circle()
+                        .fill(Color.lilac500)
+                        .frame(width: 32, height: 32)
+                } else if isToday {
+                    Circle()
+                        .fill(Color.lime100)
+                        .frame(width: 32, height: 32)
+                        .overlay(Circle().stroke(Color.lime500, lineWidth: 2))
+                }
+                
+                Text(dayString)
+                    .font(.system(size: 16, weight: isSelected || isToday ? .bold : .medium, design: .rounded))
+                    .foregroundStyle(
+                        isSelected ? .white :
+                            (isToday ? Color.lime500 : (isCurrentMonth ? .primary : .gray.opacity(0.4)))
+                    )
             }
-            
-            Text(dayString)
-                .font(.system(size: 16, weight: isSelected || isToday ? .bold : .medium, design: .rounded))
-                .foregroundStyle(
-                    isSelected ? .white :
-                        (isToday ? Color.lime500 : (isCurrentMonth ? .primary : .gray.opacity(0.4)))
-                )
+            .frame(height: 32)
+
+            HStack(spacing: 2) {
+                ForEach(Array(shownDots.enumerated()), id: \.offset) { _, color in
+                    Circle()
+                        .fill(color)
+                        .frame(width: 4, height: 4)
+                }
+            }
+            .frame(height: 4)
+            .opacity(isCurrentMonth ? 1 : 0.4)
         }
-        .frame(height: 44)
+        .frame(height: 42)
         .contentShape(Rectangle())
+        .accessibilityLabel(dotAccessibility)
+    }
+
+    private var dotAccessibility: String {
+        let day = String(Calendar.current.component(.day, from: date))
+        let count = dotColors.count
+        if count == 0 { return day }
+        if count == 1 { return "\(day), 1 calendar event" }
+        return "\(day), \(count) calendar events"
     }
 }
 

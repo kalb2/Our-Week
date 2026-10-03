@@ -319,6 +319,33 @@ class DataManager {
         }
     }
 
+    func fetchEvents(from startDate: Date, to endDate: Date, in household: Household? = nil) -> [CalendarEvent] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.startOfDay(for: endDate)
+        guard start < end else { return [] }
+
+        let request: NSFetchRequest<CalendarEvent> = CalendarEvent.fetchRequest()
+        var predicates: [NSPredicate] = [
+            NSPredicate(
+                format: "(date >= %@ AND date < %@) OR (endDate != nil AND date < %@ AND endDate > %@)",
+                start as NSDate, end as NSDate, end as NSDate, start as NSDate
+            )
+        ]
+        if let household = household ?? currentHousehold {
+            predicates.append(NSPredicate(format: "household == %@", household))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CalendarEvent.date, ascending: true)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            print("Error fetching events: \(error)")
+            return []
+        }
+    }
+
     func fetchWeekEvents(from startDate: Date, in household: Household? = nil) -> [CalendarEvent] {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: startDate)
