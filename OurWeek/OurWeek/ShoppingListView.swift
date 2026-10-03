@@ -1424,6 +1424,91 @@ struct AddSectionModal: View {
     }
 }
 
+// MARK: - Section rename tap-away
+/// Resigns the section-name field when the edit sheet is tapped outside that field.
+/// Touches still reach Save, so the button can commit in the same turn.
+private struct SectionRenameTapInstaller: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.scheduleInstall(from: uiView)
+    }
+
+    final class Coordinator: NSObject {
+        private weak var installedOn: UIScrollView?
+        private var waitingToInstall = false
+        private let tapName = "ourweek.sectionRenameDismiss"
+
+        func scheduleInstall(from view: UIView) {
+            guard installedOn == nil, !waitingToInstall else { return }
+            waitingToInstall = true
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                self.waitingToInstall = false
+                guard let view, self.installedOn == nil else { return }
+                self.install(from: view)
+            }
+        }
+
+        func install(from view: UIView) {
+            var current: UIView? = view
+            var scroll: UIScrollView?
+            while let candidate = current {
+                if let found = candidate as? UIScrollView {
+                    scroll = found
+                    break
+                }
+                current = candidate.superview
+            }
+            guard let scroll, installedOn == nil else { return }
+            if scroll.gestureRecognizers?.contains(where: { $0.name == tapName }) == true {
+                installedOn = scroll
+                return
+            }
+            let tap = UITapGestureRecognizer(
+                target: SectionRenameTapRelay.shared,
+                action: #selector(SectionRenameTapRelay.handleTap)
+            )
+            tap.name = tapName
+            tap.cancelsTouchesInView = false
+            tap.delegate = SectionRenameTapRelay.shared
+            scroll.addGestureRecognizer(tap)
+            installedOn = scroll
+        }
+    }
+}
+
+private final class SectionRenameTapRelay: NSObject, UIGestureRecognizerDelegate {
+    static let shared = SectionRenameTapRelay()
+
+    @objc func handleTap() {
+        KeyboardDismiss.resign()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        var view = touch.view
+        while let current = view {
+            if current is UITextField || current is UITextView { return false }
+            view = current.superview
+        }
+        return true
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
+    }
+}
+
 // MARK: - Edit List Modal
 struct EditListModal: View {
     @Environment(\.dismiss) private var dismiss
@@ -1509,7 +1594,9 @@ struct EditListModal: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
+                .background(SectionRenameTapInstaller())
             }
+            .scrollDismissesKeyboard(.immediately)
         }
         .background(Color.bgBase)
         .alert("Clear All Sections?", isPresented: $showDeleteConfirm) {
@@ -1539,44 +1626,117 @@ struct EditSectionCard: View {
     var onListsChanged: () -> Void = {}
 
     @State private var editName: String = ""
+    @State private var isRenaming = false
+    @State private var commitInFlight = false
+    @FocusState private var nameFieldFocused: Bool
     @State private var showClearConfirm = false
-    
+
+    private var storedName: String { list.name ?? "" }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Section Header: Edit name and clear button
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+            // Section Header: rename commits only from Save or the keyboard Done key.
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("SECTION NAME")
                         .font(.system(size: 10, weight: .heavy, design: .rounded))
                         .tracking(1)
                         .foregroundStyle(.gray.opacity(0.5))
-                    
-                    TextField("Store or Section", text: $editName)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .padding(12)
-                        .background(Color.bgBase)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .onChange(of: editName) { _, newValue in
-                            list.name = newValue
-                            dataManager.save()
-                            onListsChanged()
+
+                    if isRenaming {
+                        TextField("Store or Section", text: $editName)
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .padding(12)
+                            .background(Color.cardWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.black, lineWidth: 2)
+                            )
+                            .boldShadow(.black, size: 3, radius: 10)
+                            .focused($nameFieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit(commitRename)
+
+                        HStack(spacing: 10) {
+                            Button(action: commitRename) {
+                                Text("SAVE")
+                                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(0.8)
+                                    .foregroundStyle(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.lime400)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.black, lineWidth: 2)
+                                    )
+                                    .boldShadow(.black, size: 3, radius: 12)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Save section name")
+
+                            Button(action: cancelRename) {
+                                Text("CANCEL")
+                                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                    .tracking(0.8)
+                                    .foregroundStyle(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.black, lineWidth: 2)
+                                    )
+                                    .boldShadow(.black, size: 3, radius: 12)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Cancel rename")
                         }
-                }
-                
-                Spacer()
-                
-                Button(action: { showClearConfirm = true }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("CLEAR")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                    } else {
+                        HStack(spacing: 10) {
+                            Text(storedName.isEmpty ? "Store or Section" : storedName)
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button(action: beginRename) {
+                                Text("RENAME")
+                                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                                    .tracking(0.6)
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.lime100)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.black, lineWidth: 2)
+                                    )
+                                    .boldShadow(.black, size: 2, radius: 10)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rename section")
+                        }
                     }
-                    .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+
+                if !isRenaming {
+                    Button(action: { showClearConfirm = true }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .bold))
+                            Text("CLEAR")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(red: 0.85, green: 0.20, blue: 0.20).opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             
@@ -1605,7 +1765,18 @@ struct EditSectionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.12), lineWidth: 2))
         .onAppear {
-            editName = list.name ?? ""
+            if !isRenaming {
+                editName = storedName
+            }
+        }
+        .onChange(of: nameFieldFocused) { _, focused in
+            guard !focused, isRenaming else { return }
+            // Save and Done run in the same turn as the field resigning. Wait
+            // so a tap on Save still commits, while a tap away reverts.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                guard isRenaming, !commitInFlight else { return }
+                cancelRename()
+            }
         }
         .alert("Clear Section?", isPresented: $showClearConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -1622,6 +1793,44 @@ struct EditSectionCard: View {
         } message: {
             Text("This will remove all items from \(list.name ?? "this section"). Cannot be undone.")
         }
+    }
+
+    private func beginRename() {
+        editName = storedName
+        isRenaming = true
+        DispatchQueue.main.async {
+            nameFieldFocused = true
+        }
+    }
+
+    private func commitRename() {
+        let trimmed = editName.trimmingCharacters(in: .whitespacesAndNewlines)
+        commitInFlight = true
+        isRenaming = false
+        nameFieldFocused = false
+        KeyboardDismiss.resign()
+
+        guard !trimmed.isEmpty else {
+            editName = storedName
+            commitInFlight = false
+            return
+        }
+
+        if trimmed != storedName {
+            list.name = trimmed
+            dataManager.save()
+            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+            onListsChanged()
+        }
+        editName = list.name ?? trimmed
+        commitInFlight = false
+    }
+
+    private func cancelRename() {
+        editName = storedName
+        isRenaming = false
+        nameFieldFocused = false
+        KeyboardDismiss.resign()
     }
 }
 
