@@ -198,6 +198,8 @@ struct HomeView: View {
                         reveal(id, proxy: proxy)
                     }
                     .padding(.bottom, 24)
+                    ShoppingListBoard()
+                        .padding(.bottom, 24)
                     TodoSection(triggerAdd: $triggerAddTodo)
                         .padding(.bottom, 24)
                     DailyGoalsSection()
@@ -604,6 +606,11 @@ struct WeeklyCalendarCard: View {
                     focusStamp: { mealFocusStamp },
                     onDismiss: dismissMealKeyboard(fromStamp:)
                 )
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .shoppingItemFieldFocused)) { _ in
+                if focusedField != nil {
+                    focusedField = nil
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
                 let stamp = mealFocusStamp

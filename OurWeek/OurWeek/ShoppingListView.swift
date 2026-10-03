@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import PhotosUI
 import CoreData
 
@@ -34,21 +35,32 @@ class ShoppingUndoStack {
     }
 }
 
+extension Notification.Name {
+    /// A grocery add-row took the keyboard, so the home meal field should let go.
+    static let shoppingItemFieldFocused = Notification.Name("shoppingItemFieldFocused")
+}
+
+private func shoppingTextInputIsFirstResponder() -> Bool {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    for window in scenes.flatMap(\.windows) {
+        if window.shoppingContainsFirstResponderTextInput { return true }
+    }
+    return false
+}
+
+private extension UIView {
+    var shoppingContainsFirstResponderTextInput: Bool {
+        if isFirstResponder, self is UITextField || self is UITextView { return true }
+        for subview in subviews where subview.shoppingContainsFirstResponderTextInput {
+            return true
+        }
+        return false
+    }
+}
+
 // MARK: - Shopping List View
 struct ShoppingListView: View {
     @Binding var showSharingSettings: Bool
-    @Environment(DataManager.self) private var dataManager
-    @State private var undoStack = ShoppingUndoStack()
-    
-    // Core data query 
-    @State private var shoppingLists: [ShoppingList] = []
-    
-    // Section reorder state
-    @State private var isReorderMode = false
-    @State private var draggedSectionID: NSManagedObjectID?
-    
-    // Sync modal state
-    @State private var showSyncModal = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -56,173 +68,184 @@ struct ShoppingListView: View {
                 ShoppingListHeader(showSharingSettings: $showSharingSettings)
                 MealPlanCarousel()
                     .padding(.top, 16)
-                ShoppingToolbar(
-                    undoStack: undoStack,
-                    isReorderMode: $isReorderMode,
-                    showSyncModal: $showSyncModal,
-                    shoppingLists: $shoppingLists,
-                    onListsChanged: { loadLists() }
-                )
-                    .padding(.top, 12)
-
-                // Reorder mode banner
-                if isReorderMode {
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.up.arrow.down.circle.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                        Text("Drag sections or use arrows to reorder")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                        Spacer()
-                        Button("Done") {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isReorderMode = false
-                            }
-                        }
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(Color.white)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
-                    }
-                    .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.sky100)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.sky200, lineWidth: 1.5)
-                    )
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                // Store sections
-                VStack(spacing: 20) {
-                    if shoppingLists.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "cart.badge.plus")
-                                .font(.system(size: 40))
-                                .foregroundStyle(Color.terra400)
-                            Text("No Shopping Lists Yet")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                            Text("Use the Add Section button above to create a store list.")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.gray)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.vertical, 40)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        ForEach(Array(shoppingLists.enumerated()), id: \.element.objectID) { index, list in
-                            StoreSection(
-                                list: list,
-                                storeName: list.name ?? "Unknown Store",
-                                icon: getIcon(for: list.name ?? ""),
-                                accentColor: getAccentColor(for: list.name ?? ""),
-                                accentLight: getAccentLight(for: list.name ?? ""),
-                                borderColor: getAccentColor(for: list.name ?? ""),
-                                shadowColor: getAccentColor(for: list.name ?? ""),
-                                badgeBg: getAccentLight(for: list.name ?? ""),
-                                badgeText: getDarkerColor(for: list.name ?? ""),
-                                checkBorder: getAccentLight(for: list.name ?? "").opacity(0.8),
-                                checkFill: getAccentColor(for: list.name ?? ""),
-                                dividerColor: getAccentLight(for: list.name ?? ""),
-                                headerColor: getDarkerColor(for: list.name ?? ""),
-                                undoStack: undoStack,
-                                isReorderMode: isReorderMode,
-                                isFirst: index == 0,
-                                isLast: index == shoppingLists.count - 1,
-                                onMoveUp: {
-                                    guard index > 0 else { return }
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        shoppingLists.swapAt(index, index - 1)
-                                        dataManager.reorderShoppingLists(shoppingLists)
-                                    }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                },
-                                onMoveDown: {
-                                    guard index < shoppingLists.count - 1 else { return }
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                        shoppingLists.swapAt(index, index + 1)
-                                        dataManager.reorderShoppingLists(shoppingLists)
-                                    }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                },
-                                onDelete: {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        dataManager.deleteShoppingList(list)
-                                        loadLists()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-
-                // Sync with Meal Plan CTA
-                Button(action: { showSyncModal = true }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 18, weight: .bold))
-                        Text("SYNC WITH MEAL PLAN")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
-                            .tracking(1)
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.terra400, Color.terra500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.terra600, lineWidth: 2)
-                    )
-                    .boldShadow(Color.terra600, size: 4)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 120)
+                ShoppingListBoard(reservesTabBarSpace: true)
             }
         }
         .background(Color.bgBase)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+    }
+}
+
+/// Store sections, items, check-off, and add controls. Same lists as the Shop tab.
+/// The week meal cards stay on Shop only.
+struct ShoppingListBoard: View {
+    var reservesTabBarSpace: Bool = false
+
+    @Environment(DataManager.self) private var dataManager
+    @State private var undoStack = ShoppingUndoStack()
+    @State private var shoppingLists: [ShoppingList] = []
+    @State private var isReorderMode = false
+    @State private var showSyncModal = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ShoppingToolbar(
+                undoStack: undoStack,
+                isReorderMode: $isReorderMode,
+                showSyncModal: $showSyncModal,
+                shoppingLists: $shoppingLists,
+                onListsChanged: { loadLists() }
+            )
+            .padding(.top, 12)
+
+            if isReorderMode {
+                HStack(spacing: 10) {
+                    Image(systemName: "arrow.up.arrow.down.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                    Text("Drag sections or use arrows to reorder")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                    Spacer()
+                    Button("Done") {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isReorderMode = false
+                        }
+                    }
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Color.white)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
+                }
+                .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.sky100)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.sky200, lineWidth: 1.5)
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            VStack(spacing: 20) {
+                if shoppingLists.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "cart.badge.plus")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Color.terra400)
+                        Text("No Shopping Lists Yet")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                        Text("Use the Add Section button above to create a store list.")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 40)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(Array(shoppingLists.enumerated()), id: \.element.objectID) { index, list in
+                        StoreSection(
+                            list: list,
+                            storeName: list.name ?? "Unknown Store",
+                            icon: icon(for: list.name ?? ""),
+                            accentColor: accentColor(for: list.name ?? ""),
+                            accentLight: accentLight(for: list.name ?? ""),
+                            borderColor: accentColor(for: list.name ?? ""),
+                            shadowColor: accentColor(for: list.name ?? ""),
+                            badgeBg: accentLight(for: list.name ?? ""),
+                            badgeText: darkerColor(for: list.name ?? ""),
+                            checkBorder: accentLight(for: list.name ?? "").opacity(0.8),
+                            checkFill: accentColor(for: list.name ?? ""),
+                            dividerColor: accentLight(for: list.name ?? ""),
+                            headerColor: darkerColor(for: list.name ?? ""),
+                            undoStack: undoStack,
+                            isReorderMode: isReorderMode,
+                            isFirst: index == 0,
+                            isLast: index == shoppingLists.count - 1,
+                            onMoveUp: {
+                                guard index > 0 else { return }
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    shoppingLists.swapAt(index, index - 1)
+                                    dataManager.reorderShoppingLists(shoppingLists)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            },
+                            onMoveDown: {
+                                guard index < shoppingLists.count - 1 else { return }
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    shoppingLists.swapAt(index, index + 1)
+                                    dataManager.reorderShoppingLists(shoppingLists)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            },
+                            onDelete: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    dataManager.deleteShoppingList(list)
+                                    loadLists()
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+
+            Button(action: { showSyncModal = true }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 18, weight: .bold))
+                    Text("SYNC WITH MEAL PLAN")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .tracking(1)
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [Color.terra400, Color.terra500],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.terra600, lineWidth: 2)
+                )
+                .boldShadow(Color.terra600, size: 4)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, reservesTabBarSpace ? 120 : 0)
+        }
         .onAppear {
             loadLists()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadLists()
         }
-        .onTapGesture {
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        }
     }
-    
+
     private func loadLists() {
         shoppingLists = dataManager.fetchShoppingLists()
-        
-        // Auto-create defaults if completely empty (e.g., first install)
+
         if shoppingLists.isEmpty {
             _ = dataManager.createShoppingList(name: "Grocery Store")
             _ = dataManager.createShoppingList(name: "Costco")
             _ = dataManager.createShoppingList(name: "Trader Joe's")
-            
-            // Re-fetch after creation
             shoppingLists = dataManager.fetchShoppingLists()
         }
     }
-    
-    // MARK: - Color/Icon Helpers for dynamically generated lists
-    private func getIcon(for name: String) -> String {
+
+    private func icon(for name: String) -> String {
         let n = name.lowercased()
         if n.contains("grocery") || n.contains("smith") { return "storefront" }
         if n.contains("costco") || n.contains("sams") { return "tag" }
@@ -231,7 +254,7 @@ struct ShoppingListView: View {
         return "list.bullet.clipboard"
     }
 
-    private func getAccentColor(for name: String) -> Color {
+    private func accentColor(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color.lime500 }
         if n.contains("costco") { return Color.sky400 }
@@ -240,7 +263,7 @@ struct ShoppingListView: View {
         return Color.peach500
     }
 
-    private func getAccentLight(for name: String) -> Color {
+    private func accentLight(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color.lime100 }
         if n.contains("costco") { return Color.sky100 }
@@ -249,7 +272,7 @@ struct ShoppingListView: View {
         return Color.orange.opacity(0.1)
     }
 
-    private func getDarkerColor(for name: String) -> Color {
+    private func darkerColor(for name: String) -> Color {
         let n = name.lowercased()
         if n.contains("grocery") { return Color(red: 0.26, green: 0.53, blue: 0.09) }
         if n.contains("costco") { return Color(red: 0.03, green: 0.45, blue: 0.70) }
@@ -763,6 +786,18 @@ struct StoreSection: View {
         .onAppear {
             loadItems()
             ensureOneAddRow()
+        }
+        .onChange(of: focusedAddRowID) { _, new in
+            if new != nil {
+                NotificationCenter.default.post(name: .shoppingItemFieldFocused, object: nil)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            let row = focusedAddRowID
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                guard focusedAddRowID == row, row != nil, !shoppingTextInputIsFirstResponder() else { return }
+                focusedAddRowID = nil
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadItems()
