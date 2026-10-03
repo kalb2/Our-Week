@@ -60,7 +60,7 @@ enum ScraperError: Error, LocalizedError {
 
 final class RecipeScraperService {
 
-    /// Import a recipe from a URL by fetching the page and parsing Schema.org JSON-LD data.
+    /// Import a recipe from a URL. Schema.org JSON-LD wins. A video caption is the fallback.
     static func importRecipe(from urlString: String) async throws -> ScrapedRecipe {
         // 1. Validate URL
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -70,27 +70,291 @@ final class RecipeScraperService {
             throw ScraperError.invalidURL
         }
 
-        // 2. Fetch HTML
-        let html = try await fetchHTML(from: url)
+        let domain = url.host?.replacingOccurrences(of: "www.", with: "") ?? ""
 
-        // 3. Check for paywall indicators
-        if html.contains("subscribe to continue") || html.contains("paywall") ||
-           html.contains("subscription required") {
-            throw ScraperError.paywallDetected(html: html)
+        // 2. Fetch HTML. A TikTok shell that fails to load can still have an oEmbed caption.
+        var html = ""
+        var fetchError: Error?
+        do {
+            html = try await fetchHTML(from: url)
+        } catch {
+            fetchError = error
         }
 
-        // 4. Extract JSON-LD blocks
-        let jsonLDBlocks = extractJSONLD(from: html)
+        if fetchError == nil {
+            // 3. Check for paywall indicators. Video hosts use that word in page chrome.
+            if !isSocialVideoHost(url),
+               html.contains("subscribe to continue") || html.contains("paywall") ||
+               html.contains("subscription required") {
+                throw ScraperError.paywallDetected(html: html)
+            }
 
-        // 5. Find Recipe object
-        guard let recipeJSON = findRecipeJSON(in: jsonLDBlocks) else {
+            // 4. Extract JSON-LD blocks
+            let jsonLDBlocks = extractJSONLD(from: html)
+
+            // 5. Find Recipe object
+            if let recipeJSON = findRecipeJSON(in: jsonLDBlocks) {
+                return parseRecipe(from: recipeJSON, sourceURL: trimmed, sourceDomain: domain, html: html)
+            }
+
+            // 6. Caption or description already in the page, including Instagram and YouTube.
+            // TikTok shells often omit it, so the public oEmbed title is included too.
+            var captions = captionCandidates(from: html)
+            var imageURL = metaImageURL(from: html)
+            if isTikTokHost(url), let oembed = await tikTokOEmbed(for: url) {
+                captions.append(oembed.caption)
+                if imageURL == nil { imageURL = oembed.thumbnail }
+            }
+            if let captionRecipe = recipeFromCaptions(
+                captions,
+                sourceURL: trimmed,
+                sourceDomain: domain,
+                imageURL: imageURL
+            ) {
+                return captionRecipe
+            }
+
             throw ScraperError.noRecipeFound(html: html)
         }
 
-        // 6. Parse into ScrapedRecipe
-        let domain = url.host?.replacingOccurrences(of: "www.", with: "") ?? ""
+        if isTikTokHost(url), let oembed = await tikTokOEmbed(for: url),
+           let oembedRecipe = recipeFromCaptions(
+            [oembed.caption],
+            sourceURL: trimmed,
+            sourceDomain: domain,
+            imageURL: oembed.thumbnail
+           ) {
+            return oembedRecipe
+        }
 
-        return parseRecipe(from: recipeJSON, sourceURL: trimmed, sourceDomain: domain, html: html)
+        throw fetchError ?? ScraperError.noRecipeFound(html: html)
+    }
+
+    // MARK: - Video captions
+
+    /// TikTok, Instagram, and YouTube pages. Captions are read from HTML, not the video file.
+    private static func isSocialVideoHost(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        if host == "tiktok.com" || host.hasSuffix(".tiktok.com") { return true }
+        if host == "instagram.com" || host.hasSuffix(".instagram.com") || host == "instagr.am" { return true }
+        if host == "youtu.be" { return true }
+        return host == "youtube.com" || host.hasSuffix(".youtube.com") || host.hasSuffix(".youtube-nocookie.com")
+    }
+
+    private static func isTikTokHost(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return host == "tiktok.com" || host.hasSuffix(".tiktok.com")
+    }
+
+    /// Runs the existing paste parser. A caption counts only when it yields ingredients.
+    private static func recipeFromCaptions(
+        _ captions: [String],
+        sourceURL: String,
+        sourceDomain: String,
+        imageURL: String?
+    ) -> ScrapedRecipe? {
+        var best: ScrapedRecipe?
+        var bestScore = 0
+        var seen = Set<String>()
+        for caption in captions {
+            guard let text = normalizedCaption(caption) else { continue }
+            guard seen.insert(text).inserted else { continue }
+            let parsed = RecipeTextParser.parse(text)
+            guard !parsed.ingredients.isEmpty else { continue }
+            let score = parsed.ingredients.count * 10 + parsed.instructions.count
+            guard score > bestScore else { continue }
+            bestScore = score
+            var recipe = parsed
+            recipe.sourceURL = sourceURL
+            recipe.sourceDomain = sourceDomain
+            recipe.imageURL = imageURL
+            best = recipe
+        }
+        return best
+    }
+
+    private static func captionCandidates(from html: String) -> [String] {
+        var found: [String] = []
+        found.append(contentsOf: metaDescriptions(from: html))
+        found.append(contentsOf: jsonCaptionStrings(in: html))
+        found.append(contentsOf: captionsFromJSONScripts(in: html))
+        found.append(contentsOf: instagramCaptions(in: html))
+        return found
+    }
+
+    private static func metaDescriptions(from html: String) -> [String] {
+        let patterns = [
+            #"(?i)<meta[^>]*property\s*=\s*["']og:description["'][^>]*content\s*=\s*["']([^"']*)["']"#,
+            #"(?i)<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*property\s*=\s*["']og:description["']"#,
+            #"(?i)<meta[^>]*name\s*=\s*["'](?:twitter:description|description)["'][^>]*content\s*=\s*["']([^"']*)["']"#,
+            #"(?i)<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*name\s*=\s*["'](?:twitter:description|description)["']"#
+        ]
+        return patterns.flatMap { allMatches($0, in: html, limit: 4) }
+    }
+
+    private static func jsonCaptionStrings(in html: String) -> [String] {
+        let field = #""(?:desc|description|caption|shortDescription|short_description)"\s*:\s*"((?:\\.|[^"\\])*)""#
+        let simpleText = #""(?:description|shortDescription)"\s*:\s*\{\s*"simpleText"\s*:\s*"((?:\\.|[^"\\])*)""#
+        return (allMatches(field, in: html, limit: 40) + allMatches(simpleText, in: html, limit: 10))
+            .map(unescapeJSONString)
+    }
+
+    private static func captionsFromJSONScripts(in html: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: "(?is)<script\\b[^>]*>(.*?)</script>") else {
+            return []
+        }
+        let ns = html as NSString
+        let matches = regex.matches(in: html, range: NSRange(location: 0, length: ns.length))
+        var results: [String] = []
+        var examined = 0
+        for match in matches {
+            if examined >= 20 || results.count >= 40 { break }
+            guard match.numberOfRanges > 1 else { continue }
+            let body = ns.substring(with: match.range(at: 1))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard body.first == "{" || body.first == "[" else { continue }
+            guard body.contains("desc") || body.contains("caption") || body.contains("Description") else { continue }
+            examined += 1
+            guard let data = body.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) else { continue }
+            collectCaptionStrings(from: json, into: &results, depth: 0)
+        }
+        return results
+    }
+
+    private static func collectCaptionStrings(from json: Any, into results: inout [String], depth: Int) {
+        guard depth < 8, results.count < 40 else { return }
+        let keys: Set<String> = ["desc", "description", "caption", "shortDescription", "short_description"]
+        if let dict = json as? [String: Any] {
+            for (key, value) in dict {
+                if keys.contains(key), let text = value as? String {
+                    results.append(text)
+                }
+                collectCaptionStrings(from: value, into: &results, depth: depth + 1)
+            }
+        } else if let array = json as? [Any] {
+            for item in array.prefix(20) {
+                collectCaptionStrings(from: item, into: &results, depth: depth + 1)
+            }
+        }
+    }
+
+    private static func instagramCaptions(in html: String) -> [String] {
+        var results: [String] = []
+        var search = html.startIndex..<html.endIndex
+        while let found = html.range(of: "edge_media_to_caption", range: search), results.count < 5 {
+            let end = html.index(found.lowerBound, offsetBy: 2500, limitedBy: html.endIndex) ?? html.endIndex
+            let window = String(html[found.lowerBound..<end])
+            if let raw = firstMatch(#""text"\s*:\s*"((?:\\.|[^"\\])*)""#, in: window) {
+                results.append(unescapeJSONString(raw))
+            }
+            search = found.upperBound..<html.endIndex
+        }
+        return results
+    }
+
+    private struct TikTokOEmbed {
+        var caption: String
+        var thumbnail: String?
+    }
+
+    /// Public TikTok oEmbed. The caption is the title. No key and no video download.
+    private static func tikTokOEmbed(for pageURL: URL) async -> TikTokOEmbed? {
+        guard var components = URLComponents(string: "https://www.tiktok.com/oembed") else { return nil }
+        components.queryItems = [URLQueryItem(name: "url", value: pageURL.absoluteString)]
+        guard let endpoint = components.url else { return nil }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        request.setValue(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+            forHTTPHeaderField: "User-Agent"
+        )
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        let title = (json["title"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return nil }
+        let thumbnail = (json["thumbnail_url"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let image = (thumbnail?.isEmpty == false) ? thumbnail : nil
+        return TikTokOEmbed(caption: title, thumbnail: image)
+    }
+
+    private static func normalizedCaption(_ raw: String) -> String? {
+        var text = raw.replacingOccurrences(
+            of: "(?i)<br\\s*/?>",
+            with: "\n",
+            options: .regularExpression
+        )
+        text = decodeCaption(text)
+        text = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 12, trimmed.count <= 20_000 else { return nil }
+        let letters = trimmed.unicodeScalars.filter { CharacterSet.letters.contains($0) }
+        guard letters.count >= 8 else { return nil }
+        return trimmed
+    }
+
+    private static func unescapeJSONString(_ raw: String) -> String {
+        let wrapped = "\"\(raw)\""
+        if let data = wrapped.data(using: .utf8),
+           let decoded = try? JSONSerialization.jsonObject(with: data) as? String {
+            return decoded
+        }
+        return raw
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\\r", with: "\r")
+            .replacingOccurrences(of: "\\t", with: "\t")
+            .replacingOccurrences(of: "\\\"", with: "\"")
+            .replacingOccurrences(of: "\\/", with: "/")
+    }
+
+    private static func decodeCaption(_ text: String) -> String {
+        var decoded = decodeHTML(text)
+        guard let regex = try? NSRegularExpression(pattern: "&#(\\d+);") else { return decoded }
+        let ns = decoded as NSString
+        let matches = regex.matches(in: decoded, range: NSRange(location: 0, length: ns.length))
+        for match in matches.reversed() {
+            let digits = ns.substring(with: match.range(at: 1))
+            guard let value = Int(digits), let scalar = UnicodeScalar(value) else { continue }
+            decoded = (decoded as NSString).replacingCharacters(in: match.range, with: String(Character(scalar)))
+        }
+        return decoded
+    }
+
+    private static func metaImageURL(from html: String) -> String? {
+        let patterns = [
+            #"(?i)<meta[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']+)["']"#,
+            #"(?i)<meta[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:image["']"#
+        ]
+        for pattern in patterns {
+            guard let raw = firstMatch(pattern, in: html) else { continue }
+            let cleaned = decodeHTML(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty { return cleaned }
+        }
+        return nil
+    }
+
+    private static func allMatches(_ pattern: String, in text: String, limit: Int) -> [String] {
+        guard limit > 0, let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        var found: [String] = []
+        regex.enumerateMatches(in: text, range: range) { match, _, stop in
+            guard let match, match.numberOfRanges > 1,
+                  let capture = Range(match.range(at: 1), in: text) else { return }
+            found.append(String(text[capture]))
+            if found.count >= limit {
+                stop.pointee = true
+            }
+        }
+        return found
     }
 
     // MARK: - HTML Fetching
