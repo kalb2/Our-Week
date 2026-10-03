@@ -525,6 +525,221 @@ private struct DinnerLine: Identifiable {
     var recipeID: NSManagedObjectID?
 }
 
+private struct WeekShareSnapshot {
+    var title: String
+    var range: String
+    var days: [WeekShareDay]
+}
+
+private struct WeekShareDay: Identifiable {
+    var id: String
+    var weekday: String
+    var dayNumber: String
+    var isToday: Bool
+    var groups: [WeekShareMealGroup]
+    var events: [WeekShareEvent]
+}
+
+private struct WeekShareMealGroup: Identifiable {
+    var id: String
+    var label: String
+    var titles: [String]
+}
+
+private struct WeekShareEvent: Identifiable {
+    var id: String
+    var text: String
+    var color: UIColor?
+}
+
+/// The week card, without navigation, grocery, or the week action buttons.
+private struct WeekShareCard: View {
+    let snapshot: WeekShareSnapshot
+
+    private var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(snapshot.title)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .lineLimit(1)
+                Text(snapshot.range)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+
+            Rectangle()
+                .fill(HomeQuiet.rule)
+                .frame(height: 1)
+
+            ForEach(Array(snapshot.days.enumerated()), id: \.element.id) { index, day in
+                dayRow(day)
+                if index < snapshot.days.count - 1 {
+                    Rectangle()
+                        .fill(HomeQuiet.rule)
+                        .frame(height: 1)
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(card)
+        .overlay(card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.04), radius: 14, x: 0, y: 6)
+    }
+
+    private func dayRow(_ day: WeekShareDay) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(spacing: 2) {
+                Text(day.weekday)
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(HomeQuiet.quiet)
+                Text(day.dayNumber)
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(day.isToday ? Color.terra500 : HomeQuiet.ink)
+                if day.isToday {
+                    Text("TODAY")
+                        .font(.system(size: 9, weight: .semibold))
+                        .tracking(0.6)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                        .padding(.top, 2)
+                }
+            }
+            .frame(width: 56)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(day.groups) { group in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                            Text(group.label)
+                                .font(.system(size: 10, weight: .medium))
+                                .tracking(1.3)
+                                .foregroundStyle(HomeQuiet.quiet)
+                        }
+                        ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                            Text(title)
+                                .font(.system(size: 20, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                if !day.events.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(day.events) { event in
+                            HStack(alignment: .center, spacing: 8) {
+                                Circle()
+                                    .fill(event.color.map { Color(uiColor: $0) } ?? Color.black.opacity(0.28))
+                                    .frame(width: 7, height: 7)
+                                Text(event.text)
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.ink.opacity(0.55))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 16)
+        .padding(.vertical, 14)
+    }
+}
+
+@MainActor
+private enum WeekShareImage {
+    /// Instagram story pixels. The card is drawn on the cream field and scaled to fit.
+    static let storySize = CGSize(width: 1080, height: 1920)
+
+    static func render(_ snapshot: WeekShareSnapshot) -> UIImage? {
+        let card = WeekShareCard(snapshot: snapshot)
+            .frame(width: 312)
+            .padding(16)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        renderer.isOpaque = false
+        guard let cardImage = renderer.uiImage else { return nil }
+        return compose(cardImage)
+    }
+
+    private static func compose(_ card: UIImage) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let canvas = storySize
+        return UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
+            UIColor(red: 1, green: 0.976, blue: 0.965, alpha: 1).setFill()
+            UIBezierPath(rect: CGRect(origin: .zero, size: canvas)).fill()
+            let margin: CGFloat = 72
+            let maxWidth = canvas.width - margin * 2
+            let maxHeight = canvas.height - margin * 2
+            let pixelSize = CGSize(
+                width: card.size.width * card.scale,
+                height: card.size.height * card.scale
+            )
+            guard pixelSize.width > 0, pixelSize.height > 0 else { return }
+            let fit = min(maxWidth / pixelSize.width, maxHeight / pixelSize.height)
+            let drawSize = CGSize(width: pixelSize.width * fit, height: pixelSize.height * fit)
+            let rect = CGRect(
+                x: (canvas.width - drawSize.width) / 2,
+                y: (canvas.height - drawSize.height) / 2,
+                width: drawSize.width,
+                height: drawSize.height
+            )
+            card.draw(in: rect)
+        }
+    }
+}
+
+@MainActor
+private enum WeekSharePresenter {
+    static func present(_ image: UIImage) {
+        let controller = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        guard let presenter = topViewController() else { return }
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(
+                x: presenter.view.bounds.midX,
+                y: presenter.view.bounds.midY,
+                width: 1,
+                height: 1
+            )
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(controller, animated: true)
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let root = scenes.flatMap(\.windows).first(where: \.isKeyWindow)?.rootViewController
+        var presenter = root
+        while let presented = presenter?.presentedViewController {
+            presenter = presented
+        }
+        return presenter
+    }
+}
+
 struct WeeklyCalendarCard: View {
     var onFocusScroll: (String) -> Void = { _ in }
 
@@ -906,6 +1121,10 @@ struct WeeklyCalendarCard: View {
                 weekActionButton("Swipe to plan", enabled: !weekDates.isEmpty) {
                     showWeekPlanner = true
                 }
+                weekActionButton("Share", enabled: !listedWeekDates.isEmpty) {
+                    shareCurrentWeek()
+                }
+                .accessibilityLabel("Share week")
                 if !weekMeals.isEmpty {
                     weekActionButton("Clear week") {
                         showClearWeek = true
@@ -936,6 +1155,50 @@ struct WeeklyCalendarCard: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
+    }
+
+    /// Renders the week card off-screen and opens the system share sheet.
+    private func shareCurrentWeek() {
+        let snapshot = weekShareSnapshot()
+        guard let image = WeekShareImage.render(snapshot) else { return }
+        WeekSharePresenter.present(image)
+    }
+
+    /// Same rows the home week is showing: past days omitted on this week, titles only, no ingredients.
+    private func weekShareSnapshot() -> WeekShareSnapshot {
+        let days = listedWeekDates.map { date -> WeekShareDay in
+            let calendar = Calendar.current
+            let isToday = calendar.isDateInToday(date)
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.dateFormat = "EEE"
+            let numberFormatter = DateFormatter()
+            numberFormatter.dateFormat = "d"
+            var groups: [WeekShareMealGroup] = []
+            if isToday {
+                groups.append(contentsOf: otherMealGroups(on: date).map {
+                    WeekShareMealGroup(id: $0.id, label: $0.label, titles: $0.titles)
+                })
+            }
+            let key = dayKey(date)
+            let dinnerTitles = (linesByDay[key] ?? [])
+                .map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !dinnerTitles.isEmpty {
+                groups.append(WeekShareMealGroup(id: "DINNER", label: "DINNER", titles: dinnerTitles))
+            }
+            let events = homeEventLines(on: date)
+                .filter { !$0.sideText.isEmpty }
+                .map { WeekShareEvent(id: $0.id, text: $0.sideText, color: $0.calendarColor) }
+            return WeekShareDay(
+                id: String(calendar.startOfDay(for: date).timeIntervalSince1970),
+                weekday: weekdayFormatter.string(from: date).uppercased(),
+                dayNumber: numberFormatter.string(from: date),
+                isToday: isToday,
+                groups: groups,
+                events: events
+            )
+        }
+        return WeekShareSnapshot(title: weekTitle, range: weekRangeLabel, days: days)
     }
 
     private var todayPill: some View {
