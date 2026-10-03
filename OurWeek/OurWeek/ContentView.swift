@@ -1551,8 +1551,27 @@ struct WeeklyCalendarCard: View {
         }
     }
 
+    /// The trailing empty line stays in the model so Return can open it, but it
+    /// does not take a row once the day already has a meal.
+    private func shownDinnerLines(_ lines: [DinnerLine], on day: Date) -> [DinnerLine] {
+        let blank = blankID(for: day)
+        let hasMeal = lines.contains { line in
+            guard line.id != blank else { return false }
+            if line.mealID != nil { return true }
+            return !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return lines.filter { line in
+            guard line.id == blank else { return true }
+            if !hasMeal { return true }
+            if focusedField == .line(day: day, id: line.id) { return true }
+            return !line.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let shown = shownDinnerLines(lines, on: day)
+        let shownIDs = Set(shown.map(\.id))
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "fork.knife")
                     .font(.system(size: 11, weight: .regular))
@@ -1562,24 +1581,30 @@ struct WeeklyCalendarCard: View {
                     .tracking(1.3)
                     .foregroundStyle(Self.weekQuiet)
             }
-            ForEach(lines) { line in
-                dinnerLine(line, on: day, dayName: dayName, spare: lines.count > 1)
-                    .id(scrollID(day: day, lineID: line.id))
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(lines) { line in
+                    let isShown = shownIDs.contains(line.id)
+                    dinnerLine(line, on: day, dayName: dayName)
+                        .id(scrollID(day: day, lineID: line.id))
+                        .padding(.top, isShown && line.id != shown.first?.id ? 6 : 0)
+                        .frame(maxHeight: isShown ? nil : 0, alignment: .top)
+                        .clipped()
+                        .opacity(isShown ? 1 : 0)
+                        .allowsHitTesting(isShown)
+                        .accessibilityHidden(!isShown)
+                }
             }
         }
     }
 
-    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String, spare: Bool) -> some View {
+    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String) -> some View {
         let focused = focusedField == .line(day: day, id: line.id)
         let linked = linkedRecipe(for: line)
         let text = line.text
         let matches = focused ? suggestions(matching: text, excluding: linked?.objectID) : []
         let shown = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let mealFont = Font.system(size: 20, weight: .regular, design: .serif)
-        let placeholder = spare ? "Add another" : "Add dinner"
-        let placeholderFont = spare
-            ? Font.system(size: 15, weight: .regular, design: .serif)
-            : mealFont
+        let placeholder = "Add dinner"
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1602,7 +1627,7 @@ struct WeeklyCalendarCard: View {
                         .accessibilityLabel("\(dayName) dinner")
                     if !focused {
                         Text(shown.isEmpty ? placeholder : shown)
-                            .font(shown.isEmpty ? placeholderFont : mealFont)
+                            .font(mealFont)
                             .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
                             .lineLimit(1)
                             .truncationMode(.tail)
