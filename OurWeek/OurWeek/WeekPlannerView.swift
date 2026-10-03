@@ -142,7 +142,7 @@ struct WeekPlannerView: View {
 
             VStack(spacing: 18) {
                 Text("Discard this plan?")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -152,13 +152,13 @@ struct WeekPlannerView: View {
                         showDiscardAlert = false
                     } label: {
                         Text("Keep planning")
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(Color.terra500)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                             .boldShadow(Color.black, size: 3, radius: 14)
                     }
                     .buttonStyle(.plain)
@@ -167,13 +167,13 @@ struct WeekPlannerView: View {
                         dismiss()
                     } label: {
                         Text("Discard")
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .foregroundStyle(.black)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                             .boldShadow(Color.terra200, size: 3, radius: 14)
                     }
                     .buttonStyle(.plain)
@@ -182,7 +182,7 @@ struct WeekPlannerView: View {
             .padding(20)
             .background(Color.bgBase)
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadow(Color.terra500, size: 4, radius: 18)
             .padding(.horizontal, 28)
         }
@@ -249,14 +249,14 @@ struct WeekPlannerView: View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("PLAN WEEK")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(1.2)
                     .foregroundStyle(Color.terra500)
                 Text(weekRangeLabel)
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
                 Text(progressLine)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.7))
             }
 
@@ -273,14 +273,14 @@ struct WeekPlannerView: View {
                 }
             } label: {
                 Text(showReview ? "PLAN" : "REVIEW")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(0.6)
                     .foregroundStyle(.black)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.white)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black, lineWidth: 1.5))
+                    .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -291,8 +291,7 @@ struct WeekPlannerView: View {
                     .frame(width: 36, height: 36)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
@@ -350,7 +349,7 @@ struct WeekPlannerView: View {
     private func segmentColor(for index: Int) -> Color {
         if index == currentDayIndex { return Color.terra500 }
         if assignments[index] != nil { return Color.terra300 }
-        if existingDinner(on: index) != nil { return Color.lilac400 }
+        if existingDinner(on: index) != nil { return HomeQuiet.quiet }
         return Color(red: 0.91, green: 0.86, blue: 0.83)
     }
 
@@ -365,10 +364,10 @@ struct WeekPlannerView: View {
         } label: {
             VStack(spacing: 1) {
                 Text(formatted(date, "EEE"))
-                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .font(.system(size: 9, weight: .regular))
                     .foregroundStyle(isCurrent ? WeekPlannerView.reviewInk : Color(red: 0.35, green: 0.28, blue: 0.25))
                 Text(formatted(date, "d"))
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(.black)
             }
             .frame(maxWidth: .infinity)
@@ -377,7 +376,7 @@ struct WeekPlannerView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isCurrent ? Color.black : Color.black.opacity(0.15), lineWidth: isCurrent ? 2 : 1)
+                    .stroke(Color.black.opacity(isCurrent ? 0.18 : 0.08), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -386,7 +385,7 @@ struct WeekPlannerView: View {
 
     private func chipFill(isCurrent: Bool, planned: Bool, locked: Bool) -> Color {
         if planned { return Color.terra100 }
-        if locked { return Color.lilac100 }
+        if locked { return Color.white }
         if isCurrent { return Color.white }
         return Color.bgBase
     }
@@ -421,8 +420,8 @@ struct WeekPlannerView: View {
                     title: "SURPRISE ME",
                     icon: "sparkles",
                     selected: false,
-                    fill: Color.lilac100,
-                    foreground: Color.lilac600
+                    fill: Color.white,
+                    foreground: HomeQuiet.ink
                 ) {
                     surpriseMe()
                 }
@@ -457,7 +456,7 @@ struct WeekPlannerView: View {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .bold))
                 Text(title)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(0.4)
             }
             .foregroundStyle(foreground)
@@ -467,7 +466,7 @@ struct WeekPlannerView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.black, lineWidth: selected ? 2 : 1.5)
+                    .stroke(Color.black.opacity(selected ? 0.18 : 0.08), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -481,7 +480,7 @@ struct WeekPlannerView: View {
     private func scopeButton(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(0.6)
                 .foregroundStyle(selected ? .white : .black)
                 .frame(maxWidth: .infinity)
@@ -490,7 +489,7 @@ struct WeekPlannerView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.black, lineWidth: selected ? 2 : 1.5)
+                        .stroke(Color.black.opacity(selected ? 0.18 : 0.08), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -536,11 +535,11 @@ struct WeekPlannerView: View {
     private var dayHeading: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(weekDates.indices.contains(currentDayIndex) ? formatted(weekDates[currentDayIndex], "EEEE") : "DAY")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .font(.system(size: 18, weight: .regular, design: .serif))
                 .foregroundStyle(.black)
             Spacer()
             Text("DINNER")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(1)
                 .foregroundStyle(Color.terra500)
         }
@@ -565,8 +564,8 @@ struct WeekPlannerView: View {
                 title: dinner.title ?? "Dinner",
                 message: "Dinner is already on this day. Pick another day, or leave it as is.",
                 icon: "checkmark.seal.fill",
-                tint: Color.lilac500,
-                iconFill: Color.lilac100,
+                tint: HomeQuiet.ink,
+                iconFill: Color.white,
                 actionTitle: nextOpenIndex(after: currentDayIndex) == nil ? nil : "Next open day",
                 action: jumpToNextOpen
             )
@@ -633,25 +632,25 @@ struct WeekPlannerView: View {
                 HStack(spacing: 6) {
                     if recipe.isFavorite {
                         Label("Favorite", systemImage: "heart.fill")
-                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(Color.peach500)
                     }
                     Spacer(minLength: 0)
                     if recipe.prepTime + recipe.cookTime > 0 {
                         Label("\(recipe.prepTime + recipe.cookTime) min", systemImage: "clock")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(Color.terra600)
                     }
                 }
 
                 Text(displayName(for: recipe))
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
                 Text(swipeHint)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.55))
             }
             .padding(16)
@@ -660,7 +659,7 @@ struct WeekPlannerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.black, lineWidth: 2.5)
+                .stroke(Color.black.opacity(0.08), lineWidth: 1)
         )
         .boldShadow(Color.terra500, size: 4, radius: 18)
         .accessibilityElement(children: .combine)
@@ -675,14 +674,11 @@ struct WeekPlannerView: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                LinearGradient(
-                    colors: [Color.terra100, Color.terra300],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(red: 0.98, green: 0.96, blue: 0.94)
                 .overlay(
-                    Text("🍽️")
-                        .font(.system(size: emojiSize))
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: min(emojiSize, 28), weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
                 )
             }
         }
@@ -692,13 +688,13 @@ struct WeekPlannerView: View {
         let width = exitingRecipe == nil ? dragOffset.width : exitOffset.width
         return ZStack {
             if width > 16 {
-                stamp("PLAN", color: Color.lime500, rotation: -14)
+                stamp("PLAN", color: Color.terra600, rotation: -14)
                     .opacity(min(1, Double(width / 110)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(16)
             }
             if width < -16 {
-                stamp("SKIP", color: Color.lilac600, rotation: 14)
+                stamp("SKIP", color: HomeQuiet.ink, rotation: 14)
                     .opacity(min(1, Double(-width / 110)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(16)
@@ -708,14 +704,14 @@ struct WeekPlannerView: View {
 
     private func stamp(_ text: String, color: Color, rotation: Double) -> some View {
         Text(text)
-            .font(.system(size: 26, weight: .black, design: .rounded))
+            .font(.system(size: 26, weight: .regular, design: .serif))
             .tracking(1.5)
             .foregroundStyle(color)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(color, lineWidth: 3)
+                    .stroke(color, lineWidth: 1)
             )
             .rotationEffect(.degrees(rotation))
     }
@@ -726,11 +722,11 @@ struct WeekPlannerView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Color.terra500)
             Text(libraryHasRecipes ? "No mains to swipe" : "No recipes to swipe")
-                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                .font(.system(size: 18, weight: .regular, design: .serif))
             Text(libraryHasRecipes
                  ? "Mark a recipe Main or Full meal, or Dinner without Side, Dessert, Snack, Appetizer, or Drink. Takeout and leftovers still work."
                  : "Add some in Meals, or mark this day as takeout or leftovers.")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.gray.opacity(0.65))
                 .multilineTextAlignment(.center)
         }
@@ -740,7 +736,7 @@ struct WeekPlannerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.black, lineWidth: 2.5)
+                .stroke(Color.black.opacity(0.08), lineWidth: 1)
         )
         .boldShadow(Color.terra400, size: 4, radius: 18)
     }
@@ -761,28 +757,28 @@ struct WeekPlannerView: View {
                 .frame(width: 48, height: 48)
                 .background(iconFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 1.5))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.14), lineWidth: 1))
 
             Text(title)
-                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                .font(.system(size: 26, weight: .regular, design: .serif))
                 .foregroundStyle(.black)
                 .lineLimit(3)
 
             Text(message)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.gray.opacity(0.7))
 
             if let actionTitle {
                 Button(action: action) {
                     Text(actionTitle.uppercased())
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .tracking(0.5)
                         .foregroundStyle(.black)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black, lineWidth: 1.5))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black.opacity(0.14), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -791,7 +787,7 @@ struct WeekPlannerView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(tint, size: 4, radius: 18)
         .padding(.horizontal, 20)
     }
@@ -801,7 +797,7 @@ struct WeekPlannerView: View {
     private var decisionBar: some View {
         VStack(spacing: 10) {
             Text(scopeCaption)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(.gray.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -835,8 +831,8 @@ struct WeekPlannerView: View {
                     title: "TAKEOUT",
                     subtitle: "Eat out",
                     icon: "takeoutbag.and.cup.and.straw.fill",
-                    fill: Color.lilac100,
-                    foreground: Color.lilac600
+                    fill: Color.white,
+                    foreground: HomeQuiet.ink
                 ) {
                     assign(.takeout)
                 }
@@ -845,8 +841,8 @@ struct WeekPlannerView: View {
                     title: "LEFTOVERS",
                     subtitle: "No recipe",
                     icon: "fork.knife",
-                    fill: Color.sky100,
-                    foreground: Color.sky500
+                    fill: Color.white,
+                    foreground: HomeQuiet.ink
                 ) {
                     assign(.leftovers)
                 }
@@ -866,7 +862,7 @@ struct WeekPlannerView: View {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .bold))
                 Text(title)
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(0.6)
             }
             .foregroundStyle(foreground)
@@ -874,7 +870,7 @@ struct WeekPlannerView: View {
             .padding(.vertical, 14)
             .background(fill)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadowSm(.black, radius: 12)
         }
         .buttonStyle(.plain)
@@ -894,10 +890,10 @@ struct WeekPlannerView: View {
                     .font(.system(size: 15, weight: .bold))
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .tracking(0.4)
                     Text(subtitle)
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .opacity(0.75)
                 }
                 Spacer(minLength: 0)
@@ -908,7 +904,7 @@ struct WeekPlannerView: View {
             .frame(maxWidth: .infinity)
             .background(fill)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadowSm(foreground.opacity(0.45), radius: 12)
         }
         .buttonStyle(.plain)
@@ -972,13 +968,13 @@ struct WeekPlannerView: View {
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("\(formatted(date, "EEE")) \(formatted(date, "d"))")
-                            .font(.system(size: 12, weight: .heavy, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .tracking(0.8)
                             .foregroundStyle(.black)
 
                         if let title, !title.isEmpty {
                             Text(title)
-                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .font(.system(size: 18, weight: .regular, design: .serif))
                                 .foregroundStyle(.black)
                                 .lineLimit(2)
                                 .minimumScaleFactor(0.85)
@@ -1004,7 +1000,7 @@ struct WeekPlannerView: View {
                                 .frame(width: 28, height: 28)
                                 .background(Color.white)
                                 .clipShape(Circle())
-                                .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+                                .overlay(Circle().stroke(Color.black.opacity(0.14), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Remove \(title ?? "dinner")")
@@ -1015,13 +1011,13 @@ struct WeekPlannerView: View {
                             replacingDay = DayReplacement(index: index)
                         } label: {
                             Text(plan == nil ? "Choose" : "Change")
-                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                                .font(.system(size: 10, weight: .regular))
                                 .foregroundStyle(.black)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 5)
                                 .background(Color.terra100)
                                 .clipShape(RoundedRectangle(cornerRadius: 7))
-                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black, lineWidth: 1.5))
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black.opacity(0.14), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(plan == nil ? "Choose dinner" : "Change dinner")
@@ -1032,7 +1028,7 @@ struct WeekPlannerView: View {
         .padding(12)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.terra300, size: 3, radius: 16)
     }
 
@@ -1047,7 +1043,7 @@ struct WeekPlannerView: View {
         .frame(width: 64, height: 64)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
     }
 
     private func reviewRecipe(plan: WeekSlotPlan?, dinner: MealPlan?) -> Recipe? {
@@ -1063,21 +1059,21 @@ struct WeekPlannerView: View {
             switch plan {
             case .recipe, .named:
                 icon = "fork.knife"
-                fill = Color.terra100
-                foreground = Color.terra600
+                fill = Color.white
+                foreground = HomeQuiet.ink
             case .takeout:
-                icon = "takeoutbag.and.cup.and.straw.fill"
-                fill = Color.lilac100
-                foreground = Color.lilac600
+                icon = "takeoutbag.and.cup.and.straw"
+                fill = Color.white
+                foreground = HomeQuiet.ink
             case .leftovers:
-                icon = "refrigerator.fill"
-                fill = Color.sky100
-                foreground = Color.sky500
+                icon = "refrigerator"
+                fill = Color.white
+                foreground = HomeQuiet.ink
             }
         } else if dinner != nil {
             icon = "fork.knife"
-            fill = Color.lilac100
-            foreground = Color.lilac600
+            fill = Color.white
+            foreground = HomeQuiet.ink
         } else {
             icon = "plus"
             fill = Color.terra50
@@ -1099,7 +1095,7 @@ struct WeekPlannerView: View {
                     Image(systemName: "shuffle")
                         .font(.system(size: 14, weight: .bold))
                     Text("Shuffle")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
                 }
                 .foregroundStyle(.black)
                 .lineLimit(1)
@@ -1107,7 +1103,7 @@ struct WeekPlannerView: View {
                 .padding(.vertical, 16)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(Color.terra200, size: 3, radius: 14)
             }
             .buttonStyle(.plain)
@@ -1118,7 +1114,7 @@ struct WeekPlannerView: View {
 
             Button(action: savePlan) {
                 Text(assignments.isEmpty ? "Save" : (assignments.count == 1 ? "Save dinner" : "Save dinners"))
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(assignments.isEmpty ? WeekPlannerView.reviewInk : .white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -1126,7 +1122,7 @@ struct WeekPlannerView: View {
                     .padding(.vertical, 16)
                     .background(assignments.isEmpty ? Color.terra100 : Color.terra500)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                     .boldShadow(assignments.isEmpty ? Color.terra200 : Color.black, size: 3, radius: 14)
             }
             .buttonStyle(.plain)
@@ -1600,18 +1596,18 @@ struct WeekPlannerView: View {
 
     private func tint(for plan: WeekSlotPlan) -> Color {
         switch plan {
-        case .recipe, .named: return Color.terra500
-        case .takeout: return Color.lilac500
-        case .leftovers: return Color.sky500
+        case .recipe, .named: return Color.terra600
+        case .takeout: return HomeQuiet.ink
+        case .leftovers: return HomeQuiet.ink
         }
     }
 
     /// Opaque light fills. Translucent tints were blending to dark brown on Review.
     private func surface(for plan: WeekSlotPlan) -> Color {
         switch plan {
-        case .recipe, .named: return Color.terra100
-        case .takeout: return Color.lilac100
-        case .leftovers: return Color.sky100
+        case .recipe, .named: return Color.white
+        case .takeout: return Color.white
+        case .leftovers: return Color.white
         }
     }
 

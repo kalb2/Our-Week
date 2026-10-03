@@ -68,7 +68,7 @@ struct ShoppingListView: View {
                 ShoppingListHeader(showSharingSettings: $showSharingSettings)
                 MealPlanCarousel()
                     .padding(.top, 16)
-                ShoppingListBoard(reservesTabBarSpace: true)
+                ShoppingListBoard(reservesTabBarSpace: true, quietToolbar: true)
             }
         }
         .background(Color.bgBase)
@@ -135,19 +135,19 @@ struct ShoppingListBoard: View {
                         Image(systemName: "arrow.up.arrow.down.circle.fill")
                             .font(.system(size: 20, weight: .semibold))
                         Text("Drag sections or use arrows to reorder")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                         Spacer()
                         Button("Done") {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 isReorderMode = false
                             }
                         }
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(Color.white)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.sky400, lineWidth: 1))
                     }
                     .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
                     .padding(.horizontal, 16)
@@ -156,7 +156,7 @@ struct ShoppingListBoard: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.sky200, lineWidth: 1.5)
+                            .stroke(Color.sky200, lineWidth: 1)
                     )
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
@@ -185,9 +185,9 @@ struct ShoppingListBoard: View {
                                 .font(.system(size: 40))
                                 .foregroundStyle(Color.terra400)
                             Text("No Shopping Lists Yet")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(.system(size: 18, weight: .regular, design: .serif))
                             Text("Use the Add Section button above to create a store list.")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(.gray)
                                 .multilineTextAlignment(.center)
                         }
@@ -259,23 +259,19 @@ struct ShoppingListBoard: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.system(size: 18, weight: .bold))
                         Text("SYNC WITH MEAL PLAN")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .tracking(1)
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        LinearGradient(
-                            colors: [Color.terra400, Color.terra500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        Color.terra500
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.terra600, lineWidth: 2)
+                            .stroke(Color.terra600, lineWidth: 1)
                     )
                     .boldShadow(Color.terra600, size: 4)
                 }
@@ -352,23 +348,17 @@ struct ShoppingListHeader: View {
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
+                Text("SHOP")
+                    .font(.system(size: 12, weight: .regular))
+                    .tracking(1.6)
+                    .foregroundStyle(HomeQuiet.quiet)
                 Text("Shopping")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .tracking(-0.5)
-                Text("List")
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .italic()
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.peach500, Color.terra500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .font(.system(size: 40, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Text("GROUPED BY STORE")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(HomeQuiet.quiet)
                     .padding(.top, 4)
             }
             Spacer()
@@ -377,7 +367,6 @@ struct ShoppingListHeader: View {
                 AvatarButton(imageData: profileImageData)
             }
             .buttonStyle(.plain)
-            .shadow(color: .black.opacity(0.15), radius: 0, x: 4, y: 4)
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -545,7 +534,7 @@ struct ActionPill: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
                 Text(label)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .textCase(.uppercase)
                     .tracking(0.5)
             }
@@ -765,7 +754,7 @@ struct StoreSection: View {
                         Image(systemName: icon)
                             .font(.system(size: 18, weight: .semibold))
                         Text(storeName.uppercased())
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .tracking(0.8)
                     }
                     .foregroundStyle(headerColor)
@@ -851,7 +840,7 @@ struct StoreSection: View {
                             Image(systemName: icon)
                                 .font(.system(size: 18, weight: .semibold))
                             Text(storeName.uppercased())
-                                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .tracking(0.8)
                         }
                         .foregroundStyle(headerColor)
@@ -860,7 +849,7 @@ struct StoreSection: View {
 
                         // Item count badge
                         Text("\(allItems.count) \(allItems.count == 1 ? "Item" : "Items")")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(badgeText)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -1034,7 +1023,7 @@ struct SwipeToDeleteRow<Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .trailing) {
-            // Red delete background
+            // Quiet delete control, revealed by the swipe
             HStack {
                 Spacer()
                 Button(action: {
@@ -1044,13 +1033,13 @@ struct SwipeToDeleteRow<Content: View>: View {
                         showDeleteButton = false
                     }
                 }) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 60)
-                        .frame(maxHeight: .infinity)
-                        .background(Color(red: 0.90, green: 0.22, blue: 0.22))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    Image(systemName: "trash")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Color.terra600)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -1184,7 +1173,7 @@ private struct StoreCardChrome: ViewModifier {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(borderColor, lineWidth: 2)
+                        .stroke(borderColor, lineWidth: 1)
                 )
                 .boldShadow(shadowColor)
         }
@@ -1232,7 +1221,7 @@ struct EditItemSheet: View {
                             .frame(width: 32, height: 32)
                             .background(accentColor)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     }
                 }
                 .buttonStyle(.plain)
@@ -1317,7 +1306,7 @@ struct EditItemSheet: View {
                             .clipShape(Capsule())
                     } else {
                         Text("SAVE CHANGES")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .tracking(1)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -1326,7 +1315,7 @@ struct EditItemSheet: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
                             )
                             .boldShadow(editName.isEmpty ? Color.gray.opacity(0.2) : borderColor, size: 4)
                     }
@@ -1340,7 +1329,7 @@ struct EditItemSheet: View {
                         Image(systemName: "trash")
                             .font(.system(size: 14, weight: .semibold))
                         Text("DELETE ITEM")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .tracking(0.5)
                     }
                     .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
@@ -1456,9 +1445,9 @@ struct SortOptionsModal: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sort Items")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(.system(size: 22, weight: .regular, design: .serif))
                     Text("CHOOSE SORT ORDER")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(.gray.opacity(0.5))
                 }
@@ -1470,7 +1459,7 @@ struct SortOptionsModal: View {
                         .frame(width: 32, height: 32)
                         .background(Color(red: 0.03, green: 0.45, blue: 0.70))
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
             .padding(.horizontal, 24)
@@ -1490,7 +1479,7 @@ struct SortOptionsModal: View {
                                 .font(.system(size: 18, weight: .semibold))
                                 .frame(width: 24)
                             Text(option.rawValue)
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .font(.system(size: 15, weight: .regular))
                             Spacer()
                             if selectedSort == option {
                                 Image(systemName: "checkmark.circle.fill")
@@ -1498,7 +1487,7 @@ struct SortOptionsModal: View {
                                     .foregroundStyle(Color(red: 0.03, green: 0.45, blue: 0.70))
                             } else {
                                 Circle()
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                                     .frame(width: 22, height: 22)
                             }
                         }
@@ -1511,7 +1500,7 @@ struct SortOptionsModal: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
-                                .stroke(selectedSort == option ? Color.sky400 : Color.gray.opacity(0.15), lineWidth: 2)
+                                .stroke(selectedSort == option ? Color.sky400 : Color.gray.opacity(0.15), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -1524,7 +1513,7 @@ struct SortOptionsModal: View {
             // Done button
             Button(action: { dismiss() }) {
                 Text("APPLY SORT")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -1533,7 +1522,7 @@ struct SortOptionsModal: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
                     )
                     .boldShadow(Color.sky400, size: 4)
             }
@@ -1588,7 +1577,7 @@ struct AddSectionModal: View {
                             .frame(width: 32, height: 32)
                             .background(Color(red: 0.26, green: 0.53, blue: 0.09))
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     }
                 }
                 .buttonStyle(.plain)
@@ -1621,7 +1610,7 @@ struct AddSectionModal: View {
             // Color picker
             VStack(alignment: .leading, spacing: 12) {
                 Text("ACCENT COLOR")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray.opacity(0.5))
 
@@ -1632,7 +1621,7 @@ struct AddSectionModal: View {
                                 .fill(option.color)
                                 .frame(width: 40, height: 40)
                                 .overlay(
-                                    Circle().stroke(option.border, lineWidth: 2)
+                                    Circle().stroke(option.border, lineWidth: 1)
                                 )
                                 .overlay {
                                     if selectedColor == option.color {
@@ -1673,7 +1662,7 @@ struct AddSectionModal: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 18, weight: .bold))
                         Text("ADD SECTION")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .tracking(1)
                     }
                     .foregroundStyle(.white)
@@ -1687,7 +1676,7 @@ struct AddSectionModal: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
                     )
                     .boldShadow(
                         sectionName.isEmpty ? Color.gray.opacity(0.2) : Color.lime500,
@@ -1826,7 +1815,7 @@ struct EditListModal: View {
                             .frame(width: 32, height: 32)
                             .background(Color.terra600)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     }
                 }
                 .buttonStyle(.plain)
@@ -2028,7 +2017,7 @@ struct EditSectionCard: View {
                                 Image(systemName: "trash")
                                     .font(.system(size: 14, weight: .bold))
                                 Text("CLEAR")
-                                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                                    .font(.system(size: 9, weight: .regular))
                             }
                             .foregroundStyle(Color(red: 0.85, green: 0.20, blue: 0.20))
                             .padding(.horizontal, 14)
@@ -2056,7 +2045,7 @@ struct EditSectionCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.1), lineWidth: 1))
             } else {
                 Text("No items in this section.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.5))
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -2253,7 +2242,7 @@ struct SyncModal: View {
                             .frame(width: 32, height: 32)
                             .background(Color.lilac600)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     }
                 }
                 .buttonStyle(.plain)
@@ -2285,7 +2274,7 @@ struct SyncModal: View {
                     .foregroundStyle(quiet ? HomeQuiet.ink : Color.primary)
 
                 Text("Last synced: Today, 2:30 PM")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.5))
                     .tracking(0.3)
             }
@@ -2338,23 +2327,19 @@ struct SyncModal: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.system(size: 18, weight: .bold))
                         Text("SYNC NOW")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .tracking(1)
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        LinearGradient(
-                            colors: [Color.lilac500, Color.lilac600],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        Color.terra500
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 2)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
                     )
                     .boldShadow(Color.lilac400, size: 4)
                 }

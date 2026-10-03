@@ -40,19 +40,16 @@ struct MealPlanCarousel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header
-            HStack {
-                Image(systemName: "fork.knife")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.terra500)
-                Text("THIS WEEK'S MEALS")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .tracking(1)
+            HStack(alignment: .firstTextBaseline) {
+                Text("THIS WEEK")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.2)
+                    .foregroundStyle(HomeQuiet.quiet)
                 Spacer()
                 Text("\(weekMeals.count) planned")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
-                    .textCase(.uppercase)
-                    .tracking(0.5)
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(0.6)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.horizontal, 24)
 
@@ -155,25 +152,22 @@ struct MealPlanDayCard: View {
         return f.string(from: date).uppercased()
     }
 
-    private var accentColor: Color { isToday ? Color.lime500 : Color.terra500 }
-    private var lightAccent: Color { isToday ? Color.lime100 : Color.terra100 }
-    private var borderColor: Color { isToday ? Color.lime500 : Color.terra500 }
-    private var shadowColor: Color { isToday ? Color.lime500 : Color.terra500 }
+    private var accentColor: Color { isToday ? Color.terra600 : HomeQuiet.quiet }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Day header
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(isToday ? "TODAY" : dayString)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(accentColor)
                 Text(dateString)
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundStyle(isToday ? Color(red: 0.30, green: 0.52, blue: 0.15) : .primary)
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 Spacer()
                 Text(monthString)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.gray.opacity(0.4))
                     .tracking(0.5)
             }
@@ -181,19 +175,16 @@ struct MealPlanDayCard: View {
 
             // Divider
             Rectangle()
-                .fill(lightAccent)
-                .frame(height: 2)
+                .fill(HomeQuiet.rule)
+                .frame(height: 1)
                 .padding(.bottom, 12)
 
             // Meals list
             if meals.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "takeoutbag.and.cup.and.straw")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.gray.opacity(0.25))
-                    Text("No meals planned")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.35))
+                    Text("Nothing planned")
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -209,14 +200,10 @@ struct MealPlanDayCard: View {
                                     onMealTap(meal)
                                 }
                             }) {
-                                HStack(spacing: 6) {
-                                    Text(mealEmoji(for: meal.mealType ?? ""))
-                                        .font(.system(size: 12))
-                                    Text(meal.title ?? "Untitled")
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                                        .lineLimit(1)
-                                }
-                                .foregroundStyle(Color.terra600)
+                                Text(meal.title ?? "Untitled")
+                                    .font(.system(size: 14, weight: .regular, design: .serif))
+                                    .lineLimit(1)
+                                    .foregroundStyle(HomeQuiet.ink)
                             }
                             .buttonStyle(.plain)
 
@@ -225,22 +212,19 @@ struct MealPlanDayCard: View {
                             // Pencil — opens add meal sheet to swap/replace
                             Button(action: { onAddTap() }) {
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(Color.terra600.opacity(0.5))
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
                                     .frame(width: 28, height: 28)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.leading, 10)
+                        .padding(.leading, 2)
                         .padding(.trailing, 2)
-                        .padding(.vertical, 4)
-                        .background(Color.terra100)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.terra200, lineWidth: 1)
-                        )
+                        .padding(.vertical, 6)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(HomeQuiet.rule).frame(height: 1)
+                        }
                         .contextMenu {
                             if let onDelete = onMealDelete {
                                 Button(role: .destructive) {
@@ -258,52 +242,23 @@ struct MealPlanDayCard: View {
 
             // Add button
             Button(action: onAddTap) {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("Add Meal")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                }
-                .foregroundStyle(accentColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(
-                            style: StrokeStyle(lineWidth: 2, dash: [5, 4])
-                        )
-                        .foregroundStyle(accentColor.opacity(0.4))
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(lightAccent.opacity(0.5))
-                )
+                Text("Add meal")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
         .padding(16)
         .frame(width: 220)
         .frame(minHeight: 220)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(borderColor, lineWidth: 2)
-        )
-        .boldShadow(shadowColor)
+        .homeQuietCard()
     }
 
-    private func mealEmoji(for type: String) -> String {
-        switch type.lowercased() {
-        case "breakfast": return "🥞"
-        case "lunch": return "🥗"
-        case "dinner": return "🍝"
-        case "snack": return "🍎"
-        default: return "🍽️"
-        }
-    }
 }
 
 // MARK: - Meal Edit Sheet
@@ -378,28 +333,25 @@ struct MealEditSheet: View {
         HStack(alignment: .top) {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.black)
-                    .frame(width: 40, height: 40)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 36, height: 36)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             
             Spacer()
             
             VStack(spacing: 2) {
-                Text(isEditing ? "EDIT MEAL" : "ADD MEAL")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .textCase(.uppercase)
-                    .tracking(-0.5)
+                Text(isEditing ? "Edit meal" : "Add meal")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 
-                Text(date.formatted(date: .abbreviated, time: .omitted))
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.peach500)
-                    .textCase(.uppercase)
+                Text(date.formatted(date: .abbreviated, time: .omitted).uppercased())
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
                     .tracking(1)
             }
             
@@ -414,48 +366,39 @@ struct MealEditSheet: View {
     private var mealNameSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("MEAL NAME")
-                .font(.system(size: 12, weight: .black, design: .rounded))
-                .textCase(.uppercase)
-                .tracking(2)
-                .foregroundStyle(.gray.opacity(0.6))
+                .font(.system(size: 11, weight: .regular))
+                .tracking(1.4)
+                .foregroundStyle(HomeQuiet.quiet)
                 .padding(.leading, 4)
             
             HStack {
                 TextField("What are you eating?", text: $title)
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
                 
                 Image(systemName: "pencil")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(Color.peach500)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
-            .boldShadow(.black)
+            .homeQuietCard()
         }
     }
     
     private var ingredientsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("LIST INGREDIENTS")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
-                    .textCase(.uppercase)
-                    .tracking(-0.5)
+                Text("Ingredients")
+                    .font(.system(size: 20, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 
                 Spacer()
                 
                 Text("\(ingredients.count) ITEMS")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color.lime400)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                    .font(.system(size: 10, weight: .regular))
+                    .tracking(0.8)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.bottom, 8)
             
@@ -471,14 +414,14 @@ struct MealEditSheet: View {
                         Image(systemName: "plus")
                             .font(.system(size: 16, weight: .bold))
                         Text("Add more ingredients")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 64)
                     .foregroundStyle(Color.gray.opacity(0.6))
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6, 6]))
                             .foregroundStyle(Color.gray.opacity(0.4))
                     )
                     .contentShape(RoundedRectangle(cornerRadius: 16))
@@ -492,10 +435,10 @@ struct MealEditSheet: View {
         HStack(spacing: 16) {
             Button(action: { ingredient.wrappedValue.isChecked.toggle() }) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ingredient.wrappedValue.isChecked ? Color.lilac500 : Color.white)
-                        .frame(width: 24, height: 24)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black, lineWidth: 2))
+                    Circle()
+                        .fill(ingredient.wrappedValue.isChecked ? Color.terra500 : Color.white)
+                        .frame(width: 22, height: 22)
+                        .overlay(Circle().stroke(ingredient.wrappedValue.isChecked ? Color.clear : HomeQuiet.ink.opacity(0.28), lineWidth: 1))
                     
                     if ingredient.wrappedValue.isChecked {
                         Image(systemName: "checkmark")
@@ -507,7 +450,7 @@ struct MealEditSheet: View {
             .buttonStyle(.plain)
             
             TextField("Ingredient", text: ingredient.text)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(size: 16, weight: .regular, design: .serif))
                 .foregroundStyle(.black)
                 .strikethrough(ingredient.wrappedValue.isChecked, color: .gray)
                 .foregroundStyle(ingredient.wrappedValue.isChecked ? .gray : .black)
@@ -519,33 +462,30 @@ struct MealEditSheet: View {
                     ingredients.remove(at: idx)
                 }
             }) {
-                Image(systemName: "trash.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Color.gray.opacity(0.4))
+                Image(systemName: "trash")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Color.terra600)
             }
             .buttonStyle(.plain)
         }
         .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
-        .boldShadow(.black)
+        .homeQuietCard()
     }
     
     private var deleteButton: some View {
         Button(action: { showDeleteConfirm = true }) {
             HStack(spacing: 8) {
-                Image(systemName: "trash.fill")
-                    .font(.system(size: 16, weight: .bold))
-                Text("DELETE MEAL")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
+                Image(systemName: "trash")
+                    .font(.system(size: 14, weight: .regular))
+                Text("Delete meal")
+                    .font(.system(size: 15, weight: .regular))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .foregroundStyle(.red)
-            .background(Color.red.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.red.opacity(0.3), lineWidth: 2))
+            .padding(.vertical, 14)
+            .foregroundStyle(Color.terra600)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .padding(.top, 16)
@@ -558,17 +498,13 @@ struct MealEditSheet: View {
             
             VStack {
                 Button(action: saveMeal) {
-                    Text("SAVE CHANGES")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
-                        .textCase(.uppercase)
-                        .tracking(2)
+                    Text("Save")
+                        .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 64)
-                        .background(LinearGradient(colors: [Color.terra400, Color.peach500], startPoint: .leading, endPoint: .trailing))
+                        .frame(height: 48)
+                        .background(Color.terra500)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                        .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
                 }
                 .buttonStyle(.plain)
                 .disabled(title.isEmpty)

@@ -38,8 +38,9 @@ struct CalendarView: View {
                 HStack {
                     ForEach(calendar.shortWeekdaySymbols, id: \.self) { symbol in
                         Text(symbol.uppercased())
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.gray)
+                            .font(.system(size: 10, weight: .regular))
+                            .tracking(0.8)
+                            .foregroundStyle(HomeQuiet.quiet)
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -62,14 +63,15 @@ struct CalendarView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(selectedDate, formatter: selectedDateFormatter)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 20, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
                             .padding(.top, 16)
                             .padding(.horizontal)
                         
                         if events.isEmpty && meals.isEmpty && appleEvents.isEmpty {
                             Text("No events or meals")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.gray)
+                                .font(.system(size: 15, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.quiet)
                                 .padding(.horizontal)
                         } else {
                             ForEach(events, id: \.objectID) { event in
@@ -131,8 +133,8 @@ struct CalendarView: View {
     private var headerView: some View {
         HStack {
             Text(monthYearString)
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color.lilac600)
+                .font(.system(size: 28, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
             
             Spacer()
             
@@ -141,24 +143,28 @@ struct CalendarView: View {
                 monthOffset = 0
             } label: {
                 Text("Today")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.terra500)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Color.terra600)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.terra100)
+                    .background(Color.white)
                     .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
+            .buttonStyle(.plain)
             
             Button {
                 showAddEventSheet = true
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(8)
-                    .background(Color.lilac500)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 36, height: 36)
+                    .background(Color.white)
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
+            .buttonStyle(.plain)
         }
         .padding()
     }
@@ -274,7 +280,7 @@ struct CalendarView: View {
         if let color = uiColor(fromHex: event.color) {
             return Color(uiColor: color)
         }
-        return Color.lilac500
+        return Color.terra600
     }
 
     private func uiColor(fromHex token: String?) -> UIColor? {
@@ -303,20 +309,19 @@ struct DayCell: View {
             ZStack {
                 if isSelected {
                     Circle()
-                        .fill(Color.lilac500)
+                        .fill(Color.terra500)
                         .frame(width: 32, height: 32)
                 } else if isToday {
                     Circle()
-                        .fill(Color.lime100)
+                        .stroke(Color.terra500, lineWidth: 1)
                         .frame(width: 32, height: 32)
-                        .overlay(Circle().stroke(Color.lime500, lineWidth: 2))
                 }
                 
                 Text(dayString)
-                    .font(.system(size: 16, weight: isSelected || isToday ? .bold : .medium, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(
-                        isSelected ? .white :
-                            (isToday ? Color.lime500 : (isCurrentMonth ? .primary : .gray.opacity(0.4)))
+                        isSelected ? Color.white :
+                            (isToday ? Color.terra600 : (isCurrentMonth ? HomeQuiet.ink : HomeQuiet.quiet))
                     )
             }
             .frame(height: 32)
@@ -350,29 +355,23 @@ struct EventListItem: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.lilac500)
-                .frame(width: 4)
+            Circle()
+                .fill(HomeQuiet.ink.opacity(0.35))
+                .frame(width: 7, height: 7)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(event.title ?? "Event")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 
-                HStack {
-                    Image(systemName: "clock")
-                        .font(.system(size: 10))
-                    Text(timeString)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(.gray)
+                Text(timeString)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             Spacer()
         }
-        .padding(12)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .boldShadowSm(Color.lilac100)
+        .padding(14)
+        .homeQuietCard()
     }
     
     private var timeString: String {
@@ -389,42 +388,27 @@ struct EventListItem: View {
 
 struct MealListItem: View {
     let meal: MealPlan
-    
-    private func mealEmoji(for type: String) -> String {
-        switch type.lowercased() {
-        case "breakfast": return "🥞"
-        case "lunch": return "🥗"
-        case "dinner": return "🍝"
-        case "snack": return "🍎"
-        default: return "🍽️"
-        }
-    }
-    
+
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 4)
+            Circle()
                 .fill(Color.terra500)
-                .frame(width: 4)
+                .frame(width: 7, height: 7)
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(mealEmoji(for: meal.mealType ?? "")) \(meal.title ?? "Meal")")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meal.title ?? "Meal")
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 
-                HStack {
-                    Image(systemName: "fork.knife")
-                        .font(.system(size: 10))
-                    Text(meal.mealType ?? "Meal")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(.gray)
+                Text((meal.mealType ?? "Meal").uppercased())
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.1)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             Spacer()
         }
-        .padding(12)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .boldShadowSm(Color.terra100)
+        .padding(14)
+        .homeQuietCard()
     }
 }
 
@@ -433,38 +417,24 @@ struct AppleEventListItem: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 4)
+            Circle()
                 .fill(Color(uiColor: event.calendarColor))
-                .frame(width: 4)
+                .frame(width: 7, height: 7)
             
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color(uiColor: event.calendarColor))
-                    Text(event.title)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
                 
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 10))
-                    Text(appleTimeString)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                    Text("·")
-                    Text(event.calendarTitle)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .italic()
-                }
-                .foregroundStyle(.gray)
+                Text("\(appleTimeString) · \(event.calendarTitle)")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .lineLimit(1)
             }
             Spacer()
         }
-        .padding(12)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .boldShadowSm(Color(uiColor: event.calendarColor).opacity(0.25))
+        .padding(14)
+        .homeQuietCard()
     }
     
     private var appleTimeString: String {

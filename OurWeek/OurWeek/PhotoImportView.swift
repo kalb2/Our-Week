@@ -42,13 +42,13 @@ struct PhotoImportView: View {
                         pickers
                         if let errorMessage {
                             Text(errorMessage)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(.black)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(14)
                                 .background(Color.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                         }
                     }
                 }
@@ -93,15 +93,14 @@ struct PhotoImportView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
             Spacer()
 
             Text("PHOTO")
-                .font(.system(size: 20, weight: .black, design: .rounded))
+                .font(.system(size: 20, weight: .regular, design: .serif))
                 .tracking(-0.5)
 
             Spacer()
@@ -135,7 +134,7 @@ struct PhotoImportView: View {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .bold))
             Text(title)
-                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .font(.system(size: 16, weight: .regular, design: .serif))
             Spacer()
         }
         .foregroundStyle(.black)
@@ -144,44 +143,44 @@ struct PhotoImportView: View {
         .frame(height: 64)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.terra300, size: 3, radius: 16)
     }
 
     private var missingKeyCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(GeminiError.noAPIKey.localizedDescription)
-                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                .font(.system(size: 16, weight: .regular, design: .serif))
                 .foregroundStyle(.black)
 
             Button(action: onPaste) {
                 Text("Paste text")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(Color.terra500)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
             Button(action: onManual) {
                 Text("Manual")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
         .padding(16)
         .background(Color.bgBase)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.terra500, size: 4, radius: 18)
     }
 
@@ -192,13 +191,13 @@ struct PhotoImportView: View {
                 ProgressView()
                     .tint(Color.terra500)
                 Text("Reading recipe")
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
             }
             .padding(24)
             .background(Color.bgBase)
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
         }
     }
 

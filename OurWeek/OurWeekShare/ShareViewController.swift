@@ -19,19 +19,18 @@ final class ShareViewController: UIViewController {
         view.backgroundColor = UIColor(red: 1, green: 0.976, blue: 0.965, alpha: 1)
 
         statusLabel.text = "Opening Our Week"
-        statusLabel.font = .systemFont(ofSize: 18, weight: .heavy)
+        statusLabel.font = .systemFont(ofSize: 20, weight: .regular)
         statusLabel.textColor = .black
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
         openButton.setTitle("Open Our Week", for: .normal)
-        openButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .heavy)
+        openButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .regular)
         openButton.setTitleColor(.white, for: .normal)
         openButton.backgroundColor = UIColor(red: 0.878, green: 0.478, blue: 0.373, alpha: 1)
-        openButton.layer.cornerRadius = 14
-        openButton.layer.borderWidth = 2
-        openButton.layer.borderColor = UIColor.black.cgColor
+        openButton.layer.cornerRadius = 26
+        openButton.layer.borderWidth = 0
         openButton.isHidden = true
         openButton.translatesAutoresizingMaskIntoConstraints = false
         openButton.addTarget(self, action: #selector(openHost), for: .touchUpInside)

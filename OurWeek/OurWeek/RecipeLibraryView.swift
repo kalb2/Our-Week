@@ -383,13 +383,13 @@ struct RecipeLibraryView: View {
                         ProgressView()
                             .tint(Color.terra500)
                         Text("Reading recipe")
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .foregroundStyle(.black)
                     }
                     .padding(24)
                     .background(Color.bgBase)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
         }
@@ -492,13 +492,13 @@ struct RecipeLibraryView: View {
                         
                     }
                     Text("Recipes")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .font(.system(size: 36, weight: .regular, design: .serif))
                         .tracking(-0.5)
                 }
                 Text(isSelectMode
                      ? "\(selectedRecipeIDs.count) SELECTED"
                      : "\(recipes.count) IN YOUR LIBRARY")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(isSelectMode ? Color.terra500 : .gray.opacity(0.5))
                     .padding(.top, 4)
@@ -508,38 +508,23 @@ struct RecipeLibraryView: View {
             if isSelectMode {
                 Button(action: exitSelectMode) {
                     Text("Done")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Color.black)
+                        .background(Color.terra500)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
                 }
                 .buttonStyle(.plain)
             } else {
                 Button(action: { showAddEntry = true }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.black)
-                            .frame(width: 44, height: 44)
-                            .offset(x: 3, y: 3)
-
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.terra400, Color.peach500],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 44, height: 44)
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
-
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -560,11 +545,11 @@ struct RecipeLibraryView: View {
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color.terra400)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
 
             TextField("Search recipes...", text: $searchText)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(.black)
                 .focused($isSearchFocused)
                 .submitLabel(.search)
@@ -581,43 +566,39 @@ struct RecipeLibraryView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
-        .boldShadow(Color.terra300, size: 3, radius: 14)
+        .homeQuietCard()
     }
 
     // MARK: - Filter Toolbar
 
     private var filterToolbar: some View {
         HStack(spacing: 10) {
-            // Filter button
             Button(action: { librarySheet = .filter }) {
                 HStack(spacing: 6) {
                     Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 12, weight: .regular))
                     Text("Filter")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                 }
-                .foregroundStyle(hasActiveFilters ? .white : Color.terra600)
+                .foregroundStyle(hasActiveFilters ? .white : HomeQuiet.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(hasActiveFilters ? Color.terra500 : Color.terra100)
+                .background(hasActiveFilters ? Color.terra500 : Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(hasActiveFilters ? Color.terra600 : Color.terra200, lineWidth: 1.5))
+                .overlay(Capsule().stroke(hasActiveFilters ? Color.clear : HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
             if isSelectMode {
                 Button(action: selectAllVisible) {
                     Text(allVisibleSelected ? "Deselect All" : "Select All")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color.terra600)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Color.terra100)
+                        .background(Color.white)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(recipes.isEmpty)
@@ -625,16 +606,16 @@ struct RecipeLibraryView: View {
                 Button(action: enterSelectMode) {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 12, weight: .regular))
                         Text("Select")
-                            .font(.system(size: 12, weight: .heavy, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                     }
-                    .foregroundStyle(Color.terra600)
+                    .foregroundStyle(HomeQuiet.ink)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(Color.terra100)
+                    .background(Color.white)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                    .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(recipes.isEmpty)
@@ -642,7 +623,6 @@ struct RecipeLibraryView: View {
 
             Spacer()
 
-            // Sort picker
             Menu {
                 ForEach(DataManager.RecipeSortOption.allCases, id: \.self) { option in
                     Button(action: { selectedSort = option }) {
@@ -657,16 +637,16 @@ struct RecipeLibraryView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 11, weight: .regular))
                     Text(selectedSort.rawValue)
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                 }
-                .foregroundStyle(Color.terra600)
+                .foregroundStyle(HomeQuiet.ink)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.terra100)
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.terra200, lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
         }
     }
@@ -674,62 +654,44 @@ struct RecipeLibraryView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            // Food emoji circle
-            ZStack {
-                Circle()
-                    .fill(Color.terra100)
-                    .frame(width: 100, height: 100)
-                    .overlay(Circle().stroke(Color.terra200, lineWidth: 2))
-
-                Text("🍳")
-                    .font(.system(size: 48))
-            }
+        VStack(spacing: 16) {
+            Image(systemName: "fork.knife")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .frame(width: 64, height: 64)
+                .background(Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
 
             VStack(spacing: 8) {
                 if !searchText.isEmpty || hasActiveFilters {
                     Text("No recipes found")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    Text("Try adjusting your search or filters")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.6))
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Text("Try another search or filter.")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
                 } else {
-                    Text("Your recipe library")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    Text("is waiting to be filled!")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color.terra500)
-
-                    Text("Add your first recipe and start building\nyour family cookbook")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.gray.opacity(0.6))
+                    Text("No recipes yet")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Text("Add a recipe to start the library.")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
                         .multilineTextAlignment(.center)
-                        .padding(.top, 4)
                 }
             }
 
             if searchText.isEmpty && !hasActiveFilters {
                 Button(action: { showAddEntry = true }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 16, weight: .bold))
-                        Text("ADD YOUR FIRST RECIPE")
-                            .font(.system(size: 14, weight: .black, design: .rounded))
-                            .tracking(1)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.terra400, Color.peach500],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                    .shadow(color: Color.terra500.opacity(0.3), radius: 8, x: 0, y: 4)
+                    Text("Add a recipe")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 12)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                    
                 }
                 .buttonStyle(.plain)
             }
@@ -743,7 +705,7 @@ struct RecipeLibraryView: View {
     private var filterSheet: some View {
         VStack(spacing: 24) {
             Text("FILTER RECIPES")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(Color.terra500)
                 .padding(.top, 8)
@@ -751,7 +713,7 @@ struct RecipeLibraryView: View {
             // Category filter
             VStack(alignment: .leading, spacing: 12) {
                 Text("CATEGORY")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray)
 
@@ -773,7 +735,7 @@ struct RecipeLibraryView: View {
             // Difficulty filter
             VStack(alignment: .leading, spacing: 12) {
                 Text("DIFFICULTY")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray)
 
@@ -795,7 +757,7 @@ struct RecipeLibraryView: View {
                     Image(systemName: "heart.fill")
                         .foregroundStyle(Color.terra500)
                     Text("Favorites Only")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                 }
             }
             .tint(Color.terra500)
@@ -812,14 +774,14 @@ struct RecipeLibraryView: View {
                     librarySheet = nil
                 }) {
                     Text("RESET")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(.gray)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color.gray.opacity(0.1))
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
 
@@ -828,14 +790,14 @@ struct RecipeLibraryView: View {
                     librarySheet = nil
                 }) {
                     Text("APPLY")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color.terra500)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.terra600, lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.terra600, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -848,13 +810,13 @@ struct RecipeLibraryView: View {
     private func filterChip(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(isSelected ? .white : Color.terra600)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(isSelected ? .white : HomeQuiet.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.terra500 : Color.terra100)
+                .background(isSelected ? Color.terra500 : Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(isSelected ? Color.terra600 : Color.terra200, lineWidth: 1.5))
+                .overlay(Capsule().stroke(isSelected ? Color.clear : HomeQuiet.buttonStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -869,14 +831,14 @@ struct RecipeLibraryView: View {
                     Image(systemName: "trash")
                         .font(.system(size: 12, weight: .bold))
                     Text("Delete")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                 }
-                .foregroundStyle(hasSelection ? .white : .gray.opacity(0.45))
+                .foregroundStyle(hasSelection ? Color.terra600 : HomeQuiet.quiet)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(hasSelection ? Color.red.opacity(0.85) : Color.gray.opacity(0.12))
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(hasSelection ? Color.black : Color.gray.opacity(0.2), lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(!hasSelection)
@@ -886,14 +848,14 @@ struct RecipeLibraryView: View {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 12, weight: .bold))
                     Text("Categories")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                 }
-                .foregroundStyle(hasSelection ? Color.terra600 : .gray.opacity(0.45))
+                .foregroundStyle(hasSelection ? HomeQuiet.ink : HomeQuiet.quiet)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(hasSelection ? Color.terra100 : Color.gray.opacity(0.12))
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(hasSelection ? Color.terra200 : Color.gray.opacity(0.2), lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(!hasSelection)
@@ -903,14 +865,14 @@ struct RecipeLibraryView: View {
                     Image(systemName: "tag")
                         .font(.system(size: 12, weight: .bold))
                     Text("Tags")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                 }
-                .foregroundStyle(hasSelection ? Color.sky500 : .gray.opacity(0.45))
+                .foregroundStyle(hasSelection ? HomeQuiet.ink : HomeQuiet.quiet)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(hasSelection ? Color.sky100 : Color.gray.opacity(0.12))
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(hasSelection ? Color.sky200 : Color.gray.opacity(0.2), lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(!hasSelection)

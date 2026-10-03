@@ -11,7 +11,7 @@ struct ProfileMenuSheet: View {
             // Header
             HStack {
                 Text("Account")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(.system(size: 28, weight: .regular, design: .serif))
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
@@ -20,7 +20,7 @@ struct ProfileMenuSheet: View {
                         .frame(width: 32, height: 32)
                         .background(Color.cardWhite)
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
             .padding(.horizontal, 24)
@@ -34,22 +34,19 @@ struct ProfileMenuSheet: View {
                     }
                 }) {
                     HStack(spacing: 12) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color.lilac500)
-                        Text("Sharing Settings")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(.black)
+                        Image(systemName: "person.2")
+                            .font(.system(size: 18, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
+                        Text("Sharing")
+                            .font(.system(size: 18, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.gray)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
                     }
                     .padding(20)
-                    .background(Color.cardWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
-                    .boldShadow(Color.lilac400, size: 3, radius: 16)
+                    .homeQuietCard()
                 }
                 
                 if let onCalendarTapped = onCalendarTapped {
@@ -60,22 +57,19 @@ struct ProfileMenuSheet: View {
                         }
                     }) {
                         HStack(spacing: 12) {
-                            Image(systemName: "calendar.badge.clock")
-                                .font(.system(size: 20))
-                                .foregroundStyle(Color.terra500)
-                            Text("Calendar Sync")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundStyle(.black)
+                            Image(systemName: "calendar")
+                                .font(.system(size: 18, weight: .regular))
+                                .foregroundStyle(HomeQuiet.ink)
+                            Text("Calendar")
+                                .font(.system(size: 18, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.gray)
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
                         }
                         .padding(20)
-                        .background(Color.cardWhite)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
-                        .boldShadow(Color.terra400, size: 3, radius: 16)
+                        .homeQuietCard()
                     }
                 }
             }

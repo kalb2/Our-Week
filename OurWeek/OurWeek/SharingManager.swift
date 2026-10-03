@@ -417,7 +417,7 @@ struct ShareSheetModifier: ViewModifier {
                     VStack(spacing: 16) {
                         ProgressView()
                         Text("Preparing share…")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: 15, weight: .regular))
                     }
                 }
             }

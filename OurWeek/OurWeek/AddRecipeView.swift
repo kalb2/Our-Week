@@ -142,8 +142,7 @@ struct AddRecipeView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -151,12 +150,12 @@ struct AddRecipeView: View {
 
             VStack(spacing: 2) {
                 Text(isEditing ? "EDIT RECIPE" : "NEW RECIPE")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
                 Text("PHASE 1 · MANUAL ENTRY")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
             }
@@ -178,19 +177,19 @@ struct AddRecipeView: View {
             // Title
             VStack(alignment: .leading, spacing: 6) {
                 Text("Recipe Name *")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 HStack {
                     TextField("What are you making?", text: $recipeName)
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .foregroundStyle(.black)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(.black, size: 3, radius: 14)
 
                 if !preservedSourceURL.isEmpty {
@@ -198,7 +197,7 @@ struct AddRecipeView: View {
                         Image(systemName: "link")
                             .font(.system(size: 13, weight: .bold))
                         Text(preservedSourceURL)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                             .lineLimit(2)
                     }
                     .foregroundStyle(Color.terra600)
@@ -209,24 +208,24 @@ struct AddRecipeView: View {
             // Description
             VStack(alignment: .leading, spacing: 6) {
                 Text("Description")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 TextField("A short description of this recipe...", text: $recipeDescription, axis: .vertical)
                     .lineLimit(3...5)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.3), lineWidth: 1))
             }
 
             // Photo
             VStack(alignment: .leading, spacing: 6) {
                 Text("Photo")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 PhotosPicker(selection: $photoItem, matching: .images) {
@@ -236,7 +235,7 @@ struct AddRecipeView: View {
                             .scaledToFill()
                             .frame(height: 140)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                             .overlay(alignment: .bottomTrailing) {
                                 Image(systemName: "pencil.circle.fill")
                                     .font(.system(size: 28))
@@ -250,14 +249,14 @@ struct AddRecipeView: View {
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundStyle(Color.terra400)
                             Text("Add a photo")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(Color.terra500)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 80)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [8, 6]))
                                 .foregroundStyle(Color.terra300)
                         )
                         .background(RoundedRectangle(cornerRadius: 14).fill(Color.terra100.opacity(0.3)))
@@ -284,7 +283,7 @@ struct AddRecipeView: View {
                 // Servings
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Servings")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.gray)
 
                     HStack {
@@ -299,7 +298,7 @@ struct AddRecipeView: View {
                         .buttonStyle(.plain)
 
                         Text("\(servings)")
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .font(.system(size: 18, weight: .regular, design: .serif))
                             .frame(minWidth: 32)
 
                         Button(action: { servings += 1 }) {
@@ -316,26 +315,26 @@ struct AddRecipeView: View {
                     .padding(.vertical, 10)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1))
                 }
 
                 // Difficulty
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Difficulty")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.gray)
 
                     HStack(spacing: 6) {
                         ForEach(RecipeConstants.difficulties, id: \.self) { diff in
                             Button(action: { difficulty = difficulty == diff ? "" : diff }) {
                                 Text(diff)
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .font(.system(size: 11, weight: .regular))
                                     .foregroundStyle(difficulty == diff ? .white : Color.terra600)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 8)
                                     .background(difficulty == diff ? Color.terra500 : Color.terra100)
                                     .clipShape(Capsule())
-                                    .overlay(Capsule().stroke(difficulty == diff ? Color.terra600 : Color.terra200, lineWidth: 1.5))
+                                    .overlay(Capsule().stroke(difficulty == diff ? Color.terra600 : Color.terra200, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                         }
@@ -348,7 +347,7 @@ struct AddRecipeView: View {
     private func timeField(label: String, value: Binding<Int>, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("\(label) Time (min)")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(.gray)
 
             HStack(spacing: 8) {
@@ -357,19 +356,19 @@ struct AddRecipeView: View {
                     .foregroundStyle(Color.terra400)
 
                 TextField("0", value: value, format: .number)
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .keyboardType(.numberPad)
                     .frame(width: 60)
 
                 Text("min")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -382,12 +381,9 @@ struct AddRecipeView: View {
                 sectionLabel("INGREDIENTS *")
                 Spacer()
                 Text("\(ingredientRows.count) ITEMS")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color.lime400)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                    .font(.system(size: 10, weight: .regular))
+                    .tracking(0.8)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
 
             VStack(spacing: 12) {
@@ -404,14 +400,14 @@ struct AddRecipeView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .bold))
                         Text("Add ingredient")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .foregroundStyle(Color.gray.opacity(0.6))
                     .background(
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6, 6]))
                             .foregroundStyle(Color.terra200)
                     )
                 }
@@ -445,7 +441,7 @@ private struct IngredientRowCard: View {
     var body: some View {
         HStack(spacing: 8) {
             TextField("Amt", text: $row.amount)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .keyboardType(.decimalPad)
                 .focused($isAmountFocused)
                 .toolbar {
@@ -472,7 +468,7 @@ private struct IngredientRowCard: View {
                 }
             } label: {
                 Text(row.unit.isEmpty ? "unit" : row.unit)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(row.unit.isEmpty ? .gray.opacity(0.5) : Color.terra600)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
@@ -482,7 +478,7 @@ private struct IngredientRowCard: View {
             }
 
             TextField("Ingredient name", text: $row.name)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.black)
 
             Button(action: onDelete) {
@@ -496,7 +492,7 @@ private struct IngredientRowCard: View {
         .padding(.vertical, 12)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.black, size: 2, radius: 14)
     }
 }
@@ -511,13 +507,9 @@ extension AddRecipeView {
                 sectionLabel("INSTRUCTIONS *")
                 Spacer()
                 Text("\(instructionRows.count) STEPS")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color.lilac400)
-                    .foregroundStyle(.white)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                    .font(.system(size: 10, weight: .regular))
+                    .tracking(0.8)
+                    .foregroundStyle(HomeQuiet.quiet)
             }
 
             VStack(spacing: 12) {
@@ -534,14 +526,14 @@ extension AddRecipeView {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .bold))
                         Text("Add step")
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .foregroundStyle(Color.gray.opacity(0.6))
                     .background(
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6, 6]))
                             .foregroundStyle(Color.lilac200)
                     )
                 }
@@ -578,10 +570,10 @@ private struct InstructionRowCard: View {
                 Circle()
                     .fill(Color.lilac500)
                     .frame(width: 28, height: 28)
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
 
                 Text("\(stepNumber)")
-                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.white)
             }
             .padding(.top, 2)
@@ -589,7 +581,7 @@ private struct InstructionRowCard: View {
             VStack(spacing: 8) {
                 TextField("Describe this step...", text: $row.text, axis: .vertical)
                     .lineLimit(2...6)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.black)
 
                 HStack(spacing: 6) {
@@ -597,7 +589,7 @@ private struct InstructionRowCard: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(Color.terra400)
                     TextField("Timer (min)", text: $row.timerMinutes)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .keyboardType(.numberPad)
                         .foregroundStyle(.gray)
                 }
@@ -613,7 +605,7 @@ private struct InstructionRowCard: View {
         .padding(14)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.black, size: 2, radius: 14)
     }
 }
@@ -629,7 +621,7 @@ extension AddRecipeView {
             // Categories chips
             VStack(alignment: .leading, spacing: 8) {
                 Text("Category")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 FlowLayout(spacing: 8) {
@@ -645,14 +637,14 @@ extension AddRecipeView {
                                 Text(RecipeConstants.categoryEmojis[cat] ?? "🍽️")
                                     .font(.system(size: 12))
                                 Text(cat)
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .font(.system(size: 12, weight: .regular))
                             }
                             .foregroundStyle(selectedCategories.contains(cat) ? .white : Color.terra600)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(selectedCategories.contains(cat) ? Color.terra500 : Color.terra100)
                             .clipShape(Capsule())
-                            .overlay(Capsule().stroke(selectedCategories.contains(cat) ? Color.terra600 : Color.terra200, lineWidth: 1.5))
+                            .overlay(Capsule().stroke(selectedCategories.contains(cat) ? Color.terra600 : Color.terra200, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     }
@@ -662,17 +654,17 @@ extension AddRecipeView {
             // Tags
             VStack(alignment: .leading, spacing: 6) {
                 Text("Tags (comma-separated)")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 TextField("e.g. quick, family-favorite, healthy", text: $tagsText)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.3), lineWidth: 1))
             }
         }
     }
@@ -685,13 +677,13 @@ extension AddRecipeView {
 
             TextField("Any personal notes about this recipe...", text: $notes, axis: .vertical)
                 .lineLimit(3...8)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(.black)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.3), lineWidth: 1.5))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.3), lineWidth: 1))
         }
     }
 
@@ -705,21 +697,16 @@ extension AddRecipeView {
             VStack {
                 Button(action: saveRecipe) {
                     Text(isEditing ? "SAVE CHANGES" : "SAVE RECIPE")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: [Color.terra400, Color.peach500],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            Color.terra500
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                        .shadow(color: Color.peach500.opacity(0.4), radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -734,7 +721,7 @@ extension AddRecipeView {
     @ViewBuilder
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14, weight: .black, design: .rounded))
+            .font(.system(size: 14, weight: .regular))
             .tracking(1.5)
             .foregroundStyle(.gray.opacity(0.6))
     }

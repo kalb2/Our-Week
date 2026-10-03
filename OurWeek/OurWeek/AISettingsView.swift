@@ -67,7 +67,7 @@ struct AISettingsView: View {
                             .frame(width: 32, height: 32)
                             .background(Color.white)
                             .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     }
                 }
             }
@@ -78,36 +78,22 @@ struct AISettingsView: View {
 
     private var headerSection: some View {
         VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(Color.black)
-                    .frame(width: 68, height: 68)
-                    .offset(x: 3, y: 3)
+            Image(systemName: "sparkles")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(HomeQuiet.ink)
+                .frame(width: 56, height: 56)
+                .background(Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
 
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.lilac500, Color.sky500],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 68, height: 68)
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2.5))
+            Text("AI")
+                .font(.system(size: 28, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
 
-                Image(systemName: "sparkles")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-
-            Text("AI FEATURES")
-                .font(.system(size: 22, weight: .black, design: .rounded))
-                .tracking(-0.5)
-
-            Text("POWERED BY GOOGLE GEMINI")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.lilac500)
-                .tracking(1.5)
+            Text("GOOGLE GEMINI")
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .tracking(1.4)
         }
         .padding(.top, 16)
     }
@@ -121,7 +107,7 @@ struct AISettingsView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.terra500)
                 Text("API KEY")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
             }
@@ -130,15 +116,15 @@ struct AISettingsView: View {
             HStack(spacing: 8) {
                 if hasAPIKey {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.lime500)
+                        .foregroundStyle(Color.terra600)
                     Text("API Key Saved")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color.lime500)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(Color.terra600)
                 } else {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                     Text("No API Key")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(.orange)
                 }
                 Spacer()
@@ -148,12 +134,12 @@ struct AISettingsView: View {
             if !hasAPIKey {
                 VStack(alignment: .leading, spacing: 8) {
                     SecureField("Paste your Gemini API key", text: $apiKeyInput)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                         .boldShadow(.black, size: 3, radius: 14)
 
                     HStack(spacing: 12) {
@@ -162,21 +148,15 @@ struct AISettingsView: View {
                                 Image(systemName: "checkmark")
                                     .font(.system(size: 12, weight: .bold))
                                 Text("SAVE KEY")
-                                    .font(.system(size: 12, weight: .black, design: .rounded))
+                                    .font(.system(size: 12, weight: .regular))
                                     .tracking(1)
                             }
                             .foregroundStyle(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            .background(
-                                LinearGradient(
-                                    colors: apiKeyInput.isEmpty ? [.gray] : [Color.lime500, Color.lime400],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .background(apiKeyInput.isEmpty ? Color.gray.opacity(0.35) : Color.terra500)
                             .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                            .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                         .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -190,15 +170,15 @@ struct AISettingsView: View {
                                 Image(systemName: "arrow.up.right")
                                     .font(.system(size: 10, weight: .bold))
                                 Text("GET FREE KEY")
-                                    .font(.system(size: 12, weight: .black, design: .rounded))
+                                    .font(.system(size: 12, weight: .regular))
                                     .tracking(1)
                             }
-                            .foregroundStyle(Color.sky500)
+                            .foregroundStyle(HomeQuiet.ink)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            .background(Color.sky100)
+                            .background(Color.white)
                             .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.sky200, lineWidth: 1.5))
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     }
@@ -210,15 +190,15 @@ struct AISettingsView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .bold))
                         Text("REMOVE KEY")
-                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .tracking(1)
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.terra600)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color.red.opacity(0.08))
+                    .background(Color.white)
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.red.opacity(0.3), lineWidth: 1.5))
+                    .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .alert("Remove API Key?", isPresented: $showDeleteConfirm) {
@@ -232,7 +212,7 @@ struct AISettingsView: View {
         .padding(16)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(.black, size: 3, radius: 16)
     }
 
@@ -245,7 +225,7 @@ struct AISettingsView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.sky500)
                 Text("CONNECTION")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
             }
@@ -261,21 +241,15 @@ struct AISettingsView: View {
                             .font(.system(size: 14, weight: .bold))
                     }
                     Text(isTesting ? "TESTING..." : "TEST AI CONNECTION")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .font(.system(size: 14, weight: .regular))
                         .tracking(1)
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(
-                    LinearGradient(
-                        colors: [Color.sky500, Color.lilac500],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
+                .background(Color.terra500)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.black, lineWidth: 2))
+                .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
             .disabled(isTesting)
@@ -285,15 +259,15 @@ struct AISettingsView: View {
                     switch result {
                     case .success:
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color.lime500)
+                            .foregroundStyle(Color.terra600)
                         Text("Connection successful!")
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.lime500)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Color.terra600)
                     case .failure(let message):
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.red)
                         Text(message)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(.red)
                     }
                 }
@@ -303,7 +277,7 @@ struct AISettingsView: View {
         .padding(16)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Usage Section
@@ -317,7 +291,7 @@ struct AISettingsView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.terra500)
                 Text("USAGE")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
             }
@@ -326,10 +300,10 @@ struct AISettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("Today")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                     Spacer()
                     Text("\(rateLimiter.dailyCount) / \(RateLimiter.dailyLimit)")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .foregroundStyle(.gray)
                 }
 
@@ -341,11 +315,7 @@ struct AISettingsView: View {
 
                         Capsule()
                             .fill(
-                                LinearGradient(
-                                    colors: [Color.terra400, Color.peach500],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                Color.terra500
                             )
                             .frame(
                                 width: geo.size.width * CGFloat(rateLimiter.dailyCount) / CGFloat(RateLimiter.dailyLimit),
@@ -356,7 +326,7 @@ struct AISettingsView: View {
                 .frame(height: 8)
 
                 Text("Resets in \(rateLimiter.dailyResetFormatted)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.gray)
             }
 
@@ -366,26 +336,26 @@ struct AISettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Per Minute")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                     Text("Free tier limits")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(.gray)
                 }
                 Spacer()
                 Text("\(remaining.perMinute) left")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundStyle(remaining.perMinute > 5 ? Color.lime500 : .orange)
+                    .font(.system(size: 20, weight: .regular, design: .serif))
+                    .foregroundStyle(remaining.perMinute > 5 ? Color.terra600 : HomeQuiet.quiet)
             }
 
             // Total all-time
             HStack {
                 Text("All-time requests")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
                 Spacer()
                 Text("\(rateLimiter.totalCount)")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color.lilac500)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
             }
 
             Divider()
@@ -397,22 +367,22 @@ struct AISettingsView: View {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 11, weight: .bold))
                     Text("RESET COUNTERS")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .tracking(0.5)
                 }
-                .foregroundStyle(Color.sky500)
+                .foregroundStyle(HomeQuiet.ink)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.sky100)
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.sky200, lineWidth: 1))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
         .padding(16)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Cache Section
@@ -424,14 +394,14 @@ struct AISettingsView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.sky500)
                 Text("CACHE")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
             }
 
             HStack {
                 Text("\(AIResponseCache.shared.cachedItemCount) items cached")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.gray)
 
                 Spacer()
@@ -443,7 +413,7 @@ struct AISettingsView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 11, weight: .bold))
                         Text("CLEAR")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .font(.system(size: 11, weight: .regular))
                             .tracking(0.5)
                     }
                     .foregroundStyle(Color.terra500)
@@ -459,7 +429,7 @@ struct AISettingsView: View {
         .padding(16)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Info Section
@@ -471,7 +441,7 @@ struct AISettingsView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.gray)
                 Text("ABOUT")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .tracking(1.5)
                     .foregroundStyle(.gray.opacity(0.6))
             }
@@ -484,24 +454,24 @@ struct AISettingsView: View {
             }
 
             Text("Free tier: 1,500 requests/day • 15 requests/min")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(.gray.opacity(0.6))
                 .padding(.top, 4)
         }
         .padding(16)
         .background(Color.cardWhite)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.2), lineWidth: 1))
     }
 
     private func infoRow(icon: String, text: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(Color.lilac500)
+                .foregroundStyle(HomeQuiet.quiet)
                 .frame(width: 20)
             Text(text)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.secondary)
         }
     }

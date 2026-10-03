@@ -100,7 +100,7 @@ struct URLImportView: View {
                         recoveryCard(recovery)
                     } else if let errorMessage {
                         Text(errorMessage)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.black)
                     }
 
@@ -139,8 +139,7 @@ struct URLImportView: View {
                     .frame(width: 40, height: 40)
                     .background(Color.white)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                    .background(Circle().fill(.black).offset(x: 2, y: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -148,12 +147,12 @@ struct URLImportView: View {
 
             VStack(spacing: 2) {
                 Text("IMPORT RECIPE")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .serif))
                     .textCase(.uppercase)
                     .tracking(-0.5)
 
                 Text("FROM URL")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(Color.terra400)
                     .tracking(1)
             }
@@ -171,13 +170,13 @@ struct URLImportView: View {
     private var urlInputSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("RECIPE URL")
-                .font(.system(size: 14, weight: .black, design: .rounded))
+                .font(.system(size: 14, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(.gray.opacity(0.6))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Paste a link from any recipe website")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
                 HStack(spacing: 10) {
@@ -186,7 +185,7 @@ struct URLImportView: View {
                         .foregroundStyle(Color.terra400)
 
                     TextField("https://example.com/recipe/...", text: $urlText)
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .regular))
                         .foregroundStyle(.black)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
@@ -212,7 +211,7 @@ struct URLImportView: View {
                 .padding(.vertical, 14)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(.black, size: 3, radius: 14)
 
                 // Paste from clipboard button
@@ -221,7 +220,7 @@ struct URLImportView: View {
                         Image(systemName: "doc.on.clipboard")
                             .font(.system(size: 12, weight: .bold))
                         Text("Paste from clipboard")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                     }
                     .foregroundStyle(Color.terra500)
                     .padding(.horizontal, 14)
@@ -239,11 +238,11 @@ struct URLImportView: View {
     private func recoveryCard(_ failure: URLImportFailure) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Couldn't read this page")
-                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                .font(.system(size: 20, weight: .regular, design: .serif))
                 .foregroundStyle(.black)
 
             Text(failure.url)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(Color.terra600)
                 .lineLimit(3)
 
@@ -274,19 +273,19 @@ struct URLImportView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black, lineWidth: 2.5))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
         .boldShadow(Color.terra500, size: 4, radius: 18)
     }
 
     private func recoveryButtonLabel(_ title: String, filled: Bool) -> some View {
         Text(title)
-            .font(.system(size: 16, weight: .heavy, design: .rounded))
+            .font(.system(size: 16, weight: .regular, design: .serif))
             .foregroundStyle(filled ? .white : .black)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(filled ? Color.terra500 : Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
     }
 
     // MARK: - Import Button
@@ -299,21 +298,16 @@ struct URLImportView: View {
             VStack {
                 Button(action: startImport) {
                     Text("IMPORT RECIPE")
-                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .font(.system(size: 18, weight: .regular, design: .serif))
                         .tracking(2)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)
                         .background(
-                            LinearGradient(
-                                colors: isValidURL ? [Color.terra400, Color.peach500] : [Color.gray.opacity(0.3), Color.gray.opacity(0.3)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            isValidURL ? Color.terra500 : Color.gray.opacity(0.3)
                         )
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(isValidURL ? Color.black : Color.gray.opacity(0.3), lineWidth: 2))
-                        .shadow(color: isValidURL ? Color.peach500.opacity(0.4) : .clear, radius: 10, x: 0, y: 8)
+                        .overlay(Capsule().stroke(isValidURL ? Color.black.opacity(0.08) : Color.gray.opacity(0.2), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
                 .disabled(!isValidURL || isLoading)
@@ -337,11 +331,11 @@ struct URLImportView: View {
                     .tint(Color.terra500)
 
                 Text(loadingMessage)
-                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
 
                 Text("This usually takes 3-5 seconds")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.white.opacity(0.6))
             }
             .padding(32)
@@ -366,7 +360,7 @@ struct URLImportView: View {
                     .symbolEffect(.bounce, value: showSuccess)
 
                 Text("Recipe Found!")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(.white)
             }
             .padding(40)

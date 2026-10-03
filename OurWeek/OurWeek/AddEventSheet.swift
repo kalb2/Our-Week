@@ -36,10 +36,10 @@ struct AddEventSheet: View {
             Form {
                 Section {
                     TextField("Title", text: $title)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(.system(size: 18, weight: .regular))
                     
                     Toggle("All-day", isOn: $isAllDay)
-                        .tint(Color.lilac500)
+                        .tint(Color.terra600)
                     
                     if isAllDay {
                         DatePicker("Starts", selection: $startDate, displayedComponents: .date)
@@ -60,17 +60,17 @@ struct AddEventSheet: View {
                         Toggle(isOn: $syncToApple) {
                             HStack(spacing: 10) {
                                 Image(systemName: "calendar.badge.plus")
-                                    .foregroundStyle(Color.lilac500)
+                                    .foregroundStyle(Color.terra600)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Add to Apple Calendar")
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .font(.system(size: 14, weight: .regular))
                                     Text("Syncs to your linked calendar")
-                                        .font(.system(size: 11, design: .rounded))
+                                        .font(.system(size: 11, weight: .regular))
                                         .foregroundStyle(.secondary)
                                 }
                             }
                         }
-                        .tint(Color.lilac500)
+                        .tint(Color.terra600)
                     }
                 }
             }
@@ -85,8 +85,8 @@ struct AddEventSheet: View {
                     Button("Add") {
                         saveEvent()
                     }
-                    .bold()
-                    .foregroundStyle(Color.lilac500)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(Color.terra600)
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

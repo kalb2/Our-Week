@@ -67,7 +67,7 @@ struct AddMealSheet: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add a Meal")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .font(.system(size: 24, weight: .regular, design: .serif))
                         .foregroundStyle(.black)
                     
                     HStack(spacing: 4) {
@@ -75,7 +75,7 @@ struct AddMealSheet: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Color.terra500)
                         Text(dateLabel)
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(Color.terra500)
                             .textCase(.uppercase)
                             .tracking(0.5)
@@ -91,8 +91,7 @@ struct AddMealSheet: View {
                         .frame(width: 34, height: 34)
                         .background(Color.white)
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
-                        .background(Circle().fill(.black).offset(x: 2, y: 2))
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
             }
             .padding(.horizontal, 20)
@@ -107,7 +106,7 @@ struct AddMealSheet: View {
                             .foregroundStyle(Color.terra400)
                         
                         TextField("What's for dinner?", text: $searchText)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: 18, weight: .regular, design: .serif))
                             .foregroundStyle(.black)
                             .focused($isSearchFocused)
                             .submitLabel(.done)
@@ -128,7 +127,7 @@ struct AddMealSheet: View {
                     .padding(.vertical, 14)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2.5))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                     .boldShadow(Color.terra400, size: 3, radius: 14)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
@@ -138,9 +137,9 @@ struct AddMealSheet: View {
                         quickAddButton(
                             title: "Takeout",
                             icon: "takeoutbag.and.cup.and.straw.fill",
-                            bgColor: Color.lilac100,
-                            fgColor: Color.lilac600,
-                            borderColor: Color.lilac400
+                            bgColor: Color.white,
+                            fgColor: HomeQuiet.ink,
+                            borderColor: HomeQuiet.buttonStroke
                         ) {
                             quickSave(title: "Take Out")
                         }
@@ -148,9 +147,9 @@ struct AddMealSheet: View {
                         quickAddButton(
                             title: "Leftovers",
                             icon: "fork.knife",
-                            bgColor: Color.sky100,
-                            fgColor: Color.sky500,
-                            borderColor: Color.sky400
+                            bgColor: Color.white,
+                            fgColor: HomeQuiet.ink,
+                            borderColor: HomeQuiet.buttonStroke
                         ) {
                             quickSave(title: "Leftovers")
                         }
@@ -164,13 +163,13 @@ struct AddMealSheet: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text(searchText.isEmpty ? "FROM YOUR LIBRARY" : "MATCHES")
-                                    .font(.system(size: 10, weight: .black, design: .rounded))
+                                    .font(.system(size: 10, weight: .regular))
                                     .tracking(1.5)
                                     .foregroundStyle(.gray.opacity(0.45))
                                 Spacer()
                                 if !displayedRecipes.isEmpty {
                                     Text("\(displayedRecipes.count) recipe\(displayedRecipes.count == 1 ? "" : "s")")
-                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .font(.system(size: 10, weight: .regular))
                                         .foregroundStyle(Color.terra400)
                                 }
                             }
@@ -202,7 +201,7 @@ struct AddMealSheet: View {
                             Text(onSelect == nil
                                  ? "Press return to save \"\(searchText)\""
                                  : "Press return to use \"\(searchText)\"")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(.gray.opacity(0.5))
                         }
                         .padding(.top, 16)
@@ -242,7 +241,7 @@ struct AddMealSheet: View {
                 Image(systemName: icon)
                     .font(.system(size: 16))
                 Text(title)
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .font(.system(size: 13, weight: .regular))
                     .textCase(.uppercase)
                     .tracking(0.5)
             }
@@ -253,7 +252,7 @@ struct AddMealSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
             )
             .boldShadowSm(borderColor, radius: 12)
         }
@@ -275,24 +274,19 @@ struct AddMealSheet: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                     } else {
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.terra100, Color.terra200],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Color(red: 0.98, green: 0.96, blue: 0.94))
                             .frame(width: 36, height: 36)
                             .overlay(
-                                Text("🍽️")
-                                    .font(.system(size: 16))
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
                             )
                     }
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recipe.name ?? "Untitled")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .font(.system(size: 12, weight: .regular))
                         .lineLimit(1)
                         .foregroundStyle(.black)
                     
@@ -301,7 +295,7 @@ struct AddMealSheet: View {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 8))
                             Text("Favorite")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .regular))
                         }
                         .foregroundStyle(Color.peach500)
                     } else if recipe.prepTime + recipe.cookTime > 0 {
@@ -309,7 +303,7 @@ struct AddMealSheet: View {
                             Image(systemName: "clock")
                                 .font(.system(size: 8))
                             Text("\(recipe.prepTime + recipe.cookTime) min")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .regular))
                         }
                         .foregroundStyle(Color.terra400)
                     }
@@ -321,7 +315,7 @@ struct AddMealSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.black, lineWidth: 2)
+                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
             )
             .boldShadowSm(.black, radius: 12)
         }

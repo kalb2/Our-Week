@@ -54,29 +54,17 @@ struct BoldShadow: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(color)
-                    .offset(x: x, y: y)
-            )
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 }
 
 extension View {
     func boldShadow(_ color: Color, size: CGFloat = 4, radius: CGFloat = 16) -> some View {
-        self.background(
-            RoundedRectangle(cornerRadius: radius)
-                .fill(color)
-                .offset(x: size, y: size)
-        )
+        self.shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 
     func boldShadowSm(_ color: Color, radius: CGFloat = 8) -> some View {
-        self.background(
-            RoundedRectangle(cornerRadius: radius)
-                .fill(color)
-                .offset(x: 2, y: 2)
-        )
+        self.shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
     }
 }
 
@@ -328,8 +316,8 @@ struct GreetingHeader: View {
 // MARK: - Avatar Button
 struct AvatarButton: View {
     let imageData: Data?
-    /// Home uses a thin ring. Other screens keep the heavier mark.
-    var soft: Bool = false
+    /// Thin ring. The heavier mark stays available for an explicit opt-out.
+    var soft: Bool = true
 
     var body: some View {
         if soft {
@@ -350,7 +338,7 @@ struct AvatarButton: View {
             Circle()
                 .fill(Color(red: 0.45, green: 0.70, blue: 0.32))
                 .frame(width: 10, height: 10)
-                .overlay(Circle().stroke(Color.bgBase, lineWidth: 2))
+                .overlay(Circle().stroke(Color.bgBase, lineWidth: 1))
                 .offset(x: 1, y: 1)
         }
     }
@@ -365,7 +353,7 @@ struct AvatarButton: View {
             Circle()
                 .fill(Color.cardWhite)
                 .frame(width: 52, height: 52)
-                .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .overlay(
                     face
                         .frame(width: 44, height: 44)
@@ -375,7 +363,7 @@ struct AvatarButton: View {
             Circle()
                 .fill(Color.lime400)
                 .frame(width: 12, height: 12)
-                .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .offset(x: -2, y: 2)
         }
     }
@@ -1740,7 +1728,7 @@ struct CalendarHeaderRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(Color.lilac500)
         }
-        .font(.system(size: 10, weight: .heavy, design: .rounded))
+        .font(.system(size: 10, weight: .regular))
         .tracking(1)
     }
 }
@@ -1869,7 +1857,7 @@ struct CalDayRow: View {
                         Circle().fill(Color.terra500)
                             .frame(width: 6, height: 6)
                         Text("+\(meals.count - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.5))
                     }
                 }
@@ -1931,7 +1919,7 @@ struct CalDayRow: View {
                         Circle().fill(Color.lilac500)
                             .frame(width: 6, height: 6)
                         Text("+\(allEventCount - 1) more")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 9, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.5))
                     }
                 }
@@ -1958,7 +1946,7 @@ struct CalDayRow: View {
     @ViewBuilder
     func mealPill(_ text: String, filled: Bool) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .font(.system(size: 10, weight: .regular))
             .lineLimit(1)
             .foregroundStyle(filled ? .white : Color.terra600)
             .padding(.horizontal, 8)
@@ -1983,7 +1971,7 @@ struct CalDayRow: View {
                 }
             }) {
                 Text(text)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .lineLimit(1)
                     .foregroundStyle(filled ? .white : Color.terra600)
             }
@@ -2019,7 +2007,7 @@ struct CalDayRow: View {
     func mealPillWithEdit(_ text: String, filled: Bool) -> some View {
         HStack(spacing: 4) {
             Text(text)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .font(.system(size: 10, weight: .regular))
                 .lineLimit(1)
             Spacer(minLength: 0)
             Image(systemName: "pencil")
@@ -2043,7 +2031,7 @@ struct CalDayRow: View {
     @ViewBuilder
     func eventPill(_ text: String, filled: Bool) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .font(.system(size: 10, weight: .regular))
             .lineLimit(1)
             .foregroundStyle(filled ? .white : Color.lilac600)
             .padding(.horizontal, 8)
@@ -2073,7 +2061,7 @@ struct CalDayRow: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(filled ? .white.opacity(0.8) : Color(uiColor: event.calendarColor))
                 Text(event.title)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .lineLimit(1)
             }
             .padding(.horizontal, 6)
@@ -2092,7 +2080,7 @@ struct CalDayRow: View {
     func dashedAddButton(color1: Color, fill: Color, iconColor: Color) -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(
-                style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                style: StrokeStyle(lineWidth: 1, dash: [5, 4])
             )
             .foregroundStyle(color1)
             .frame(height: 32)
@@ -2111,7 +2099,7 @@ struct CalDayRow: View {
     func dashedPlaceholder() -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(
-                style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                style: StrokeStyle(lineWidth: 1, dash: [5, 4])
             )
             .foregroundStyle(Color.gray.opacity(0.15))
             .frame(height: 32)
@@ -2312,17 +2300,16 @@ struct TodoItem: View {
                             onDelete?()
                         }
                     } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: "trash.fill")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Delete")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .frame(width: 80)
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(Color.terra600)
+                            .frame(width: 36, height: 36)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                            .padding(.trailing, 8)
                     }
                 }
-                .background(Color.red)
             }
 
             // Foreground content
@@ -2806,13 +2793,13 @@ struct GoalRingCard: View {
             // Circular progress ring with icon & percentage
             ZStack {
                 Circle()
-                    .stroke(HomeQuiet.rule, lineWidth: 3)
+                    .stroke(HomeQuiet.rule, lineWidth: 1)
 
                 Circle()
                     .trim(from: 0, to: CGFloat(progress))
                     .stroke(
                         Color.terra500,
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        style: StrokeStyle(lineWidth: 1, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.4), value: progress)
@@ -2961,11 +2948,11 @@ struct QuickEditGoalSheet: View {
 
                 HStack {
                     Text(formatRangeLabel(goal.rangeLower))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(goal.ringColor)
                     Spacer()
                     Text(formatRangeLabel(goal.rangeUpper))
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(.gray.opacity(0.5))
                 }
             }
@@ -3037,12 +3024,12 @@ struct AddGoalSheet: View {
                 VStack(spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Title")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
                         TextField("e.g. Reading", text: $title)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .padding(16)
                             .background(Color.gray.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -3052,13 +3039,13 @@ struct AddGoalSheet: View {
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Daily Target")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 10, weight: .regular))
                                 .foregroundStyle(.gray.opacity(0.8))
                                 .textCase(.uppercase)
                             
                             TextField("e.g. 30", text: $target)
                                 .keyboardType(.decimalPad)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .padding(16)
                                 .background(Color.gray.opacity(0.05))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -3067,12 +3054,12 @@ struct AddGoalSheet: View {
                         
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Unit")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 10, weight: .regular))
                                 .foregroundStyle(.gray.opacity(0.8))
                                 .textCase(.uppercase)
                             
                             TextField("e.g. mins", text: $unit)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .font(.system(size: 16, weight: .regular, design: .serif))
                                 .padding(16)
                                 .background(Color.gray.opacity(0.05))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -3082,12 +3069,12 @@ struct AddGoalSheet: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Short Unit (Optional)")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
                         TextField("e.g. m", text: $unitShort)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .font(.system(size: 16, weight: .regular, design: .serif))
                             .padding(16)
                             .background(Color.gray.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -3097,7 +3084,7 @@ struct AddGoalSheet: View {
                     // Icon Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Icon")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
@@ -3120,7 +3107,7 @@ struct AddGoalSheet: View {
                     // Color Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Color")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray.opacity(0.8))
                             .textCase(.uppercase)
                         
@@ -3213,17 +3200,14 @@ struct MainTabBar: View {
                 ZStack {
                     Circle()
                         .fill(Color.terra500)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Circle().stroke(Color.white, lineWidth: 4)
-                        )
-                        .shadow(color: Color.terra500.opacity(0.4), radius: 10, x: 0, y: 4)
+                        .frame(width: 48, height: 48)
+                        .overlay(Circle().stroke(Color.bgBase, lineWidth: 3))
                     Image(systemName: "plus")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(.white)
                 }
             }
-            .offset(y: -20)
+            .offset(y: -10)
             .frame(maxWidth: .infinity)
 
             // Meals
@@ -3261,22 +3245,14 @@ struct TabItem: View {
     var body: some View {
         VStack(spacing: 4) {
             // Selected: pill bg behind icon
-            if isSelected {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color.lilac600)
-                    .frame(width: 48, height: 32)
-                    .background(Color.lilac100)
-                    .clipShape(Capsule())
-            } else {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(.gray.opacity(0.45))
-                    .frame(width: 48, height: 32)
-            }
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(isSelected ? Color.terra600 : HomeQuiet.quiet)
+                .frame(width: 48, height: 32)
             Text(label)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(isSelected ? Color.lilac600 : .gray.opacity(0.45))
+                .font(.system(size: 10, weight: .regular))
+                .tracking(0.6)
+                .foregroundStyle(isSelected ? Color.terra600 : HomeQuiet.quiet)
         }
         .frame(maxWidth: .infinity)
     }
@@ -3294,13 +3270,13 @@ struct AddActionSheet: View {
         VStack(spacing: 24) {
             // Title
             Text("QUICK ADD")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(Color.terra500)
                 .padding(.top, 8)
 
             Text("What would you like to add?")
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .font(.system(size: 22, weight: .regular, design: .serif))
 
             // 2×2 Grid of options
             LazyVGrid(columns: [
@@ -3310,11 +3286,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "calendar.badge.plus",
                     label: "Event",
-                    subtitle: "Add to calendar",
-                    iconBg: Color.lilac100,
-                    iconColor: Color.lilac600,
-                    borderColor: Color.lilac200,
-                    shadowColor: Color.lilac400
+                    subtitle: "Add to calendar"
                 ) {
                     dismiss()
                     onAddEvent()
@@ -3323,11 +3295,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "fork.knife",
                     label: "Meal",
-                    subtitle: "Plan a meal",
-                    iconBg: Color.terra100,
-                    iconColor: Color.terra500,
-                    borderColor: Color.terra200,
-                    shadowColor: Color.terra500
+                    subtitle: "Plan a meal"
                 ) {
                     dismiss()
                     onAddMeal()
@@ -3336,11 +3304,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "checkmark.circle",
                     label: "To-Do",
-                    subtitle: "Add a task",
-                    iconBg: Color.lime100,
-                    iconColor: Color.lime500,
-                    borderColor: Color(red: 0.80, green: 0.92, blue: 0.60),
-                    shadowColor: Color.lime500
+                    subtitle: "Add a task"
                 ) {
                     dismiss()
                     onAddTodo()
@@ -3349,11 +3313,7 @@ struct AddActionSheet: View {
                 AddOptionButton(
                     icon: "cart",
                     label: "Shopping",
-                    subtitle: "Add to list",
-                    iconBg: Color.sky100,
-                    iconColor: Color.sky500,
-                    borderColor: Color.sky200,
-                    shadowColor: Color.sky400
+                    subtitle: "Add to list"
                 ) {
                     dismiss()
                     onAddShopping()
@@ -3363,10 +3323,9 @@ struct AddActionSheet: View {
 
             // Cancel
             Button(action: { dismiss() }) {
-                Text("CANCEL")
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(1)
-                    .foregroundStyle(.gray.opacity(0.5))
+                Text("Cancel")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.bottom, 8)
         }
@@ -3379,48 +3338,28 @@ struct AddOptionButton: View {
     let icon: String
     let label: String
     let subtitle: String
-    let iconBg: Color
-    let iconColor: Color
-    let borderColor: Color
-    let shadowColor: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 10) {
-                // Icon circle
-                ZStack {
-                    Circle()
-                        .fill(iconBg)
-                        .frame(width: 52, height: 52)
-                        .overlay(
-                            Circle().stroke(borderColor, lineWidth: 1.5)
-                        )
-                    Image(systemName: icon)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(iconColor)
-                }
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 36, height: 36)
 
-                // Label
                 Text(label)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
 
-                // Subtitle
-                Text(subtitle)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.gray.opacity(0.5))
-                    .tracking(0.3)
+                Text(subtitle.uppercased())
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .tracking(0.8)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .background(Color.cardWhite)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(borderColor, lineWidth: 2)
-            )
-            .boldShadow(shadowColor, size: 3, radius: 16)
+            .padding(.vertical, 18)
+            .homeQuietCard()
         }
         .buttonStyle(.plain)
     }

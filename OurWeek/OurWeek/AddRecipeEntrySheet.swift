@@ -19,10 +19,9 @@ struct AddRecipeEntrySheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("ADD RECIPE")
-                .font(.system(size: 13, weight: .black, design: .rounded))
-                .tracking(1.2)
-                .foregroundStyle(Color.terra500)
+            Text("Add a recipe")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
                 .frame(maxWidth: .infinity)
 
             LazyVGrid(columns: columns, spacing: 12) {
@@ -44,16 +43,16 @@ struct AddRecipeEntrySheet: View {
         } label: {
             VStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 20, weight: .regular))
                 Text(title)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .font(.system(size: 15, weight: .regular))
             }
             .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
             .frame(height: 92)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadow(Color.terra300, size: 3, radius: 16)
         }
         .buttonStyle(.plain)

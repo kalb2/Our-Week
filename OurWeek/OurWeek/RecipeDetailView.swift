@@ -42,11 +42,6 @@ struct RecipeDetailView: View {
         dataManager.sortedInstructions(for: recipe)
     }
 
-    private var randomEmoji: String {
-        let hash = abs((recipe.name ?? "").hashValue)
-        return RecipeConstants.foodEmojis[hash % RecipeConstants.foodEmojis.count]
-    }
-
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
@@ -64,7 +59,7 @@ struct RecipeDetailView: View {
                     // Description
                     if let desc = recipe.recipeDescription, !desc.isEmpty {
                         Text(desc)
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.gray)
                             .padding(.horizontal, 24)
                     }
@@ -77,7 +72,7 @@ struct RecipeDetailView: View {
                                 .foregroundStyle(Color.terra500)
 
                             Text("Imported from \(recipe.sourceDomain ?? "website")")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(.gray)
 
                             Spacer()
@@ -86,7 +81,7 @@ struct RecipeDetailView: View {
                                 Link(destination: url) {
                                     HStack(spacing: 4) {
                                         Text("View")
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .font(.system(size: 11, weight: .regular))
                                         Image(systemName: "arrow.up.right")
                                             .font(.system(size: 9, weight: .bold))
                                     }
@@ -141,7 +136,7 @@ struct RecipeDetailView: View {
                     .frame(width: 36, height: 36)
                     .background(Color.white.opacity(0.9))
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
@@ -201,23 +196,19 @@ struct RecipeDetailView: View {
                         )
                     )
             } else {
-                LinearGradient(
-                    colors: [Color.terra200, Color.terra300, Color.peach500.opacity(0.5)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Color(red: 0.98, green: 0.96, blue: 0.94)
                 .frame(height: 280)
                 .overlay(
                     VStack(spacing: 12) {
-                        Text(randomEmoji)
-                            .font(.system(size: 64))
-                            .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 28, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
                             
                         if hasAIKey {
                             generateImageButton
                         } else {
                             Text("No photo yet")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(Color.terra600)
                         }
                     }
@@ -242,7 +233,7 @@ struct RecipeDetailView: View {
                         .frame(width: 36, height: 36)
                         .background(Color.terra500)
                         .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+                        .overlay(Circle().stroke(Color.black.opacity(0.14), lineWidth: 1))
                         .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
                 }
                 .padding(16)
@@ -258,7 +249,7 @@ struct RecipeDetailView: View {
                     .tint(Color.terra600)
                     .scaleEffect(1.2)
                 Text("Creating magic...")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(Color.terra600)
             } else {
                 HStack(spacing: 8) {
@@ -273,7 +264,7 @@ struct RecipeDetailView: View {
                             Image(systemName: imageStyle.icon)
                             Text(imageStyle.rawValue)
                         }
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color.white.opacity(0.5))
@@ -286,14 +277,14 @@ struct RecipeDetailView: View {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 12))
                             Text("Generate AI Photo")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .font(.system(size: 13, weight: .regular))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(Color.terra500)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.terra600, lineWidth: 1.5))
+                        .overlay(Capsule().stroke(Color.terra600, lineWidth: 1))
                         .shadow(color: Color.terra500.opacity(0.3), radius: 5, y: 3)
                     }
                 }
@@ -344,13 +335,13 @@ struct RecipeDetailView: View {
                 // Categories
                 if let cats = recipe.categories, !cats.isEmpty {
                     Text(cats.uppercased())
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(Color.terra500)
                 }
 
                 Text(recipe.name ?? "Untitled")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(.system(size: 28, weight: .regular, design: .serif))
                     .tracking(-0.5)
             }
 
@@ -358,21 +349,13 @@ struct RecipeDetailView: View {
 
             // Favorite button
             Button(action: { dataManager.toggleRecipeFavorite(recipe) }) {
-                ZStack {
-                    Circle()
-                        .fill(Color.black)
-                        .frame(width: 40, height: 40)
-                        .offset(x: 2, y: 2)
-
-                    Circle()
-                        .fill(recipe.isFavorite ? Color.terra500 : Color.cardWhite)
-                        .frame(width: 40, height: 40)
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2))
-
-                    Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(recipe.isFavorite ? .white : .gray)
-                }
+                Image(systemName: recipe.isFavorite ? "heart.fill" : "heart")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(recipe.isFavorite ? Color.terra600 : HomeQuiet.quiet)
+                    .frame(width: 40, height: 40)
+                    .background(Color.white)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
@@ -386,16 +369,16 @@ struct RecipeDetailView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 if totalTime > 0 {
-                    infoPill(icon: "clock", text: "\(totalTime) min", color: Color.terra500)
+                    infoPill(icon: "clock", text: "\(totalTime) min", color: HomeQuiet.quiet)
                 }
                 if recipe.servings > 0 {
-                    infoPill(icon: "person.2", text: "\(recipe.servings) servings", color: Color.lilac500)
+                    infoPill(icon: "person.2", text: "\(recipe.servings) servings", color: HomeQuiet.quiet)
                 }
                 if let diff = recipe.difficulty, !diff.isEmpty {
-                    infoPill(icon: "chart.bar", text: diff, color: Color.lime500)
+                    infoPill(icon: "chart.bar", text: diff, color: HomeQuiet.quiet)
                 }
                 if recipe.rating > 0 {
-                    infoPill(icon: "star.fill", text: "\(recipe.rating)/5", color: Color(red: 1.0, green: 0.8, blue: 0.0))
+                    infoPill(icon: "star.fill", text: "\(recipe.rating)/5", color: Color.terra600)
                 }
             }
             .padding(.horizontal, 24)
@@ -408,14 +391,14 @@ struct RecipeDetailView: View {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .bold))
             Text(text)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
         }
         .foregroundStyle(color)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(color.opacity(0.12))
         .clipShape(Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.3), lineWidth: 1.5))
+        .overlay(Capsule().stroke(color.opacity(0.3), lineWidth: 1))
     }
 
     // MARK: - Ingredients Tab
@@ -425,7 +408,7 @@ struct RecipeDetailView: View {
             // Serving adjuster
             HStack {
                 Text("ADJUST SERVINGS")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray)
 
@@ -444,7 +427,7 @@ struct RecipeDetailView: View {
                     .buttonStyle(.plain)
 
                     Text("\(adjustedServings)")
-                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .frame(minWidth: 24)
 
                     Button(action: { adjustedServings += 1 }) {
@@ -487,7 +470,7 @@ struct RecipeDetailView: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(isChecked ? Color.terra500 : Color.white)
                                     .frame(width: 22, height: 22)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(isChecked ? Color.terra600 : Color.gray.opacity(0.3), lineWidth: 1.5))
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(isChecked ? Color.clear : HomeQuiet.ink.opacity(0.28), lineWidth: 1))
 
                                 if isChecked {
                                     Image(systemName: "checkmark")
@@ -498,12 +481,12 @@ struct RecipeDetailView: View {
 
                             if scaledAmount > 0 {
                                 Text(verbatim: CookingAmount.labeled(scaledAmount, unit: fixed.unit))
-                                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                    .font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }
 
                             Text(fixed.name)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(isChecked ? .gray : .black)
                                 .strikethrough(isChecked, color: .gray)
 
@@ -521,7 +504,7 @@ struct RecipeDetailView: View {
             }
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
             .boldShadow(Color.black, size: 3, radius: 16)
             .padding(.horizontal, 24)
         }
@@ -549,9 +532,9 @@ struct RecipeDetailView: View {
                         // Step number
                         ZStack {
                             Circle()
-                                .fill(isChecked ? Color.lime500 : Color.lilac500)
+                                .fill(isChecked ? Color.terra500 : Color.white)
                                 .frame(width: 30, height: 30)
-                                .overlay(Circle().stroke(Color.black, lineWidth: 2))
+                                .overlay(Circle().stroke(isChecked ? Color.clear : HomeQuiet.ink.opacity(0.28), lineWidth: 1))
 
                             if isChecked {
                                 Image(systemName: "checkmark")
@@ -559,14 +542,14 @@ struct RecipeDetailView: View {
                                     .foregroundStyle(.white)
                             } else {
                                 Text("\(step.stepNumber)")
-                                    .font(.system(size: 14, weight: .black, design: .rounded))
+                                    .font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(.white)
                             }
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text(step.text ?? "")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(isChecked ? .gray : .black)
                                 .strikethrough(isChecked, color: .gray)
                                 .multilineTextAlignment(.leading)
@@ -576,7 +559,7 @@ struct RecipeDetailView: View {
                                     Image(systemName: "timer")
                                         .font(.system(size: 10, weight: .bold))
                                     Text("\(step.timerSeconds / 60) min")
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .font(.system(size: 11, weight: .regular))
                                 }
                                 .foregroundStyle(Color.terra400)
                                 .padding(.horizontal, 10)
@@ -593,7 +576,7 @@ struct RecipeDetailView: View {
                 .padding(14)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
                 .boldShadow(Color.black, size: 2, radius: 14)
                 .opacity(isChecked ? 0.7 : 1.0)
             }
@@ -608,7 +591,7 @@ struct RecipeDetailView: View {
             // Rating
             VStack(alignment: .leading, spacing: 8) {
                 Text("RATING")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray)
 
@@ -631,70 +614,70 @@ struct RecipeDetailView: View {
             HStack(spacing: 16) {
                 VStack(spacing: 4) {
                     Text("\(recipe.timesCooked)")
-                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .font(.system(size: 22, weight: .regular, design: .serif))
                         .foregroundStyle(Color.terra500)
                     Text("Times Cooked")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(.gray)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1.5))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1))
 
                 if let lastCooked = recipe.lastCookedDate {
                     VStack(spacing: 4) {
                         Text(lastCooked, style: .date)
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(Color.terra500)
                         Text("Last Cooked")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1))
                 }
             }
 
             // Notes
             VStack(alignment: .leading, spacing: 8) {
                 Text("PERSONAL NOTES")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(.gray)
 
                 Text(editableNotes.isEmpty ? "No notes yet" : editableNotes)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(editableNotes.isEmpty ? .gray.opacity(0.5) : .black)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.2), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.2), lineWidth: 1))
             }
 
             // Tags
             if let tags = recipe.tags, !tags.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("TAGS")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 10, weight: .regular))
                         .tracking(1)
                         .foregroundStyle(.gray)
 
                     FlowLayout(spacing: 6) {
                         ForEach(tags.components(separatedBy: ","), id: \.self) { tag in
                             Text(tag.trimmingCharacters(in: .whitespaces))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.sky500)
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(Color.sky100)
+                                .background(Color.white)
                                 .clipShape(Capsule())
-                                .overlay(Capsule().stroke(Color.sky200, lineWidth: 1))
+                                .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
                         }
                     }
                 }
@@ -712,23 +695,18 @@ struct RecipeDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "pencil")
                         .font(.system(size: 16, weight: .bold))
-                    Text("EDIT RECIPE")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .tracking(1)
+                    Text("Edit recipe")
+                        .font(.system(size: 15, weight: .regular))
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
-                    LinearGradient(
-                        colors: [Color.terra400, Color.peach500],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    Color.terra500
                 )
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.black, lineWidth: 2))
-                .shadow(color: Color.terra500.opacity(0.3), radius: 6, x: 0, y: 4)
+                .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                
             }
             .buttonStyle(.plain)
 
@@ -737,16 +715,15 @@ struct RecipeDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 16, weight: .bold))
-                    Text("MARK AS COOKED")
-                        .font(.system(size: 14, weight: .black, design: .rounded))
-                        .tracking(1)
+                    Text("Mark as cooked")
+                        .font(.system(size: 15, weight: .regular))
                 }
-                .foregroundStyle(Color.lime500)
+                .foregroundStyle(HomeQuiet.ink)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.lime100)
+                .padding(.vertical, 14)
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.lime400, lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -755,16 +732,15 @@ struct RecipeDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "trash")
                         .font(.system(size: 14, weight: .bold))
-                    Text("DELETE")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .tracking(1)
+                    Text("Delete")
+                        .font(.system(size: 15, weight: .regular))
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.terra600)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color.red.opacity(0.08))
+                .background(Color.white)
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.red.opacity(0.2), lineWidth: 1.5))
+                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
         }

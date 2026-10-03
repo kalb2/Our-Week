@@ -29,8 +29,8 @@ struct CalendarSettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.lilac500)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra600)
                 }
             }
         }
@@ -50,18 +50,18 @@ struct CalendarSettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "calendar.badge.clock")
                         .font(.system(size: 22))
-                        .foregroundStyle(Color.lilac500)
+                        .foregroundStyle(Color.terra600)
                         .frame(width: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Apple Calendar Sync")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(size: 15, weight: .regular))
                         Text("Show events from Apple Calendar")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
                 }
             }
-            .tint(Color.lilac500)
+            .tint(Color.terra600)
             .onChange(of: syncManager.isSyncEnabled) { _, isOn in
                 if isOn {
                     Task {
@@ -76,8 +76,8 @@ struct CalendarSettingsView: View {
             }
         } header: {
             Text("Sync")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color.lilac500)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Color.terra600)
         }
     }
 
@@ -93,9 +93,9 @@ struct CalendarSettingsView: View {
                     .foregroundStyle(Color.terra500)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Calendar access denied")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                     Text("Open Settings to grant access")
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -104,8 +104,8 @@ struct CalendarSettingsView: View {
                         UIApplication.shared.open(url)
                     }
                 }
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.lilac500)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(Color.terra600)
             }
 
         case .notDetermined:
@@ -114,9 +114,9 @@ struct CalendarSettingsView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "lock.shield")
-                        .foregroundStyle(Color.lilac400)
+                        .foregroundStyle(Color.terra600)
                     Text("Tap to grant calendar access")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                 }
             }
 
@@ -126,9 +126,9 @@ struct CalendarSettingsView: View {
                     .foregroundStyle(Color.terra500)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Only write access granted")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                     Text("Full access is needed to read events. Open Settings to update.")
-                        .font(.system(size: 11, design: .rounded))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -137,8 +137,8 @@ struct CalendarSettingsView: View {
                         UIApplication.shared.open(url)
                     }
                 }
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.lilac500)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(Color.terra600)
             }
 
         @unknown default:
@@ -153,7 +153,7 @@ struct CalendarSettingsView: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(Color.lime500)
             Text("Calendar access granted")
-                .font(.system(size: 13, design: .rounded))
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.secondary)
         }
     }
@@ -170,7 +170,7 @@ struct CalendarSettingsView: View {
                 if let calendars = grouped[account] {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(account.uppercased())
-                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(.gray)
                             .tracking(0.5)
                             .padding(.vertical, 4)
@@ -186,17 +186,17 @@ struct CalendarSettingsView: View {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text("Loading calendars…")
-                        .font(.system(size: 13, design: .rounded))
+                        .font(.system(size: 13, weight: .regular))
                         .foregroundStyle(.secondary)
                 }
             }
         } header: {
             Text("Show Events From")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color.lilac500)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Color.terra600)
         } footer: {
             Text("Selected calendars will appear in your weekly view.")
-                .font(.system(size: 11, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
         }
     }
 
@@ -215,14 +215,14 @@ struct CalendarSettingsView: View {
                     )
 
                 Text(cal.title)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.lilac500)
+                        .foregroundStyle(Color.terra600)
                         .font(.system(size: 18))
                 } else {
                     Image(systemName: "circle")
@@ -254,7 +254,7 @@ struct CalendarSettingsView: View {
                             )
 
                         Text(cal.title)
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.primary)
 
                         Spacer()
@@ -271,11 +271,11 @@ struct CalendarSettingsView: View {
             }
         } header: {
             Text("Write Events To")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(Color.terra500)
         } footer: {
             Text("Events you create in OurWeek with sync enabled will be added to this calendar.")
-                .font(.system(size: 11, design: .rounded))
+                .font(.system(size: 11, weight: .regular))
         }
     }
 }
