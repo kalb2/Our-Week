@@ -74,14 +74,6 @@ struct CalendarView: View {
                                 .foregroundStyle(HomeQuiet.quiet)
                                 .padding(.horizontal)
                         } else {
-                            ForEach(events, id: \.objectID) { event in
-                                EventListItem(event: event)
-                                    .padding(.horizontal)
-                            }
-                            ForEach(appleEvents) { appleEvent in
-                                AppleEventListItem(event: appleEvent)
-                                    .padding(.horizontal)
-                            }
                             ForEach(meals, id: \.objectID) { meal in
                                 MealListItem(meal: meal)
                                     .padding(.horizontal)
@@ -93,6 +85,20 @@ struct CalendarView: View {
                                             Label("Delete Meal", systemImage: "trash")
                                         }
                                     }
+                            }
+                            if !meals.isEmpty && !(events.isEmpty && appleEvents.isEmpty) {
+                                Rectangle()
+                                    .fill(HomeQuiet.rule)
+                                    .frame(height: 1)
+                                    .padding(.horizontal)
+                            }
+                            ForEach(events, id: \.objectID) { event in
+                                EventListItem(event: event)
+                                    .padding(.horizontal)
+                            }
+                            ForEach(appleEvents) { appleEvent in
+                                AppleEventListItem(event: appleEvent)
+                                    .padding(.horizontal)
                             }
                         }
                     }
