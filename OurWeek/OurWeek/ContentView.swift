@@ -286,11 +286,6 @@ struct GreetingHeader: View {
                         .foregroundStyle(Self.headerInk)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text("HERE'S YOUR WEEK.")
-                        .font(.system(size: 12, weight: .regular))
-                        .tracking(1.6)
-                        .foregroundStyle(Self.headerQuiet)
-                        .padding(.top, 6)
                 }
                 Spacer(minLength: 12)
                 Button(action: { showProfileMenu = true }) {
