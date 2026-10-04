@@ -1056,6 +1056,7 @@ struct WeeklyCalendarCard: View {
     @State private var mealFocusStamp = 0
     @State private var expandedDay: Date?
     @State private var editingTodo: TodoTask?
+    @State private var viewingRecipe: Recipe?
     @State private var todoDraft = ""
     @State private var isSubmittingTodo = false
     @FocusState private var focusedField: DinnerField?
@@ -1285,6 +1286,11 @@ struct WeeklyCalendarCard: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.bgBase)
+        }
+        .sheet(item: $viewingRecipe) { recipe in
+            RecipeDetailView(recipe: recipe)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingTodo) { todo in
             EditTodoSheet(
@@ -1810,12 +1816,14 @@ struct WeeklyCalendarCard: View {
         let placeholder = "Add dinner"
 
         let display = shown.isEmpty ? placeholder : shown
+        let opensRecipe = linked != nil && !shown.isEmpty
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 // The visible title, including "Add dinner", sets the line and the weekday baseline.
                 Text(display)
                     .font(mealFont)
                     .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
+                    .underline(opensRecipe, color: Self.weekQuiet)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -1823,9 +1831,16 @@ struct WeeklyCalendarCard: View {
                     .allowsHitTesting(!focused)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        focusedField = .line(day: day, id: line.id)
+                        if let linked, opensRecipe {
+                            dismissMealKeyboard()
+                            viewingRecipe = linked
+                        } else {
+                            focusedField = .line(day: day, id: line.id)
+                        }
                     }
-                    .accessibilityLabel("\(dayName) dinner")
+                    .accessibilityLabel(opensRecipe ? "\(shown), \(dayName)" : "\(dayName) dinner")
+                    .accessibilityHint(opensRecipe ? "Opens recipe" : "")
+                    .accessibilityAddTraits(opensRecipe ? .isButton : [])
                     .accessibilityHidden(focused)
                     .overlay(alignment: .topLeading) {
                         TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
