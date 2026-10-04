@@ -16,6 +16,11 @@ struct CalendarView: View {
     @State private var appleEvents: [AppleCalendarEvent] = []
     @State private var monthEvents: [CalendarEvent] = []
     @State private var monthAppleEvents: [AppleCalendarEvent] = []
+    @State private var editingTodo: TodoTask?
+    @AppStorage("homeTodosWrapper") private var todosWrapper = TodosWrapper(todos: [
+        TodoTask(title: "Morning Pilates", subtitle: "7:30 AM • Studio", subtitleColorHex: "terra"),
+        TodoTask(title: "Grocery Run", subtitle: "Whole Foods", subtitleColorHex: "lilac")
+    ])
     
     private var calendar: Calendar { Calendar.current }
     
@@ -68,7 +73,7 @@ struct CalendarView: View {
                             .padding(.top, 16)
                             .padding(.horizontal)
                         
-                        if events.isEmpty && meals.isEmpty && appleEvents.isEmpty {
+                        if events.isEmpty && meals.isEmpty && appleEvents.isEmpty && dayTodos.isEmpty {
                             Text("No events or meals")
                                 .font(.system(size: 15, weight: .regular, design: .serif))
                                 .foregroundStyle(HomeQuiet.quiet)
@@ -86,11 +91,19 @@ struct CalendarView: View {
                                         }
                                     }
                             }
-                            if !meals.isEmpty && !(events.isEmpty && appleEvents.isEmpty) {
+                            if !meals.isEmpty && !(events.isEmpty && appleEvents.isEmpty && dayTodos.isEmpty) {
                                 Rectangle()
                                     .fill(HomeQuiet.rule)
                                     .frame(height: 1)
                                     .padding(.horizontal)
+                            }
+                            ForEach(dayTodos) { todo in
+                                CalendarTodoItem(
+                                    todo: todo,
+                                    onToggle: { toggleTodo(todo) },
+                                    onOpen: { editingTodo = todo }
+                                )
+                                .padding(.horizontal)
                             }
                             ForEach(events, id: \.objectID) { event in
                                 EventListItem(event: event)
@@ -133,7 +146,39 @@ struct CalendarView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(item: $editingTodo) { todo in
+                EditTodoSheet(
+                    todo: todo,
+                    onSave: { replaceTodo($0) },
+                    onDelete: { deleted in
+                        var items = todosWrapper.todos
+                        items.removeAll { $0.id == deleted.id }
+                        todosWrapper = TodosWrapper(todos: items)
+                    }
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+            }
         }
+    }
+
+    private var dayTodos: [TodoTask] {
+        todosWrapper.todos.filter { $0.occurs(on: selectedDate) }
+    }
+
+    private func replaceTodo(_ todo: TodoTask) {
+        guard let index = todosWrapper.todos.firstIndex(where: { $0.id == todo.id }) else { return }
+        var items = todosWrapper.todos
+        items[index] = todo
+        todosWrapper = TodosWrapper(todos: items)
+    }
+
+    private func toggleTodo(_ todo: TodoTask) {
+        var updated = todo
+        updated.isChecked.toggle()
+        replaceTodo(updated)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
     
     private var headerView: some View {
@@ -389,6 +434,46 @@ struct EventListItem: View {
             s += " - " + f.string(from: end)
         }
         return s
+    }
+}
+
+struct CalendarTodoItem: View {
+    let todo: TodoTask
+    let onToggle: () -> Void
+    let onOpen: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onToggle) {
+                ZStack {
+                    Circle()
+                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            Circle().fill(todo.isChecked ? Color.terra500 : Color.clear)
+                        )
+                    if todo.isChecked {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 8, weight: .regular))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
+
+            Button(action: onOpen) {
+                Text(todo.lineText)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(todo.isChecked ? HomeQuiet.quiet : HomeQuiet.ink)
+                    .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .homeQuietCard()
     }
 }
 

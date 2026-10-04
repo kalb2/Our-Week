@@ -182,6 +182,152 @@ enum HomeQuiet {
     static var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
 }
 
+private enum WeekMealLine: AlignmentID {
+    static func defaultValue(in context: ViewDimensions) -> CGFloat {
+        context[.firstTextBaseline]
+    }
+}
+
+extension VerticalAlignment {
+    /// Shared baseline for the weekday name and the meal title on a week row.
+    static let weekMeal = VerticalAlignment(WeekMealLine.self)
+}
+
+/// A 16pt completion dot whose hit area is 44pt, without growing the row.
+private struct WeekCheckHitArea: UIViewRepresentable {
+    var action: () -> Void
+
+    func makeUIView(context: Context) -> WeekCheckHitView {
+        let view = WeekCheckHitView()
+        view.backgroundColor = .clear
+        view.isAccessibilityElement = false
+        return view
+    }
+
+    func updateUIView(_ uiView: WeekCheckHitView, context: Context) {
+        uiView.onTap = action
+    }
+}
+
+private final class WeekCheckHitView: UIView, UIGestureRecognizerDelegate {
+    static let hitSide: CGFloat = 44
+    var onTap: () -> Void = {}
+    private var recognizer: UITapGestureRecognizer?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        detach()
+        guard window != nil else { return }
+        WeekCheckRegistry.shared.add(self)
+        installIfReady()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        installIfReady()
+    }
+
+    private func installIfReady() {
+        guard recognizer == nil, window != nil, bounds.width > 1 else { return }
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        tap.cancelsTouchesInView = true
+        tap.delegate = self
+        enclosingHost().addGestureRecognizer(tap)
+        recognizer = tap
+    }
+
+    private func detach() {
+        if let recognizer {
+            recognizer.view?.removeGestureRecognizer(recognizer)
+            self.recognizer = nil
+        }
+        WeekCheckRegistry.shared.remove(self)
+    }
+
+    @objc private func handleTap() {
+        onTap()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        WeekCheckRegistry.shared.nearest(to: touch) === self
+    }
+
+    private func enclosingHost() -> UIView {
+        let needed = expandedFrame(in: self)
+        var current: UIView? = superview
+        var fallback: UIView = self
+        var hops = 0
+        while let view = current, hops < 14 {
+            fallback = view
+            if view.bounds.contains(convert(needed, to: view)) {
+                return view
+            }
+            current = view.superview
+            hops += 1
+        }
+        return fallback
+    }
+
+    func expandedFrame(in view: UIView) -> CGRect {
+        let local = CGRect(
+            x: bounds.midX - Self.hitSide / 2,
+            y: bounds.midY - Self.hitSide / 2,
+            width: Self.hitSide,
+            height: Self.hitSide
+        )
+        return convert(local, to: view)
+    }
+}
+
+private final class WeekCheckRegistry {
+    static let shared = WeekCheckRegistry()
+    private var views: [ObjectIdentifier: WeakHit] = [:]
+
+    private struct WeakHit {
+        weak var view: WeekCheckHitView?
+    }
+
+    func add(_ view: WeekCheckHitView) {
+        views[ObjectIdentifier(view)] = WeakHit(view: view)
+    }
+
+    func remove(_ view: WeekCheckHitView) {
+        views[ObjectIdentifier(view)] = nil
+    }
+
+    func nearest(to touch: UITouch) -> WeekCheckHitView? {
+        views = views.filter { $0.value.view != nil }
+        guard let window = touch.window else { return nil }
+        let point = touch.location(in: window)
+        var best: WeekCheckHitView?
+        var bestDistance = CGFloat.greatestFiniteMagnitude
+        for entry in views.values {
+            guard let view = entry.view, let window = view.window else { continue }
+            let frame = view.expandedFrame(in: window)
+            guard frame.contains(point) else { continue }
+            let distance = hypot(point.x - frame.midX, point.y - frame.midY)
+            if distance < bestDistance {
+                bestDistance = distance
+                best = view
+            }
+        }
+        return best
+    }
+}
+
+private struct WeekMealGuide: ViewModifier {
+    var isActive: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isActive {
+            content.alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
     func homeQuietCard() -> some View {
         background(Color.white)
@@ -214,7 +360,6 @@ struct HomeView: View {
                     }
                     TodoSection(triggerAdd: $triggerAddTodo)
                         .padding(.bottom, 24)
-                    DailyGoalsSection()
                     Spacer().frame(height: 120 + keyboardOverlap)
                 }
             }
@@ -402,6 +547,7 @@ struct AvatarButton: View {
 
 private enum DinnerField: Hashable {
     case line(day: Date, id: String)
+    case todayTodo
 }
 
 /// Tap outside a meal field to drop the keyboard. Text fields are left alone so a tap still focuses them.
@@ -909,7 +1055,15 @@ struct WeeklyCalendarCard: View {
     @State private var suppressCommit = false
     @State private var mealFocusStamp = 0
     @State private var expandedDay: Date?
+    @State private var editingTodo: TodoTask?
+    @State private var viewingRecipe: Recipe?
+    @State private var todoDraft = ""
+    @State private var isSubmittingTodo = false
     @FocusState private var focusedField: DinnerField?
+    @AppStorage("homeTodosWrapper") private var todosWrapper = TodosWrapper(todos: [
+        TodoTask(title: "Morning Pilates", subtitle: "7:30 AM • Studio", subtitleColorHex: "terra"),
+        TodoTask(title: "Grocery Run", subtitle: "Whole Foods", subtitleColorHex: "lilac")
+    ])
     @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
@@ -1067,6 +1221,9 @@ struct WeeklyCalendarCard: View {
                 if new != nil {
                     mealFocusStamp += 1
                 }
+                if case .todayTodo = old, new != .todayTodo {
+                    commitTodoDraftOnBlur()
+                }
                 if case .line(let day, let id) = old {
                     DispatchQueue.main.async {
                         commitLine(day: day, lineID: id)
@@ -1075,10 +1232,16 @@ struct WeeklyCalendarCard: View {
                 if case .line(let day, let id) = new {
                     onFocusScroll(scrollID(day: day, lineID: id))
                 }
+                if case .todayTodo = new {
+                    onFocusScroll(Self.todayTodoScrollID)
+                }
             }
             .onDisappear {
                 if case .line(let day, let id) = focusedField {
                     commitLine(day: day, lineID: id)
+                }
+                if case .todayTodo = focusedField {
+                    commitTodoDraftOnBlur()
                 }
             }
             .sheet(isPresented: $showEventSheet, onDismiss: {
@@ -1123,6 +1286,25 @@ struct WeeklyCalendarCard: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.bgBase)
+        }
+        .sheet(item: $viewingRecipe) { recipe in
+            RecipeDetailView(recipe: recipe)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $editingTodo) { todo in
+            EditTodoSheet(
+                todo: todo,
+                onSave: { replaceTodo($0) },
+                onDelete: { deleted in
+                    var items = todosWrapper.todos
+                    items.removeAll { $0.id == deleted.id }
+                    todosWrapper = TodosWrapper(todos: items)
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
         }
     }
 
@@ -1231,6 +1413,10 @@ struct WeeklyCalendarCard: View {
 
             if showWeekEvents, !homeEventLines(on: date).isEmpty {
                 eventLines(on: date)
+                    .padding(.horizontal, 16)
+            }
+            if !todos(on: date).isEmpty {
+                datedTodoLines(on: date)
                     .padding(.horizontal, 16)
             }
         }
@@ -1428,12 +1614,14 @@ struct WeeklyCalendarCard: View {
         let dayName = isToday ? "Today" : weekday
         let showEvents = showWeekEvents && !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
 
-        return HStack(alignment: .top, spacing: 8) {
+        let mealSharesTheDayLine = !(isToday && !otherMealGroups(on: date).isEmpty)
+        return HStack(alignment: .weekMeal, spacing: 8) {
             VStack(spacing: 2) {
                 Text(weekday)
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .foregroundStyle(isToday ? Color.terra500 : Self.weekInk)
                     .lineLimit(1)
+                    .alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
                 Text(dayNumber)
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(Self.weekQuiet)
@@ -1443,6 +1631,7 @@ struct WeeklyCalendarCard: View {
                 }
             }
             .frame(width: 64)
+            .alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
             .contentShape(Rectangle())
             .onTapGesture {
                 dismissMealKeyboard()
@@ -1451,14 +1640,28 @@ struct WeeklyCalendarCard: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: isToday && !dayFocused ? 16 : 10) {
                 if isToday, !otherMealGroups(on: date).isEmpty {
-                    otherMealBlocks(on: date)
+                    otherMealBlocks(on: date, alignsWithDay: true)
                 }
-                dinnerBlock(lines, on: key, dayName: dayName)
-                if showEvents {
-                    eventLines(on: date)
-                        .transition(.opacity)
+                VStack(alignment: .leading, spacing: isToday && !dayFocused ? 12 : 6) {
+                    dinnerBlock(lines, on: key, dayName: dayName, alignsWithDay: mealSharesTheDayLine)
+                    if isToday, !dayFocused {
+                        Rectangle()
+                            .fill(Self.weekRule)
+                            .frame(height: 1)
+                    }
+                }
+                if isToday, !dayFocused {
+                    todayPlanColumns(on: date)
+                } else if !dayFocused {
+                    if showEvents {
+                        eventLines(on: date)
+                            .transition(.opacity)
+                    }
+                    if !todos(on: date).isEmpty {
+                        datedTodoLines(on: date)
+                    }
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -1474,12 +1677,13 @@ struct WeeklyCalendarCard: View {
                         .frame(width: 18, height: 28)
                 }
                 .buttonStyle(.plain)
+                .alignmentGuide(.weekMeal) { $0[VerticalAlignment.center] }
                 .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
             }
         }
         .padding(.leading, 12)
         .padding(.trailing, 10)
-        .padding(.vertical, 14)
+        .padding(.vertical, isToday && !dayFocused ? 22 : 14)
         .background {
             if isToday {
                 HomeQuiet.todayRow
@@ -1495,18 +1699,19 @@ struct WeeklyCalendarCard: View {
     }
 
     /// Breakfast, lunch, and anything that is not the editable dinner line.
-    private func otherMealBlocks(on date: Date) -> some View {
+    private func otherMealBlocks(on date: Date, alignsWithDay: Bool = false) -> some View {
         let groups = otherMealGroups(on: date)
         return VStack(alignment: .leading, spacing: 10) {
-            ForEach(groups) { group in
+            ForEach(Array(groups.enumerated()), id: \.element.id) { groupIndex, group in
                 VStack(alignment: .leading, spacing: 4) {
                     mealKindLabel(group.label)
-                    ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                    ForEach(Array(group.titles.enumerated()), id: \.offset) { titleIndex, title in
                         Text(title)
                             .font(.system(size: 20, weight: .regular, design: .serif))
                             .foregroundStyle(Self.weekInk)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .modifier(WeekMealGuide(isActive: alignsWithDay && groupIndex == 0 && titleIndex == 0))
                     }
                 }
             }
@@ -1569,9 +1774,10 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String) -> some View {
+    private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String, alignsWithDay: Bool = false) -> some View {
         let shown = shownDinnerLines(lines, on: day)
         let shownIDs = Set(shown.map(\.id))
+        let alignedID = alignsWithDay ? shown.first?.id : nil
         return VStack(alignment: .leading, spacing: 6) {
             if showDinnerLabel {
                 HStack(spacing: 6) {
@@ -1587,7 +1793,7 @@ struct WeeklyCalendarCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(lines) { line in
                     let isShown = shownIDs.contains(line.id)
-                    dinnerLine(line, on: day, dayName: dayName)
+                    dinnerLine(line, on: day, dayName: dayName, alignsWithDay: line.id == alignedID)
                         .id(scrollID(day: day, lineID: line.id))
                         .padding(.top, isShown && line.id != shown.first?.id ? 6 : 0)
                         .frame(maxHeight: isShown ? nil : 0, alignment: .top)
@@ -1600,7 +1806,7 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String) -> some View {
+    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String, alignsWithDay: Bool = false) -> some View {
         let focused = focusedField == .line(day: day, id: line.id)
         let linked = linkedRecipe(for: line)
         let text = line.text
@@ -1609,36 +1815,51 @@ struct WeeklyCalendarCard: View {
         let mealFont = Font.system(size: 20, weight: .regular, design: .serif)
         let placeholder = "Add dinner"
 
+        let display = shown.isEmpty ? placeholder : shown
+        let opensRecipe = linked != nil && !shown.isEmpty
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                ZStack(alignment: .leading) {
-                    TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
-                        .font(mealFont)
-                        .foregroundStyle(Self.weekInk)
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.leading)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled(true)
-                        .focused($focusedField, equals: .line(day: day, id: line.id))
-                        .submitLabel(submitLabel(for: line, on: day))
-                        .onSubmit { submitLine(day: day, lineID: line.id) }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .opacity(focused ? 1 : 0)
-                        .accessibilityLabel("\(dayName) dinner")
-                    if !focused {
-                        Text(shown.isEmpty ? placeholder : shown)
-                            .font(mealFont)
-                            .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                focusedField = .line(day: day, id: line.id)
-                            }
+                // The visible title, including "Add dinner", sets the line and the weekday baseline.
+                Text(display)
+                    .font(mealFont)
+                    .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
+                    .underline(opensRecipe, color: Self.weekQuiet)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .opacity(focused ? 0 : 1)
+                    .allowsHitTesting(!focused)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if let linked, opensRecipe {
+                            dismissMealKeyboard()
+                            viewingRecipe = linked
+                        } else {
+                            focusedField = .line(day: day, id: line.id)
+                        }
                     }
-                }
-                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(opensRecipe ? "\(shown), \(dayName)" : "\(dayName) dinner")
+                    .accessibilityHint(opensRecipe ? "Opens recipe" : "")
+                    .accessibilityAddTraits(opensRecipe ? .isButton : [])
+                    .accessibilityHidden(focused)
+                    .overlay(alignment: .topLeading) {
+                        TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
+                            .font(mealFont)
+                            .foregroundStyle(Self.weekInk)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.leading)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled(true)
+                            .focused($focusedField, equals: .line(day: day, id: line.id))
+                            .submitLabel(submitLabel(for: line, on: day))
+                            .onSubmit { submitLine(day: day, lineID: line.id) }
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .opacity(focused ? 1 : 0)
+                            .allowsHitTesting(focused)
+                            .accessibilityHidden(!focused)
+                    }
+                    .modifier(WeekMealGuide(isActive: alignsWithDay))
 
                 if focused && !shown.isEmpty {
                     Button {
@@ -1750,21 +1971,26 @@ struct WeeklyCalendarCard: View {
     }
 
     /// Calendar events sit under the meal: one colored dot, then time · name.
-    private func eventLines(on date: Date) -> some View {
+    /// Other days stay on one line. Today's column uses two lines before it truncates.
+    private func eventLines(on date: Date, wraps: Bool = false) -> some View {
         let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: wraps ? 12 : 6) {
             ForEach(lines) { line in
                 Button(action: line.open) {
-                    HStack(alignment: .center, spacing: 8) {
+                    HStack(alignment: wraps ? .top : .center, spacing: 8) {
                         Circle()
                             .fill(line.calendarColor.map { Color(uiColor: $0) } ?? Color.black.opacity(0.28))
                             .frame(width: 7, height: 7)
+                            .padding(.top, wraps ? 5 : 0)
                         Text(line.sideText)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.system(size: wraps ? 14 : 13, weight: .regular))
                             .foregroundStyle(Self.weekInk.opacity(0.55))
-                            .lineLimit(1)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(wraps ? 2 : 1)
                             .truncationMode(.tail)
-                        Spacer(minLength: 0)
+                            .fixedSize(horizontal: false, vertical: wraps)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
                     }
                     .contentShape(Rectangle())
                 }
@@ -1772,6 +1998,220 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel(line.sideText)
             }
         }
+    }
+
+    private static let todayTodoScrollID = "today-todo-draft"
+
+    /// Today on the live week: to-dos beside that day's events. The meal stays above.
+    private func todayPlanColumns(on date: Date) -> some View {
+        let eventItems = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
+        let showEventColumn = showWeekEvents && !eventItems.isEmpty
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 0) {
+                todayTodoColumn(on: date)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, showEventColumn ? 14 : 0)
+                if showEventColumn {
+                    eventLines(on: date, wraps: true)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 14)
+                }
+            }
+            .overlay {
+                if showEventColumn {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Rectangle()
+                            .fill(Self.weekRule)
+                            .frame(width: 1)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    private func todayTodoColumn(on date: Date) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(todos(on: date)) { todo in
+                todayTodoRow(todo)
+            }
+            todayTodoDraft
+        }
+    }
+
+    /// Dated items on other days, in the same quiet line as an event.
+    @ViewBuilder
+    private func datedTodoLines(on date: Date) -> some View {
+        let items = todos(on: date)
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(items) { todo in
+                    HStack(alignment: .center, spacing: 8) {
+                        todoCheck(todo, diameter: 16)
+                        Button {
+                            editingTodo = todo
+                        } label: {
+                            Text(todo.lineText)
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(todo.isChecked ? Self.weekQuiet : Self.weekInk.opacity(0.55))
+                                .strikethrough(todo.isChecked, color: Self.weekQuiet)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func todos(on date: Date) -> [TodoTask] {
+        todosWrapper.todos.filter { $0.occurs(on: date) }
+    }
+
+    private func todayTodoRow(_ todo: TodoTask) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            todoCheck(todo, diameter: 16)
+                .padding(.top, 3)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Button {
+                    editingTodo = todo
+                } label: {
+                    Text(todo.title)
+                        .font(.system(size: 17, weight: .regular, design: .serif))
+                        .foregroundStyle(todo.isChecked ? Self.weekQuiet : Self.weekInk)
+                        .strikethrough(todo.isChecked, color: Self.weekQuiet)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                if let time = todo.timeText {
+                    Text(time)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if !todo.subtitle.isEmpty {
+                    Text(todo.subtitle)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private var todayTodoDraft: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .stroke(Self.weekInk.opacity(0.28), lineWidth: 1)
+                .frame(width: 16, height: 16)
+                .padding(.top, 3)
+            TextField("Add", text: $todoDraft, axis: .vertical)
+                .font(.system(size: 17, weight: .regular, design: .serif))
+                .foregroundStyle(Self.weekInk)
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.leading)
+                .textInputAutocapitalization(.sentences)
+                .focused($focusedField, equals: .todayTodo)
+                .submitLabel(.next)
+                .onSubmit { submitTodoDraft() }
+                .onChange(of: todoDraft) { _, newValue in
+                    guard newValue.contains(where: { $0 == "\n" || $0 == "\r" }) else { return }
+                    todoDraft = newValue
+                        .replacingOccurrences(of: "\n", with: "")
+                        .replacingOccurrences(of: "\r", with: "")
+                    submitTodoDraft()
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Add a to-do")
+        }
+        .id(Self.todayTodoScrollID)
+    }
+
+    private func cleanedTodoDraft() -> String {
+        todoDraft
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: "\r", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func submitTodoDraft() {
+        guard !isSubmittingTodo else { return }
+        isSubmittingTodo = true
+        DispatchQueue.main.async { isSubmittingTodo = false }
+        let title = cleanedTodoDraft()
+        guard !title.isEmpty else {
+            todoDraft = ""
+            focusedField = nil
+            KeyboardDismiss.resign()
+            return
+        }
+        todoDraft = ""
+        appendTodo(title)
+        focusedField = .todayTodo
+    }
+
+    private func commitTodoDraftOnBlur() {
+        let title = cleanedTodoDraft()
+        guard !title.isEmpty else { return }
+        todoDraft = ""
+        appendTodo(title)
+    }
+
+    private func appendTodo(_ title: String) {
+        var item = TodoTask(title: title)
+        item.dueDay = TodoTask.dayKey(for: Date())
+        var items = todosWrapper.todos
+        items.append(item)
+        todosWrapper = TodosWrapper(todos: items)
+    }
+
+    private func replaceTodo(_ todo: TodoTask) {
+        guard let index = todosWrapper.todos.firstIndex(where: { $0.id == todo.id }) else { return }
+        var items = todosWrapper.todos
+        items[index] = todo
+        todosWrapper = TodosWrapper(todos: items)
+    }
+
+    private func toggleTodo(_ todo: TodoTask) {
+        var updated = todo
+        updated.isChecked.toggle()
+        replaceTodo(updated)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func todoCheck(_ todo: TodoTask, diameter: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .stroke(todo.isChecked ? Color.terra500 : Self.weekInk.opacity(0.28), lineWidth: 1)
+                .frame(width: diameter, height: diameter)
+                .background(
+                    Circle()
+                        .fill(todo.isChecked ? Color.terra500 : Color.clear)
+                )
+            if todo.isChecked {
+                Image(systemName: "checkmark")
+                    .font(.system(size: diameter * 0.5, weight: .regular))
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .background {
+            WeekCheckHitArea {
+                toggleTodo(todo)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
+        .accessibilityAction { toggleTodo(todo) }
     }
 
     private func uiColor(fromHex token: String?) -> UIColor? {
@@ -2725,8 +3165,9 @@ struct TodoSection: View {
                     todosWrapper = TodosWrapper(todos: mutated)
                 }
             )
-            .presentationDetents([.fraction(0.45), .medium])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
         }
         .onChange(of: triggerAdd) { _, newValue in
             if newValue {
@@ -2837,6 +3278,12 @@ struct TodoItem: View {
                             .lineLimit(1)
                             .strikethrough(todo.isChecked, color: HomeQuiet.quiet)
                     }
+                    if let schedule = todo.scheduleLabel {
+                        Text(schedule)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -2894,6 +3341,124 @@ struct TodoTask: Identifiable, Codable, Equatable {
     var subtitle: String = ""
     var subtitleColorHex: String = "terra"
     var isChecked: Bool = false
+    /// Reserved for a later EventKit reminder. Stays nil until reminders sync exists.
+    var externalIdentifier: String? = nil
+    /// Start-of-day key, yyyy-MM-dd. Nil keeps the item on the standalone list only.
+    var dueDay: String? = nil
+    /// Minutes from midnight. Nil means the item has no time.
+    var dueMinutes: Int? = nil
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        subtitle: String = "",
+        subtitleColorHex: String = "terra",
+        isChecked: Bool = false,
+        externalIdentifier: String? = nil,
+        dueDay: String? = nil,
+        dueMinutes: Int? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.subtitleColorHex = subtitleColorHex
+        self.isChecked = isChecked
+        self.externalIdentifier = externalIdentifier
+        self.dueDay = dueDay
+        self.dueMinutes = dueMinutes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, subtitle, subtitleColorHex, isChecked, externalIdentifier, dueDay, dueMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try container.decode(String.self, forKey: .title)
+        subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle) ?? ""
+        subtitleColorHex = try container.decodeIfPresent(String.self, forKey: .subtitleColorHex) ?? "terra"
+        isChecked = try container.decodeIfPresent(Bool.self, forKey: .isChecked) ?? false
+        externalIdentifier = try container.decodeIfPresent(String.self, forKey: .externalIdentifier)
+        dueDay = try container.decodeIfPresent(String.self, forKey: .dueDay)
+        dueMinutes = try container.decodeIfPresent(Int.self, forKey: .dueMinutes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(subtitle, forKey: .subtitle)
+        try container.encode(subtitleColorHex, forKey: .subtitleColorHex)
+        try container.encode(isChecked, forKey: .isChecked)
+        try container.encodeIfPresent(externalIdentifier, forKey: .externalIdentifier)
+        try container.encodeIfPresent(dueDay, forKey: .dueDay)
+        try container.encodeIfPresent(dueMinutes, forKey: .dueMinutes)
+    }
+
+    func occurs(on date: Date) -> Bool {
+        guard let dueDay else { return false }
+        return dueDay == Self.dayKey(for: date)
+    }
+
+    /// Week and calendar line. A time reads as time · name. No time is just the name.
+    var lineText: String {
+        guard let timeText else { return title }
+        return "\(timeText) · \(title)"
+    }
+
+    /// Standalone list. Nil when the item has neither a date nor a time.
+    var scheduleLabel: String? {
+        switch (dueDateLabel, timeText) {
+        case let (day?, time?):
+            return "\(day) · \(time)"
+        case let (day?, nil):
+            return day
+        case let (nil, time?):
+            return time
+        default:
+            return nil
+        }
+    }
+
+    var timeText: String? {
+        guard let dueMinutes, (0..<(24 * 60)).contains(dueMinutes) else { return nil }
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        components.hour = dueMinutes / 60
+        components.minute = dueMinutes % 60
+        guard let date = Calendar.current.date(from: components) else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
+    }
+
+    var dueDateLabel: String? {
+        guard let dueDay, let date = Self.date(fromDayKey: dueDay) else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, MMM d"
+        return formatter.string(from: date)
+    }
+
+    static func dayKey(for date: Date) -> String {
+        dayFormatter.string(from: date)
+    }
+
+    static func date(fromDayKey key: String) -> Date? {
+        dayFormatter.date(from: key)
+    }
+
+    static func minutes(from date: Date) -> Int {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 
     var subtitleColor: Color {
         switch subtitleColorHex {
@@ -2936,6 +3501,8 @@ struct EditTodoSheet: View {
     @State var todo: TodoTask
     var onSave: (TodoTask) -> Void
     var onDelete: (TodoTask) -> Void
+    @State private var showDatePicker = false
+    @State private var showTimePicker = false
     
     let colors = ["terra", "lilac", "lime", "sky"]
     
@@ -2968,7 +3535,7 @@ struct EditTodoSheet: View {
             }
             .padding(.top, 8)
 
-            // Form
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("TITLE")
@@ -3004,6 +3571,76 @@ struct EditTodoSheet: View {
                         )
                 }
                 
+                scheduleRow(
+                    title: todo.dueDateLabel ?? "Add date",
+                    isSet: todo.dueDay != nil,
+                    isOpen: showDatePicker,
+                    onTap: {
+                        showTimePicker = false
+                        if todo.dueDay == nil {
+                            todo.dueDay = TodoTask.dayKey(for: Date())
+                        }
+                        showDatePicker.toggle()
+                    },
+                    onClear: {
+                        todo.dueDay = nil
+                        showDatePicker = false
+                    }
+                )
+                if showDatePicker {
+                    DatePicker(
+                        "",
+                        selection: dueDateBinding,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .tint(Color.terra500)
+                    .padding(8)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
+                    )
+                }
+
+                scheduleRow(
+                    title: todo.timeText ?? "Add time",
+                    isSet: todo.dueMinutes != nil,
+                    isOpen: showTimePicker,
+                    onTap: {
+                        showDatePicker = false
+                        if todo.dueMinutes == nil {
+                            todo.dueMinutes = 9 * 60
+                        }
+                        showTimePicker.toggle()
+                    },
+                    onClear: {
+                        todo.dueMinutes = nil
+                        showTimePicker = false
+                    }
+                )
+                if showTimePicker {
+                    DatePicker(
+                        "",
+                        selection: dueTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .clipped()
+                    .padding(.horizontal, 8)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
+                    )
+                }
+
                 // Color Picker for Subtitle
                 HStack(spacing: 16) {
                     ForEach(colors, id: \.self) { hex in
@@ -3024,6 +3661,7 @@ struct EditTodoSheet: View {
                 .padding(.top, 8)
                 .opacity(todo.subtitle.isEmpty ? 0.4 : 1.0)
             }
+            }
 
             Spacer(minLength: 0)
 
@@ -3043,6 +3681,69 @@ struct EditTodoSheet: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.bgBase)
+    }
+
+    private var dueDateBinding: Binding<Date> {
+        Binding(
+            get: {
+                if let dueDay = todo.dueDay, let date = TodoTask.date(fromDayKey: dueDay) {
+                    return date
+                }
+                return Calendar.current.startOfDay(for: Date())
+            },
+            set: { todo.dueDay = TodoTask.dayKey(for: $0) }
+        )
+    }
+
+    private var dueTimeBinding: Binding<Date> {
+        Binding(
+            get: {
+                let minutes = todo.dueMinutes ?? (9 * 60)
+                var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+                components.hour = minutes / 60
+                components.minute = minutes % 60
+                return Calendar.current.date(from: components) ?? Date()
+            },
+            set: { todo.dueMinutes = TodoTask.minutes(from: $0) }
+        )
+    }
+
+    private func scheduleRow(
+        title: String,
+        isSet: Bool,
+        isOpen: Bool,
+        onTap: @escaping () -> Void,
+        onClear: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 12) {
+            Button(action: onTap) {
+                Text(title)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(isSet ? HomeQuiet.ink : HomeQuiet.quiet)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            if isSet {
+                Button(action: onClear) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isOpen ? Color.terra200 : HomeQuiet.buttonStroke, lineWidth: 1)
+        )
     }
 }
 // MARK: - Models for Daily Goals
