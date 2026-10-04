@@ -214,7 +214,6 @@ struct HomeView: View {
                     }
                     TodoSection(triggerAdd: $triggerAddTodo)
                         .padding(.bottom, 24)
-                    DailyGoalsSection()
                     Spacer().frame(height: 120 + keyboardOverlap)
                 }
             }
