@@ -1634,11 +1634,11 @@ struct WeeklyCalendarCard: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: isToday && !dayFocused ? 16 : 10) {
                 if isToday, !otherMealGroups(on: date).isEmpty {
                     otherMealBlocks(on: date, alignsWithDay: true)
                 }
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: isToday && !dayFocused ? 12 : 6) {
                     dinnerBlock(lines, on: key, dayName: dayName, alignsWithDay: mealSharesTheDayLine)
                     if isToday, !dayFocused {
                         Rectangle()
@@ -1677,7 +1677,7 @@ struct WeeklyCalendarCard: View {
         }
         .padding(.leading, 12)
         .padding(.trailing, 10)
-        .padding(.vertical, 14)
+        .padding(.vertical, isToday && !dayFocused ? 22 : 14)
         .background {
             if isToday {
                 HomeQuiet.todayRow
@@ -1809,37 +1809,42 @@ struct WeeklyCalendarCard: View {
         let mealFont = Font.system(size: 20, weight: .regular, design: .serif)
         let placeholder = "Add dinner"
 
+        let display = shown.isEmpty ? placeholder : shown
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                ZStack(alignment: .leading) {
-                    TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
-                        .font(mealFont)
-                        .foregroundStyle(Self.weekInk)
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.leading)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled(true)
-                        .focused($focusedField, equals: .line(day: day, id: line.id))
-                        .submitLabel(submitLabel(for: line, on: day))
-                        .onSubmit { submitLine(day: day, lineID: line.id) }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .opacity(focused ? 1 : 0)
-                        .accessibilityLabel("\(dayName) dinner")
-                    if !focused {
-                        Text(shown.isEmpty ? placeholder : shown)
-                            .font(mealFont)
-                            .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                focusedField = .line(day: day, id: line.id)
-                            }
+                // The visible title, including "Add dinner", sets the line and the weekday baseline.
+                Text(display)
+                    .font(mealFont)
+                    .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .opacity(focused ? 0 : 1)
+                    .allowsHitTesting(!focused)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        focusedField = .line(day: day, id: line.id)
                     }
-                }
-                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                .modifier(WeekMealGuide(isActive: alignsWithDay))
+                    .accessibilityLabel("\(dayName) dinner")
+                    .accessibilityHidden(focused)
+                    .overlay(alignment: .topLeading) {
+                        TextField("", text: lineBinding(day: day, lineID: line.id), axis: .vertical)
+                            .font(mealFont)
+                            .foregroundStyle(Self.weekInk)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.leading)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled(true)
+                            .focused($focusedField, equals: .line(day: day, id: line.id))
+                            .submitLabel(submitLabel(for: line, on: day))
+                            .onSubmit { submitLine(day: day, lineID: line.id) }
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .opacity(focused ? 1 : 0)
+                            .allowsHitTesting(focused)
+                            .accessibilityHidden(!focused)
+                    }
+                    .modifier(WeekMealGuide(isActive: alignsWithDay))
 
                 if focused && !shown.isEmpty {
                     Button {
@@ -1951,24 +1956,26 @@ struct WeeklyCalendarCard: View {
     }
 
     /// Calendar events sit under the meal: one colored dot, then time · name.
-    /// The week rows stay on one line. Today's half column wraps instead of shrinking the type.
+    /// Other days stay on one line. Today's column uses two lines before it truncates.
     private func eventLines(on date: Date, wraps: Bool = false) -> some View {
         let lines = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: wraps ? 12 : 6) {
             ForEach(lines) { line in
                 Button(action: line.open) {
                     HStack(alignment: wraps ? .top : .center, spacing: 8) {
                         Circle()
                             .fill(line.calendarColor.map { Color(uiColor: $0) } ?? Color.black.opacity(0.28))
                             .frame(width: 7, height: 7)
-                            .padding(.top, wraps ? 4 : 0)
+                            .padding(.top, wraps ? 5 : 0)
                         Text(line.sideText)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(.system(size: wraps ? 14 : 13, weight: .regular))
                             .foregroundStyle(Self.weekInk.opacity(0.55))
-                            .lineLimit(wraps ? nil : 1)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(wraps ? 2 : 1)
                             .truncationMode(.tail)
                             .fixedSize(horizontal: false, vertical: wraps)
                             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
                     }
                     .contentShape(Rectangle())
                 }
@@ -1988,11 +1995,11 @@ struct WeeklyCalendarCard: View {
             HStack(alignment: .top, spacing: 0) {
                 todayTodoColumn(on: date)
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, showEventColumn ? 10 : 0)
+                    .padding(.trailing, showEventColumn ? 14 : 0)
                 if showEventColumn {
                     eventLines(on: date, wraps: true)
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 10)
+                        .padding(.leading, 14)
                 }
             }
             .overlay {
@@ -2010,7 +2017,7 @@ struct WeeklyCalendarCard: View {
     }
 
     private func todayTodoColumn(on date: Date) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 14) {
             ForEach(todos(on: date)) { todo in
                 todayTodoRow(todo)
             }
@@ -2050,16 +2057,16 @@ struct WeeklyCalendarCard: View {
     }
 
     private func todayTodoRow(_ todo: TodoTask) -> some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
             todoCheck(todo, diameter: 16)
-                .padding(.top, 2)
+                .padding(.top, 3)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Button {
                     editingTodo = todo
                 } label: {
-                    Text(todo.lineText)
-                        .font(.system(size: 16, weight: .regular, design: .serif))
+                    Text(todo.title)
+                        .font(.system(size: 17, weight: .regular, design: .serif))
                         .foregroundStyle(todo.isChecked ? Self.weekQuiet : Self.weekInk)
                         .strikethrough(todo.isChecked, color: Self.weekQuiet)
                         .multilineTextAlignment(.leading)
@@ -2067,9 +2074,15 @@ struct WeeklyCalendarCard: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
+                if let time = todo.timeText {
+                    Text(time)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if !todo.subtitle.isEmpty {
                     Text(todo.subtitle)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.system(size: 13, weight: .regular))
                         .foregroundStyle(Self.weekQuiet)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2085,7 +2098,7 @@ struct WeeklyCalendarCard: View {
                 .frame(width: 16, height: 16)
                 .padding(.top, 3)
             TextField("Add", text: $todoDraft, axis: .vertical)
-                .font(.system(size: 16, weight: .regular, design: .serif))
+                .font(.system(size: 17, weight: .regular, design: .serif))
                 .foregroundStyle(Self.weekInk)
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.leading)
