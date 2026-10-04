@@ -733,6 +733,7 @@ private struct HomeDisplaySheet: View {
     @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
+    @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
 
     private var weekDisplay: HomeWeekDisplay {
@@ -796,6 +797,10 @@ private struct HomeDisplaySheet: View {
 
             VStack(spacing: 0) {
                 displayToggle("Events under meals", isOn: $showWeekEvents)
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                displayToggle("Dinner label", isOn: $showDinnerLabel)
                 Rectangle()
                     .fill(HomeQuiet.rule)
                     .frame(height: 1)
@@ -908,6 +913,7 @@ struct WeeklyCalendarCard: View {
     @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
+    @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -1499,7 +1505,7 @@ struct WeeklyCalendarCard: View {
                         Text(title)
                             .font(.system(size: 20, weight: .regular, design: .serif))
                             .foregroundStyle(Self.weekInk)
-                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -1567,14 +1573,16 @@ struct WeeklyCalendarCard: View {
         let shown = shownDinnerLines(lines, on: day)
         let shownIDs = Set(shown.map(\.id))
         return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "fork.knife")
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(Self.weekQuiet)
-                Text("DINNER")
-                    .font(.system(size: 10, weight: .medium))
-                    .tracking(1.3)
-                    .foregroundStyle(Self.weekQuiet)
+            if showDinnerLabel {
+                HStack(spacing: 6) {
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(Self.weekQuiet)
+                    Text("DINNER")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(1.3)
+                        .foregroundStyle(Self.weekQuiet)
+                }
             }
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(lines) { line in
@@ -1609,8 +1617,6 @@ struct WeeklyCalendarCard: View {
                         .foregroundStyle(Self.weekInk)
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(focused ? 3 : 1)
-                        .truncationMode(.tail)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled(true)
                         .focused($focusedField, equals: .line(day: day, id: line.id))
@@ -1624,8 +1630,7 @@ struct WeeklyCalendarCard: View {
                         Text(shown.isEmpty ? placeholder : shown)
                             .font(mealFont)
                             .foregroundStyle(shown.isEmpty ? Self.weekQuiet : Self.weekInk)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
