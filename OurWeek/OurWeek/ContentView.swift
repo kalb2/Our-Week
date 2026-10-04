@@ -1418,7 +1418,7 @@ struct WeeklyCalendarCard: View {
         let weekday: String = {
             let formatter = DateFormatter()
             formatter.dateFormat = "EEE"
-            return formatter.string(from: date).uppercased()
+            return formatter.string(from: date)
         }()
         let dayNumber: String = {
             let formatter = DateFormatter()
@@ -1431,18 +1431,18 @@ struct WeeklyCalendarCard: View {
         return HStack(alignment: .top, spacing: 8) {
             VStack(spacing: 2) {
                 Text(weekday)
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(1.2)
-                    .foregroundStyle(Self.weekQuiet)
-                Text(dayNumber)
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .foregroundStyle(isToday ? Color.terra500 : Self.weekInk)
+                    .lineLimit(1)
+                Text(dayNumber)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Self.weekQuiet)
                 if isToday {
                     todayPill
                         .padding(.top, 2)
                 }
             }
-            .frame(width: 56)
+            .frame(width: 64)
             .contentShape(Rectangle())
             .onTapGesture {
                 dismissMealKeyboard()
