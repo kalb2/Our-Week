@@ -182,6 +182,152 @@ enum HomeQuiet {
     static var card: RoundedRectangle { RoundedRectangle(cornerRadius: 22, style: .continuous) }
 }
 
+private enum WeekMealLine: AlignmentID {
+    static func defaultValue(in context: ViewDimensions) -> CGFloat {
+        context[.firstTextBaseline]
+    }
+}
+
+extension VerticalAlignment {
+    /// Shared baseline for the weekday name and the meal title on a week row.
+    static let weekMeal = VerticalAlignment(WeekMealLine.self)
+}
+
+/// A 16pt completion dot whose hit area is 44pt, without growing the row.
+private struct WeekCheckHitArea: UIViewRepresentable {
+    var action: () -> Void
+
+    func makeUIView(context: Context) -> WeekCheckHitView {
+        let view = WeekCheckHitView()
+        view.backgroundColor = .clear
+        view.isAccessibilityElement = false
+        return view
+    }
+
+    func updateUIView(_ uiView: WeekCheckHitView, context: Context) {
+        uiView.onTap = action
+    }
+}
+
+private final class WeekCheckHitView: UIView, UIGestureRecognizerDelegate {
+    static let hitSide: CGFloat = 44
+    var onTap: () -> Void = {}
+    private var recognizer: UITapGestureRecognizer?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        detach()
+        guard window != nil else { return }
+        WeekCheckRegistry.shared.add(self)
+        installIfReady()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        installIfReady()
+    }
+
+    private func installIfReady() {
+        guard recognizer == nil, window != nil, bounds.width > 1 else { return }
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        tap.cancelsTouchesInView = true
+        tap.delegate = self
+        enclosingHost().addGestureRecognizer(tap)
+        recognizer = tap
+    }
+
+    private func detach() {
+        if let recognizer {
+            recognizer.view?.removeGestureRecognizer(recognizer)
+            self.recognizer = nil
+        }
+        WeekCheckRegistry.shared.remove(self)
+    }
+
+    @objc private func handleTap() {
+        onTap()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        WeekCheckRegistry.shared.nearest(to: touch) === self
+    }
+
+    private func enclosingHost() -> UIView {
+        let needed = expandedFrame(in: self)
+        var current: UIView? = superview
+        var fallback: UIView = self
+        var hops = 0
+        while let view = current, hops < 14 {
+            fallback = view
+            if view.bounds.contains(convert(needed, to: view)) {
+                return view
+            }
+            current = view.superview
+            hops += 1
+        }
+        return fallback
+    }
+
+    func expandedFrame(in view: UIView) -> CGRect {
+        let local = CGRect(
+            x: bounds.midX - Self.hitSide / 2,
+            y: bounds.midY - Self.hitSide / 2,
+            width: Self.hitSide,
+            height: Self.hitSide
+        )
+        return convert(local, to: view)
+    }
+}
+
+private final class WeekCheckRegistry {
+    static let shared = WeekCheckRegistry()
+    private var views: [ObjectIdentifier: WeakHit] = [:]
+
+    private struct WeakHit {
+        weak var view: WeekCheckHitView?
+    }
+
+    func add(_ view: WeekCheckHitView) {
+        views[ObjectIdentifier(view)] = WeakHit(view: view)
+    }
+
+    func remove(_ view: WeekCheckHitView) {
+        views[ObjectIdentifier(view)] = nil
+    }
+
+    func nearest(to touch: UITouch) -> WeekCheckHitView? {
+        views = views.filter { $0.value.view != nil }
+        guard let window = touch.window else { return nil }
+        let point = touch.location(in: window)
+        var best: WeekCheckHitView?
+        var bestDistance = CGFloat.greatestFiniteMagnitude
+        for entry in views.values {
+            guard let view = entry.view, let window = view.window else { continue }
+            let frame = view.expandedFrame(in: window)
+            guard frame.contains(point) else { continue }
+            let distance = hypot(point.x - frame.midX, point.y - frame.midY)
+            if distance < bestDistance {
+                bestDistance = distance
+                best = view
+            }
+        }
+        return best
+    }
+}
+
+private struct WeekMealGuide: ViewModifier {
+    var isActive: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isActive {
+            content.alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
     func homeQuietCard() -> some View {
         background(Color.white)
@@ -1462,12 +1608,14 @@ struct WeeklyCalendarCard: View {
         let dayName = isToday ? "Today" : weekday
         let showEvents = showWeekEvents && !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
 
-        return HStack(alignment: .top, spacing: 8) {
+        let mealSharesTheDayLine = !(isToday && !otherMealGroups(on: date).isEmpty)
+        return HStack(alignment: .weekMeal, spacing: 8) {
             VStack(spacing: 2) {
                 Text(weekday)
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .foregroundStyle(isToday ? Color.terra500 : Self.weekInk)
                     .lineLimit(1)
+                    .alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
                 Text(dayNumber)
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(Self.weekQuiet)
@@ -1477,6 +1625,7 @@ struct WeeklyCalendarCard: View {
                 }
             }
             .frame(width: 64)
+            .alignmentGuide(.weekMeal) { $0[.firstTextBaseline] }
             .contentShape(Rectangle())
             .onTapGesture {
                 dismissMealKeyboard()
@@ -1487,9 +1636,16 @@ struct WeeklyCalendarCard: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 if isToday, !otherMealGroups(on: date).isEmpty {
-                    otherMealBlocks(on: date)
+                    otherMealBlocks(on: date, alignsWithDay: true)
                 }
-                dinnerBlock(lines, on: key, dayName: dayName)
+                VStack(alignment: .leading, spacing: 6) {
+                    dinnerBlock(lines, on: key, dayName: dayName, alignsWithDay: mealSharesTheDayLine)
+                    if isToday, !dayFocused {
+                        Rectangle()
+                            .fill(Self.weekRule)
+                            .frame(height: 1)
+                    }
+                }
                 if isToday, !dayFocused {
                     todayPlanColumns(on: date)
                 } else if !dayFocused {
@@ -1515,6 +1671,7 @@ struct WeeklyCalendarCard: View {
                         .frame(width: 18, height: 28)
                 }
                 .buttonStyle(.plain)
+                .alignmentGuide(.weekMeal) { $0[VerticalAlignment.center] }
                 .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
             }
         }
@@ -1536,18 +1693,19 @@ struct WeeklyCalendarCard: View {
     }
 
     /// Breakfast, lunch, and anything that is not the editable dinner line.
-    private func otherMealBlocks(on date: Date) -> some View {
+    private func otherMealBlocks(on date: Date, alignsWithDay: Bool = false) -> some View {
         let groups = otherMealGroups(on: date)
         return VStack(alignment: .leading, spacing: 10) {
-            ForEach(groups) { group in
+            ForEach(Array(groups.enumerated()), id: \.element.id) { groupIndex, group in
                 VStack(alignment: .leading, spacing: 4) {
                     mealKindLabel(group.label)
-                    ForEach(Array(group.titles.enumerated()), id: \.offset) { _, title in
+                    ForEach(Array(group.titles.enumerated()), id: \.offset) { titleIndex, title in
                         Text(title)
                             .font(.system(size: 20, weight: .regular, design: .serif))
                             .foregroundStyle(Self.weekInk)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .modifier(WeekMealGuide(isActive: alignsWithDay && groupIndex == 0 && titleIndex == 0))
                     }
                 }
             }
@@ -1610,9 +1768,10 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String) -> some View {
+    private func dinnerBlock(_ lines: [DinnerLine], on day: Date, dayName: String, alignsWithDay: Bool = false) -> some View {
         let shown = shownDinnerLines(lines, on: day)
         let shownIDs = Set(shown.map(\.id))
+        let alignedID = alignsWithDay ? shown.first?.id : nil
         return VStack(alignment: .leading, spacing: 6) {
             if showDinnerLabel {
                 HStack(spacing: 6) {
@@ -1628,7 +1787,7 @@ struct WeeklyCalendarCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(lines) { line in
                     let isShown = shownIDs.contains(line.id)
-                    dinnerLine(line, on: day, dayName: dayName)
+                    dinnerLine(line, on: day, dayName: dayName, alignsWithDay: line.id == alignedID)
                         .id(scrollID(day: day, lineID: line.id))
                         .padding(.top, isShown && line.id != shown.first?.id ? 6 : 0)
                         .frame(maxHeight: isShown ? nil : 0, alignment: .top)
@@ -1641,7 +1800,7 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String) -> some View {
+    private func dinnerLine(_ line: DinnerLine, on day: Date, dayName: String, alignsWithDay: Bool = false) -> some View {
         let focused = focusedField == .line(day: day, id: line.id)
         let linked = linkedRecipe(for: line)
         let text = line.text
@@ -1680,6 +1839,7 @@ struct WeeklyCalendarCard: View {
                     }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .modifier(WeekMealGuide(isActive: alignsWithDay))
 
                 if focused && !shown.isEmpty {
                     Button {
@@ -1825,9 +1985,6 @@ struct WeeklyCalendarCard: View {
         let eventItems = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
         let showEventColumn = showWeekEvents && !eventItems.isEmpty
         return VStack(alignment: .leading, spacing: 8) {
-            Rectangle()
-                .fill(Self.weekRule)
-                .frame(height: 1)
             HStack(alignment: .top, spacing: 0) {
                 todayTodoColumn(on: date)
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -2003,26 +2160,30 @@ struct WeeklyCalendarCard: View {
     }
 
     private func todoCheck(_ todo: TodoTask, diameter: CGFloat) -> some View {
-        Button {
-            toggleTodo(todo)
-        } label: {
-            ZStack {
-                Circle()
-                    .stroke(todo.isChecked ? Color.terra500 : Self.weekInk.opacity(0.28), lineWidth: 1)
-                    .frame(width: diameter, height: diameter)
-                    .background(
-                        Circle()
-                            .fill(todo.isChecked ? Color.terra500 : Color.clear)
-                    )
-                if todo.isChecked {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: diameter * 0.5, weight: .regular))
-                        .foregroundStyle(.white)
-                }
+        ZStack {
+            Circle()
+                .stroke(todo.isChecked ? Color.terra500 : Self.weekInk.opacity(0.28), lineWidth: 1)
+                .frame(width: diameter, height: diameter)
+                .background(
+                    Circle()
+                        .fill(todo.isChecked ? Color.terra500 : Color.clear)
+                )
+            if todo.isChecked {
+                Image(systemName: "checkmark")
+                    .font(.system(size: diameter * 0.5, weight: .regular))
+                    .foregroundStyle(.white)
             }
         }
-        .buttonStyle(.plain)
+        .frame(width: diameter, height: diameter)
+        .background {
+            WeekCheckHitArea {
+                toggleTodo(todo)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
+        .accessibilityAction { toggleTodo(todo) }
     }
 
     private func uiColor(fromHex token: String?) -> UIColor? {
