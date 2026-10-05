@@ -79,6 +79,7 @@ struct ContentView: View {
     @State private var isKeyboardVisible = false
     @Environment(DataManager.self) private var dataManager
     @Environment(RemindersSync.self) private var remindersSync
+    @Environment(CalendarSyncManager.self) private var calendarSyncManager
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -161,6 +162,7 @@ struct ContentView: View {
         .onAppear {
             openSharedImportIfNeeded()
             HomeWidgetStore.noteTodosChanged()
+            publishHomeWidget()
         }
         .task { await remindersSync.resumeIfEnabled() }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
@@ -170,15 +172,35 @@ struct ContentView: View {
             selectedTab = .home
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            HomeWidgetStore.noteTodosChanged()
+            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
             remindersSync.noteLocalTodosChanged()
         }
         .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
             Task { await remindersSync.pull() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: HomeWidgetStore.needsRefresh)) { _ in
+            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+        }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            Task { await remindersSync.resumeIfEnabled() }
+            switch phase {
+            case .active:
+                Task { await remindersSync.resumeIfEnabled() }
+                publishHomeWidget()
+            case .inactive, .background:
+                // WidgetKit drops timeline reloads while the app is foregrounded.
+                // Write the snapshot again as the Home Screen becomes visible.
+                HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    /// Today and tomorrow for the Home Screen widget. Asks for calendar access only if sync is already on.
+    private func publishHomeWidget() {
+        Task {
+            await calendarSyncManager.prepareForReading()
+            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
         }
     }
 
@@ -2672,22 +2694,9 @@ struct WeeklyCalendarCard: View {
         }
     }
 
-    /// Tonight's meal and the next events, for the Home Screen widget.
+    /// Today and tomorrow for the Home Screen widget, including Apple events already loaded.
     private func publishHomeWidget() {
-        let today = Date()
-        let meals = dinners(for: today).compactMap { meal -> String? in
-            let title = (meal.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            return title.isEmpty ? nil : title
-        }
-        let now = Date()
-        let upcoming = homeEventLines(on: today).filter { line in
-            if line.timeLabel == "All day" { return !line.title.isEmpty }
-            return line.sortDate >= now.addingTimeInterval(-15 * 60)
-        }
-        let events = upcoming.prefix(4).map {
-            HomeWidgetStore.Line(time: $0.timeLabel, title: $0.title)
-        }
-        HomeWidgetStore.updateDay(meals: meals, events: Array(events))
+        HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
     }
 
     private func reloadMeals() {

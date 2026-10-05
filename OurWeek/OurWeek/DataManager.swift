@@ -996,6 +996,9 @@ class DataManager {
         guard viewContext.hasChanges else { return }
         do {
             try viewContext.save()
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: HomeWidgetStore.needsRefresh, object: nil)
+            }
         } catch {
             let nsError = error as NSError
             print("Error saving context: \(nsError), \(nsError.userInfo)")
