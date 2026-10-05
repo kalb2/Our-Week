@@ -129,7 +129,8 @@ private struct HomeWidgetView: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            dayHeading(nameSize: 16, dateSize: 11)
             mealBlock(text: entry.meals.first ?? "Add dinner", size: 18, limit: 3)
             if let todo = entry.todos.first {
                 detail(todo, limit: 1)
@@ -142,7 +143,8 @@ private struct HomeWidgetView: View {
     }
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
+            dayHeading(nameSize: 18, dateSize: 12)
             mealBlock(text: joinedMeals, size: 22, limit: 2)
             if !entry.events.isEmpty || !entry.todos.isEmpty {
                 HStack(alignment: .top, spacing: 16) {
@@ -166,6 +168,35 @@ private struct HomeWidgetView: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    private func dayHeading(nameSize: CGFloat, dateSize: CGFloat) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(weekdayName)
+                .font(.system(size: nameSize, weight: .regular, design: .serif))
+                .foregroundStyle(terra)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .widgetAccentable()
+            Text(dateLabel)
+                .font(.system(size: dateSize, weight: .regular))
+                .foregroundStyle(quiet)
+                .lineLimit(1)
+                .widgetAccentable()
+        }
+    }
+
+    /// Full weekday, then a quieter month-and-day. Uses the timeline entry date so midnight shows the new day.
+    private var weekdayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: entry.date)
+    }
+
+    private var dateLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: entry.date)
     }
 
     private var joinedMeals: String {
