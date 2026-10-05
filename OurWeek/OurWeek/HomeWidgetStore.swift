@@ -4,10 +4,9 @@ import WidgetKit
 
 /// Today and tomorrow, shared with the Home Screen widget through the app group.
 /// The widget is a separate process, so the snapshot is a file in the group container.
-/// UserDefaults is only a backup of that same JSON.
+/// The file is the only write. App-group UserDefaults would post didChangeNotification and publish again.
 enum HomeWidgetStore {
     static let kind = "HomeToday"
-    static let snapshotKey = "home.widget.snapshot"
     static let fileName = "home-widget-snapshot.json"
     static let needsRefresh = Notification.Name("HomeWidgetNeedsRefresh")
 
@@ -29,24 +28,66 @@ enum HomeWidgetStore {
         var undatedTodos: [Line]
     }
 
-    private static var lastTodoRaw = ""
-    private static var isPublishing = false
+    private static var lastTodoRaw: String?
+    private static var lastWritten: Snapshot?
+    private static var dataManager: DataManager?
+    private static var appleEvents: [AppleCalendarEvent] = []
+    private static var debounce: Task<Void, Never>?
 
-    /// Writes today and tomorrow from the store. One write, so meals, events, and to-dos cannot wipe each other.
+    /// Coalesces widget updates. Returns immediately. Does not touch EventKit.
+    /// Apple events must already be in memory; pass the week the UI has loaded.
     @MainActor
-    static func publish(dataManager: DataManager, calendarSync: CalendarSyncManager) {
-        guard !isPublishing else { return }
-        isPublishing = true
-        defer { isPublishing = false }
+    static func schedule(dataManager: DataManager, appleEvents: [AppleCalendarEvent]) {
+        self.dataManager = dataManager
+        self.appleEvents = appleEvents
+        arm()
+    }
 
+    /// To-do edits. Ignores every other UserDefaults change so a snapshot write cannot republish.
+    @MainActor
+    static func noteTodosChanged() {
+        let raw = UserDefaults.standard.string(forKey: "homeTodosWrapper") ?? ""
+        guard raw != lastTodoRaw else { return }
+        lastTodoRaw = raw
+        guard dataManager != nil else { return }
+        arm()
+    }
+
+    /// Writes the pending snapshot now. Used when the app backgrounds, before the process is suspended.
+    @MainActor
+    static func flush() {
+        debounce?.cancel()
+        debounce = nil
+        commit(reloadEvenIfUnchanged: true)
+    }
+
+    static func reload() {
+        WidgetCenter.shared.reloadTimelines(ofKind: kind)
+    }
+
+    @MainActor
+    private static func arm() {
+        debounce?.cancel()
+        debounce = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            commit(reloadEvenIfUnchanged: false)
+        }
+    }
+
+    /// Local Core Data and the to-do list only. Apple events are the array already loaded.
+    @MainActor
+    private static func commit(reloadEvenIfUnchanged: Bool) {
+        guard let dataManager else {
+            if reloadEvenIfUnchanged { reload() }
+            return
+        }
         let calendar = Calendar.current
         let now = Date()
         let start = calendar.startOfDay(for: now)
         guard let dayAfterTomorrow = calendar.date(byAdding: .day, value: 2, to: start) else { return }
-
         let meals = dataManager.fetchWeekMealPlans(from: start)
         let localEvents = dataManager.fetchEvents(from: start, to: dayAfterTomorrow)
-        let appleEvents = calendarSync.fetchWeekEvents(from: start)
         let raw = UserDefaults.standard.string(forKey: "homeTodosWrapper") ?? ""
         lastTodoRaw = raw
 
@@ -64,36 +105,14 @@ enum HomeWidgetStore {
                 )
             )
         }
-        save(Snapshot(days: days, undatedTodos: undatedTodos(raw: raw)))
-        reload()
-    }
-
-    /// Reads the Home to-do list and refreshes those lines without erasing meals or events.
-    static func noteTodosChanged() {
-        let raw = UserDefaults.standard.string(forKey: "homeTodosWrapper") ?? ""
-        guard raw != lastTodoRaw else { return }
-        lastTodoRaw = raw
-
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: Date())
-        var snapshot = load()
-        for offset in 0..<2 {
-            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
-            let key = TodoTask.dayKey(for: date)
-            let todos = todoLines(on: date, raw: raw)
-            if let index = snapshot.days.firstIndex(where: { $0.day == key }) {
-                snapshot.days[index].todos = todos
-            } else {
-                snapshot.days.append(Day(day: key, meals: [], events: [], todos: todos))
-            }
+        let snapshot = Snapshot(days: days, undatedTodos: undatedTodos(raw: raw))
+        if snapshot == lastWritten {
+            if reloadEvenIfUnchanged { reload() }
+            return
         }
-        snapshot.undatedTodos = undatedTodos(raw: raw)
-        save(snapshot)
+        guard save(snapshot) else { return }
+        lastWritten = snapshot
         reload()
-    }
-
-    static func reload() {
-        WidgetCenter.shared.reloadTimelines(ofKind: kind)
     }
 
     private static func makeDay(
@@ -229,32 +248,16 @@ enum HomeWidgetStore {
         UserDefaults.standard.object(forKey: "homeShowWeekEvents") as? Bool ?? true
     }
 
-    private static func load() -> Snapshot {
-        if let data = fileData(),
-           let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
-            return snapshot
+    /// File only. Writing the app-group UserDefaults posts didChangeNotification and republishes.
+    @discardableResult
+    private static func save(_ snapshot: Snapshot) -> Bool {
+        guard let data = try? JSONEncoder().encode(snapshot), let url = fileURL() else { return false }
+        do {
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            return false
         }
-        guard let defaults = UserDefaults(suiteName: ShareImportStore.appGroupID),
-              let data = defaults.data(forKey: snapshotKey),
-              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else {
-            return Snapshot(days: [], undatedTodos: [])
-        }
-        return snapshot
-    }
-
-    private static func save(_ snapshot: Snapshot) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        if let url = fileURL() {
-            try? data.write(to: url, options: .atomic)
-        }
-        if let defaults = UserDefaults(suiteName: ShareImportStore.appGroupID) {
-            defaults.set(data, forKey: snapshotKey)
-        }
-    }
-
-    private static func fileData() -> Data? {
-        guard let url = fileURL() else { return nil }
-        return try? Data(contentsOf: url)
     }
 
     private static func fileURL() -> URL? {

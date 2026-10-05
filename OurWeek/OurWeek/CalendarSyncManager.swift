@@ -70,6 +70,10 @@ class CalendarSyncManager {
     /// Calendars the user checked in Calendar Sync.
     var selectedCalendarIDs: Set<String> = []
 
+    /// Last week of Apple events loaded off the main thread. The widget reads this.
+    /// It is never filled by a synchronous EventKit fetch.
+    private(set) var widgetEvents: [AppleCalendarEvent] = []
+
     // Write-back target calendar ID
     var writeBackCalendarID: String? {
         get { UserDefaults.standard.string(forKey: "writeBackCalendarID") }
@@ -282,6 +286,48 @@ class CalendarSyncManager {
         return fetchEvents(from: paddedStart, to: paddedEnd)
     }
 
+    /// Week of Apple events for the widget and the home week. The EventKit query
+    /// runs on a background store so the main thread is not blocked on CalendarDaemon.
+    func loadWeekEvents(from monday: Date) async -> [AppleCalendarEvent] {
+        refreshAuthorizationStatus()
+        guard isSyncEnabled, canReadEvents else {
+            widgetEvents = []
+            return []
+        }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: monday)
+        guard let end = calendar.date(byAdding: .day, value: 7, to: start),
+              let paddedStart = calendar.date(byAdding: .day, value: -1, to: start),
+              let paddedEnd = calendar.date(byAdding: .day, value: 1, to: end) else {
+            return widgetEvents
+        }
+        let ids = selectedCalendarIDs
+        let records: [EventKitBackgroundReader.Record] = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let found = EventKitBackgroundReader.events(from: paddedStart, to: paddedEnd, calendarIDs: ids)
+                continuation.resume(returning: found)
+            }
+        }
+        let events = records.map { record in
+            AppleCalendarEvent(
+                id: record.id,
+                title: record.title,
+                startDate: record.startDate,
+                endDate: record.endDate,
+                isAllDay: record.isAllDay,
+                calendarColor: UIColor(
+                    red: record.red,
+                    green: record.green,
+                    blue: record.blue,
+                    alpha: record.alpha
+                ),
+                calendarTitle: record.calendarTitle
+            )
+        }
+        widgetEvents = events
+        return events
+    }
+
     // MARK: - Write: Push OurWeek event to Apple Calendar
 
     /// Creates or updates an event in Apple Calendar. Returns the EKEvent identifier on success.
@@ -359,6 +405,57 @@ class CalendarSyncManager {
             try eventStore.remove(event, span: .thisEvent)
         } catch {
             print("Failed to remove event from Apple Calendar: \(error)")
+        }
+    }
+}
+
+/// Reads EventKit on a private store. Not the store the UI uses on the main thread.
+nonisolated enum EventKitBackgroundReader {
+    struct Record: Sendable {
+        var id: String
+        var title: String
+        var startDate: Date
+        var endDate: Date
+        var isAllDay: Bool
+        var red: Double
+        var green: Double
+        var blue: Double
+        var alpha: Double
+        var calendarTitle: String
+    }
+
+    static func events(from startDate: Date, to endDate: Date, calendarIDs: Set<String>) -> [Record] {
+        guard startDate < endDate, !calendarIDs.isEmpty else { return [] }
+        let store = EKEventStore()
+        let matched = store.calendars(for: .event).filter { calendarIDs.contains($0.calendarIdentifier) }
+        guard !matched.isEmpty else { return [] }
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: matched)
+        return store.events(matching: predicate).map { event in
+            let stamp = String(event.startDate.timeIntervalSince1970)
+            let rawID = event.eventIdentifier
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            let color = event.calendar.cgColor.flatMap { UIColor(cgColor: $0) } ?? .systemPurple
+            if !color.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+                red = 0.58
+                green = 0.22
+                blue = 0.92
+                alpha = 1
+            }
+            return Record(
+                id: rawID.isEmpty ? stamp : "\(rawID)-\(stamp)",
+                title: event.title ?? "Untitled",
+                startDate: event.startDate,
+                endDate: event.endDate,
+                isAllDay: event.isAllDay,
+                red: Double(red),
+                green: Double(green),
+                blue: Double(blue),
+                alpha: Double(alpha),
+                calendarTitle: event.calendar.title
+            )
         }
     }
 }

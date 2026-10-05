@@ -161,10 +161,13 @@ struct ContentView: View {
         .preferredColorScheme(.light)
         .onAppear {
             openSharedImportIfNeeded()
-            HomeWidgetStore.noteTodosChanged()
-            publishHomeWidget()
+            HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
-        .task { await remindersSync.resumeIfEnabled() }
+        .task {
+            // Let the first frame finish. Reminders work is not part of scene creation.
+            await Task.yield()
+            await remindersSync.resumeIfEnabled()
+        }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
             openSharedImportIfNeeded()
         }
@@ -172,35 +175,31 @@ struct ContentView: View {
             selectedTab = .home
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+            // To-do edits only. A full publish here loops: the snapshot write posts this notification.
+            HomeWidgetStore.noteTodosChanged()
             remindersSync.noteLocalTodosChanged()
         }
         .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
             Task { await remindersSync.pull() }
         }
         .onReceive(NotificationCenter.default.publisher(for: HomeWidgetStore.needsRefresh)) { _ in
-            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+            HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                Task { await remindersSync.resumeIfEnabled() }
-                publishHomeWidget()
-            case .inactive, .background:
-                // WidgetKit drops timeline reloads while the app is foregrounded.
-                // Write the snapshot again as the Home Screen becomes visible.
-                HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+                Task {
+                    await Task.yield()
+                    await remindersSync.resumeIfEnabled()
+                }
+                HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+            case .background:
+                HomeWidgetStore.flush()
+            case .inactive:
+                break
             @unknown default:
                 break
             }
-        }
-    }
-
-    /// Today and tomorrow for the Home Screen widget. Asks for calendar access only if sync is already on.
-    private func publishHomeWidget() {
-        Task {
-            await calendarSyncManager.prepareForReading()
-            HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
         }
     }
 
@@ -2679,7 +2678,12 @@ struct WeeklyCalendarCard: View {
         weekMeals = dataManager.fetchWeekMealPlans(from: start)
         weekEvents = dataManager.fetchWeekEvents(from: start)
         syncLines()
-        WeekGrocerySync.reconcile(meals: weekMeals, visibleDays: listedWeekDates, dataManager: dataManager)
+        let mealsForGroceries = weekMeals
+        let daysForGroceries = listedWeekDates
+        let groceries = dataManager
+        Task { @MainActor in
+            WeekGrocerySync.reconcile(meals: mealsForGroceries, visibleDays: daysForGroceries, dataManager: groceries)
+        }
         publishHomeWidget()
     }
 
@@ -2689,14 +2693,14 @@ struct WeeklyCalendarCard: View {
         Task {
             await calendarSyncManager.prepareForReading()
             guard let start = loadedWeekStart else { return }
-            appleEvents = calendarSyncManager.fetchWeekEvents(from: start)
+            appleEvents = await calendarSyncManager.loadWeekEvents(from: start)
             publishHomeWidget()
         }
     }
 
-    /// Today and tomorrow for the Home Screen widget, including Apple events already loaded.
+    /// Today and tomorrow for the Home Screen widget, from data already in memory.
     private func publishHomeWidget() {
-        HomeWidgetStore.publish(dataManager: dataManager, calendarSync: calendarSyncManager)
+        HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: appleEvents)
     }
 
     private func reloadMeals() {

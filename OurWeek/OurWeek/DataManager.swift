@@ -992,16 +992,26 @@ class DataManager {
         save()
     }
 
+    private var widgetRefreshQueued = false
+
     func save() {
         guard viewContext.hasChanges else { return }
         do {
             try viewContext.save()
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: HomeWidgetStore.needsRefresh, object: nil)
-            }
+            queueWidgetRefresh()
         } catch {
             let nsError = error as NSError
             print("Error saving context: \(nsError), \(nsError.userInfo)")
+        }
+    }
+
+    /// One notification per turn, so a grocery reconcile does not publish once per row.
+    private func queueWidgetRefresh() {
+        guard !widgetRefreshQueued else { return }
+        widgetRefreshQueued = true
+        DispatchQueue.main.async {
+            self.widgetRefreshQueued = false
+            NotificationCenter.default.post(name: HomeWidgetStore.needsRefresh, object: nil)
         }
     }
 }

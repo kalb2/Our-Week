@@ -35,6 +35,7 @@ final class RemindersSync {
 
     /// Does not prompt. If sync was already turned on and access is still granted, refresh.
     func resumeIfEnabled() async {
+        await Task.yield()
         guard isEnabled else { return }
         let status = EKEventStore.authorizationStatus(for: .reminder)
         guard status == .fullAccess else {
