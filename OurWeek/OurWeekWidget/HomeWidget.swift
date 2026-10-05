@@ -131,11 +131,11 @@ private struct HomeWidgetView: View {
     private var small: some View {
         VStack(alignment: .leading, spacing: 8) {
             mealBlock(text: entry.meals.first ?? "Add dinner", size: 18, limit: 3)
-            if let event = entry.events.first {
-                detail(event, limit: 2)
-            }
             if let todo = entry.todos.first {
                 detail(todo, limit: 1)
+            }
+            if let event = entry.events.first {
+                detail(event, limit: 2)
             }
             Spacer(minLength: 0)
         }
@@ -146,17 +146,17 @@ private struct HomeWidgetView: View {
             mealBlock(text: joinedMeals, size: 22, limit: 2)
             if !entry.events.isEmpty || !entry.todos.isEmpty {
                 HStack(alignment: .top, spacing: 16) {
-                    if !entry.events.isEmpty {
+                    if !entry.todos.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(entry.events.prefix(2).enumerated()), id: \.offset) { _, line in
+                            ForEach(Array(entry.todos.prefix(3).enumerated()), id: \.offset) { _, line in
                                 detail(line, limit: 2)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    if !entry.todos.isEmpty {
+                    if !entry.events.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(entry.todos.prefix(3).enumerated()), id: \.offset) { _, line in
+                            ForEach(Array(entry.events.prefix(2).enumerated()), id: \.offset) { _, line in
                                 detail(line, limit: 2)
                             }
                         }
