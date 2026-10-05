@@ -1,5 +1,7 @@
 import CoreData
+import CoreFoundation
 import Foundation
+import UIKit
 import WidgetKit
 
 /// Today and tomorrow, shared with the Home Screen widget through the app group.
@@ -8,11 +10,19 @@ import WidgetKit
 enum HomeWidgetStore {
     static let kind = "HomeToday"
     static let fileName = "home-widget-snapshot.json"
+    static let todosFileName = "home-todos.json"
+    static let togglesFileName = "home-todo-toggles.json"
+    static let widgetTodoNote = "com.kalebjensen.OurWeek.widgetTodo" as CFString
     static let needsRefresh = Notification.Name("HomeWidgetNeedsRefresh")
 
     struct Line: Codable, Equatable {
         var time: String
         var title: String
+        var id: String? = nil
+        var done: Bool = false
+        var red: Double? = nil
+        var green: Double? = nil
+        var blue: Double? = nil
     }
 
     struct Day: Codable, Equatable {
@@ -33,6 +43,42 @@ enum HomeWidgetStore {
     private static var dataManager: DataManager?
     private static var appleEvents: [AppleCalendarEvent] = []
     private static var debounce: Task<Void, Never>?
+    private static var observingWidgetToggles = false
+
+    /// Copies checkbox taps from the widget into the to-do list. Safe to call on every foreground.
+    @MainActor
+    static func applyWidgetTodoEdits() {
+        let toggles = readToggles()
+        guard !toggles.isEmpty else { return }
+        let raw = UserDefaults.standard.string(forKey: "homeTodosWrapper") ?? ""
+        guard var wrapper = TodosWrapper(rawValue: raw) else { return }
+        var changed = false
+        for toggle in toggles {
+            guard let index = wrapper.todos.firstIndex(where: { $0.id == toggle.id }) else { continue }
+            guard wrapper.todos[index].isChecked != toggle.done else { continue }
+            wrapper.todos[index].isChecked = toggle.done
+            changed = true
+        }
+        if changed {
+            UserDefaults.standard.set(TodosWrapper(todos: wrapper.todos).rawValue, forKey: "homeTodosWrapper")
+        }
+        clearToggles()
+    }
+
+    /// Wakes when a widget checkbox writes the shared toggle file.
+    @MainActor
+    static func startObservingWidgetToggles() {
+        guard !observingWidgetToggles else { return }
+        observingWidgetToggles = true
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            homeWidgetTodoNotificationCallback,
+            widgetTodoNote,
+            nil,
+            .deliverImmediately
+        )
+    }
 
     /// Coalesces widget updates. Returns immediately. Does not touch EventKit.
     /// Apple events must already be in memory; pass the week the UI has loaded.
@@ -78,6 +124,7 @@ enum HomeWidgetStore {
     /// Local Core Data and the to-do list only. Apple events are the array already loaded.
     @MainActor
     private static func commit(reloadEvenIfUnchanged: Bool) {
+        applyWidgetTodoEdits()
         guard let dataManager else {
             if reloadEvenIfUnchanged { reload() }
             return
@@ -90,6 +137,7 @@ enum HomeWidgetStore {
         let localEvents = dataManager.fetchEvents(from: start, to: dayAfterTomorrow)
         let raw = UserDefaults.standard.string(forKey: "homeTodosWrapper") ?? ""
         lastTodoRaw = raw
+        saveTodosRaw(raw)
 
         var days: [Day] = []
         for offset in 0..<2 {
@@ -162,24 +210,32 @@ enum HomeWidgetStore {
         for event in localEvents where eventOccurs(event, on: date) {
             let title = (event.title ?? "Event").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !title.isEmpty else { continue }
+            let parts = colorParts(fromHex: event.color)
             stamps.append(
                 EventStamp(
                     time: timeLabel(date: event.date, allDay: event.isAllDay),
                     title: title,
                     sort: event.date ?? .distantPast,
-                    allDay: event.isAllDay
+                    allDay: event.isAllDay,
+                    red: parts?.0,
+                    green: parts?.1,
+                    blue: parts?.2
                 )
             )
         }
         for event in appleEvents where event.occurs(on: date) {
             let title = event.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !title.isEmpty else { continue }
+            let parts = colorParts(of: event.calendarColor)
             stamps.append(
                 EventStamp(
                     time: timeLabel(date: event.startDate, allDay: event.isAllDay),
                     title: title,
                     sort: event.startDate,
-                    allDay: event.isAllDay
+                    allDay: event.isAllDay,
+                    red: parts?.0,
+                    green: parts?.1,
+                    blue: parts?.2
                 )
             )
         }
@@ -194,7 +250,9 @@ enum HomeWidgetStore {
             return stamp.sort >= now.addingTimeInterval(-15 * 60)
         }
         let chosen = (upcoming.isEmpty ? stamps : upcoming).prefix(4)
-        return chosen.map { Line(time: $0.time, title: $0.title) }
+        return chosen.map {
+            Line(time: $0.time, title: $0.title, red: $0.red, green: $0.green, blue: $0.blue)
+        }
     }
 
     private struct EventStamp {
@@ -202,6 +260,9 @@ enum HomeWidgetStore {
         var title: String
         var sort: Date
         var allDay: Bool
+        var red: Double?
+        var green: Double?
+        var blue: Double?
     }
 
     private static func eventOccurs(_ event: CalendarEvent, on date: Date) -> Bool {
@@ -237,10 +298,14 @@ enum HomeWidgetStore {
 
     private static func lines(from todos: [TodoTask]) -> [Line] {
         todos.compactMap { todo in
-            guard !todo.isChecked else { return nil }
             let title = todo.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !title.isEmpty else { return nil }
-            return Line(time: todo.timeText ?? "", title: title)
+            return Line(
+                time: todo.timeText ?? "",
+                title: title,
+                id: todo.id.uuidString,
+                done: todo.isChecked
+            )
         }
     }
 
@@ -260,9 +325,80 @@ enum HomeWidgetStore {
         }
     }
 
+    private static func colorParts(of color: UIColor) -> (Double, Double, Double)? {
+        let resolved = color.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        if resolved.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            return (Double(red), Double(green), Double(blue))
+        }
+        guard let components = resolved.cgColor.components, components.count >= 3 else { return nil }
+        return (Double(components[0]), Double(components[1]), Double(components[2]))
+    }
+
+    private static func colorParts(fromHex token: String?) -> (Double, Double, Double)? {
+        guard var hex = token?.trimmingCharacters(in: .whitespacesAndNewlines), !hex.isEmpty else { return nil }
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        guard hex.count == 6, let value = UInt64(hex, radix: 16) else { return nil }
+        let red = Double((value >> 16) & 0xFF) / 255
+        let green = Double((value >> 8) & 0xFF) / 255
+        let blue = Double(value & 0xFF) / 255
+        return (red, green, blue)
+    }
+
+    /// The widget reads this file to flip a checkbox. It is not UserDefaults, so it cannot republish.
+    private static func saveTodosRaw(_ raw: String) {
+        let text = raw.isEmpty ? "[]" : raw
+        guard let url = groupFileURL(todosFileName) else { return }
+        if let existing = try? String(contentsOf: url, encoding: .utf8), existing == text { return }
+        try? Data(text.utf8).write(to: url, options: .atomic)
+    }
+
+    private struct TodoToggle {
+        var id: UUID
+        var done: Bool
+    }
+
+    private static func readToggles() -> [TodoToggle] {
+        guard let url = groupFileURL(togglesFileName),
+              let data = try? Data(contentsOf: url),
+              let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+        return items.compactMap { item in
+            guard let idText = item["id"] as? String, let id = UUID(uuidString: idText) else { return nil }
+            let done: Bool
+            if let value = item["done"] as? Bool {
+                done = value
+            } else if let value = item["done"] as? NSNumber {
+                done = value.boolValue
+            } else {
+                return nil
+            }
+            return TodoToggle(id: id, done: done)
+        }
+    }
+
+    private static func clearToggles() {
+        guard let url = groupFileURL(togglesFileName) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
     private static func fileURL() -> URL? {
+        groupFileURL(fileName)
+    }
+
+    private static func groupFileURL(_ name: String) -> URL? {
         FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: ShareImportStore.appGroupID)?
-            .appendingPathComponent(fileName)
+            .appendingPathComponent(name)
+    }
+}
+
+nonisolated private let homeWidgetTodoNotificationCallback: CFNotificationCallback = { _, _, _, _, _ in
+    Task { @MainActor in
+        HomeWidgetStore.applyWidgetTodoEdits()
     }
 }

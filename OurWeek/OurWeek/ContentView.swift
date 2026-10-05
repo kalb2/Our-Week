@@ -161,6 +161,8 @@ struct ContentView: View {
         .preferredColorScheme(.light)
         .onAppear {
             openSharedImportIfNeeded()
+            HomeWidgetStore.startObservingWidgetToggles()
+            HomeWidgetStore.applyWidgetTodoEdits()
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
         .task {
@@ -188,6 +190,8 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                HomeWidgetStore.startObservingWidgetToggles()
+                HomeWidgetStore.applyWidgetTodoEdits()
                 Task {
                     await Task.yield()
                     await remindersSync.resumeIfEnabled()
