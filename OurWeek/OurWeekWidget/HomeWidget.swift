@@ -20,6 +20,10 @@ private enum WidgetSnapshotStore {
         var green: Double?
         var blue: Double?
 
+        private enum CodingKeys: String, CodingKey {
+            case time, title, id, done, red, green, blue
+        }
+
         init(
             time: String,
             title: String,
@@ -380,7 +384,7 @@ private enum WidgetTodoToggle {
         WidgetCenter.shared.reloadTimelines(ofKind: "HomeToday")
         CFNotificationCenterPostNotification(
             CFNotificationCenterGetDarwinNotifyCenter(),
-            WidgetSnapshotStore.widgetTodoNote,
+            CFNotificationName(WidgetSnapshotStore.widgetTodoNote),
             nil,
             nil,
             true
