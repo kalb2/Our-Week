@@ -184,8 +184,8 @@ final class RemindersSync {
 
         let liveIDs = Set(todos.compactMap(\.externalIdentifier))
         for identifier in previousIDs.subtracting(liveIDs) {
-            if let item = store.calendarItem(withIdentifier: identifier) {
-                try? store.remove(item, commit: true)
+            if let reminder = store.calendarItem(withIdentifier: identifier) as? EKReminder {
+                try? store.remove(reminder, commit: true)
             }
         }
         UserDefaults.standard.set(Array(liveIDs), forKey: Self.pushedIDsKey)

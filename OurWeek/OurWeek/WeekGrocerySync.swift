@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 
 /// Puts ingredients from saved recipes on the visible week onto the shopping list.
