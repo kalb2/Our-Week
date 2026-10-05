@@ -238,128 +238,6 @@ extension VerticalAlignment {
     static let weekMeal = VerticalAlignment(WeekMealLine.self)
 }
 
-/// A 16pt completion dot whose hit area is 44pt, without growing the row.
-private struct WeekCheckHitArea: UIViewRepresentable {
-    var action: () -> Void
-
-    func makeUIView(context: Context) -> WeekCheckHitView {
-        let view = WeekCheckHitView()
-        view.backgroundColor = .clear
-        view.isAccessibilityElement = false
-        return view
-    }
-
-    func updateUIView(_ uiView: WeekCheckHitView, context: Context) {
-        uiView.onTap = action
-    }
-}
-
-private final class WeekCheckHitView: UIView, UIGestureRecognizerDelegate {
-    static let hitSide: CGFloat = 44
-    var onTap: () -> Void = {}
-    private var recognizer: UITapGestureRecognizer?
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        detach()
-        guard window != nil else { return }
-        WeekCheckRegistry.shared.add(self)
-        installIfReady()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        installIfReady()
-    }
-
-    private func installIfReady() {
-        guard recognizer == nil, window != nil, bounds.width > 1 else { return }
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
-        tap.cancelsTouchesInView = true
-        tap.delegate = self
-        enclosingHost().addGestureRecognizer(tap)
-        recognizer = tap
-    }
-
-    private func detach() {
-        if let recognizer {
-            recognizer.view?.removeGestureRecognizer(recognizer)
-            self.recognizer = nil
-        }
-        WeekCheckRegistry.shared.remove(self)
-    }
-
-    @objc private func handleTap() {
-        onTap()
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        WeekCheckRegistry.shared.nearest(to: touch) === self
-    }
-
-    private func enclosingHost() -> UIView {
-        let needed = expandedFrame(in: self)
-        var current: UIView? = superview
-        var fallback: UIView = self
-        var hops = 0
-        while let view = current, hops < 14 {
-            fallback = view
-            if view.bounds.contains(convert(needed, to: view)) {
-                return view
-            }
-            current = view.superview
-            hops += 1
-        }
-        return fallback
-    }
-
-    func expandedFrame(in view: UIView) -> CGRect {
-        let local = CGRect(
-            x: bounds.midX - Self.hitSide / 2,
-            y: bounds.midY - Self.hitSide / 2,
-            width: Self.hitSide,
-            height: Self.hitSide
-        )
-        return convert(local, to: view)
-    }
-}
-
-private final class WeekCheckRegistry {
-    static let shared = WeekCheckRegistry()
-    private var views: [ObjectIdentifier: WeakHit] = [:]
-
-    private struct WeakHit {
-        weak var view: WeekCheckHitView?
-    }
-
-    func add(_ view: WeekCheckHitView) {
-        views[ObjectIdentifier(view)] = WeakHit(view: view)
-    }
-
-    func remove(_ view: WeekCheckHitView) {
-        views[ObjectIdentifier(view)] = nil
-    }
-
-    func nearest(to touch: UITouch) -> WeekCheckHitView? {
-        views = views.filter { $0.value.view != nil }
-        guard let window = touch.window else { return nil }
-        let point = touch.location(in: window)
-        var best: WeekCheckHitView?
-        var bestDistance = CGFloat.greatestFiniteMagnitude
-        for entry in views.values {
-            guard let view = entry.view, let window = view.window else { continue }
-            let frame = view.expandedFrame(in: window)
-            guard frame.contains(point) else { continue }
-            let distance = hypot(point.x - frame.midX, point.y - frame.midY)
-            if distance < bestDistance {
-                bestDistance = distance
-                best = view
-            }
-        }
-        return best
-    }
-}
-
 private struct WeekMealGuide: ViewModifier {
     var isActive: Bool
 
@@ -2291,35 +2169,45 @@ struct WeeklyCalendarCard: View {
     private func toggleTodo(_ todo: TodoTask) {
         var updated = todo
         updated.isChecked.toggle()
+        HomeWidgetStore.discardWidgetToggle(id: updated.id)
         replaceTodo(updated)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
+    /// 16pt circle, 44pt tap, without growing the row. The stroke sits inside the disk so a clip cannot shave it.
     private func todoCheck(_ todo: TodoTask, diameter: CGFloat) -> some View {
+        let hit: CGFloat = 44
+        let outset = (hit - diameter) / 2
+        return Button {
+            toggleTodo(todo)
+        } label: {
+            completionCircle(done: todo.isChecked, diameter: diameter, ink: Self.weekInk)
+                .frame(width: hit, height: hit)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, -outset)
+        .padding(.vertical, -outset)
+        .layoutPriority(1)
+        .zIndex(1)
+        .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
+    }
+
+    private func completionCircle(done: Bool, diameter: CGFloat, ink: Color) -> some View {
         ZStack {
             Circle()
-                .stroke(todo.isChecked ? Color.terra500 : Self.weekInk.opacity(0.28), lineWidth: 1)
-                .frame(width: diameter, height: diameter)
-                .background(
-                    Circle()
-                        .fill(todo.isChecked ? Color.terra500 : Color.clear)
-                )
-            if todo.isChecked {
+                .strokeBorder(done ? Color.terra500 : ink.opacity(0.28), lineWidth: 1)
+                .background {
+                    Circle().fill(done ? Color.terra500 : Color.clear)
+                }
+            if done {
                 Image(systemName: "checkmark")
                     .font(.system(size: diameter * 0.5, weight: .regular))
                     .foregroundStyle(.white)
             }
         }
         .frame(width: diameter, height: diameter)
-        .background {
-            WeekCheckHitArea {
-                toggleTodo(todo)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
-        .accessibilityAction { toggleTodo(todo) }
+        .padding(1)
     }
 
     private func uiColor(fromHex token: String?) -> UIColor? {
@@ -3366,27 +3254,34 @@ struct TodoItem: View {
 
             // Foreground content
             HStack(spacing: 12) {
-                // Circular checkbox
-                ZStack {
-                    Circle()
-                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
-                        .frame(width: 18, height: 18)
-                        .background(
-                            Circle()
-                                .fill(todo.isChecked ? Color.terra500 : Color.clear)
-                        )
-
-                    if todo.isChecked {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .regular))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .onTapGesture {
+                Button {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
+                    HomeWidgetStore.discardWidgetToggle(id: todo.id)
                     todo.isChecked.toggle()
+                } label: {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                            .background {
+                                Circle().fill(todo.isChecked ? Color.terra500 : Color.clear)
+                            }
+                        if todo.isChecked {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .regular))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .frame(width: 18, height: 18)
+                    .padding(1)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .padding(-13)
+                .layoutPriority(1)
+                .zIndex(1)
+                .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(todo.title)

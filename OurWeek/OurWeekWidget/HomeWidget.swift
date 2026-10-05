@@ -325,11 +325,10 @@ private struct HomeWidgetView: View {
     private func checkbox(done: Bool) -> some View {
         ZStack {
             Circle()
-                .stroke(done ? terra : ink.opacity(0.28), lineWidth: 1)
-                .background(
-                    Circle()
-                        .fill(done ? terra : Color.clear)
-                )
+                .strokeBorder(done ? terra : ink.opacity(0.28), lineWidth: 1)
+                .background {
+                    Circle().fill(done ? terra : Color.clear)
+                }
             if done {
                 Image(systemName: "checkmark")
                     .font(.system(size: 7, weight: .regular))
@@ -337,6 +336,8 @@ private struct HomeWidgetView: View {
             }
         }
         .frame(width: 14, height: 14)
+        .padding(1)
+        .fixedSize()
         .widgetAccentable()
     }
 

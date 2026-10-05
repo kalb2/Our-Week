@@ -1385,19 +1385,25 @@ struct ShopListEntryRow: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .stroke(quiet ? (isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28)) : (isChecked ? checkFill : checkBorder), lineWidth: quiet ? 1 : 2)
-                        .frame(width: 18, height: 18)
+                        .strokeBorder(
+                            quiet ? (isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28)) : (isChecked ? checkFill : checkBorder),
+                            lineWidth: quiet ? 1 : 2
+                        )
+                        .background {
+                            Circle().fill(isChecked ? (quiet ? Color.terra500 : checkFill) : Color.clear)
+                        }
                     if isChecked {
-                        Circle()
-                            .fill(quiet ? Color.terra500 : checkFill)
-                            .frame(width: 18, height: 18)
                         Image(systemName: "checkmark")
                             .font(.system(size: quiet ? 9 : 12, weight: quiet ? .regular : .bold))
                             .foregroundStyle(.white)
                     }
                 }
+                .frame(width: 18, height: 18)
+                .padding(1)
             }
             .buttonStyle(.plain)
+            .fixedSize()
+            .layoutPriority(1)
 
             Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 2) {

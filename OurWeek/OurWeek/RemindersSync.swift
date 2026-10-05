@@ -196,8 +196,12 @@ final class RemindersSync {
     }
 
     func pull() async {
-        guard isEnabled, !isPushing, !isApplyingRemote, let list = currentList() else { return }
+        guard isEnabled, !isPushing, !isApplyingRemote, !pushQueued else { return }
+        let rawBefore = Self.currentRaw()
+        guard let list = currentList() else { return }
         guard let reminders = await fetchReminders(in: list) else { return }
+        // A tap that landed while this fetch was in flight already queued a push. Don't write the old reminder back.
+        guard isEnabled, !isPushing, !pushQueued, Self.currentRaw() == rawBefore else { return }
         var todos = Self.currentTodos()
         var seen = Set<UUID>()
 

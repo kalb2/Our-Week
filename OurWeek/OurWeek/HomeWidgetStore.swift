@@ -65,6 +65,24 @@ enum HomeWidgetStore {
         clearToggles()
     }
 
+    /// Drops a widget checkbox intent for this to-do so a later snapshot cannot undo an in-app tap.
+    @MainActor
+    static func discardWidgetToggle(id: UUID) {
+        guard let url = groupFileURL(togglesFileName),
+              let data = try? Data(contentsOf: url),
+              let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
+        let remaining = items.filter { item in
+            guard let text = item["id"] as? String, let parsed = UUID(uuidString: text) else { return true }
+            return parsed != id
+        }
+        guard remaining.count != items.count else { return }
+        if remaining.isEmpty {
+            try? FileManager.default.removeItem(at: url)
+        } else if let written = try? JSONSerialization.data(withJSONObject: remaining) {
+            try? written.write(to: url, options: .atomic)
+        }
+    }
+
     /// Wakes when a widget checkbox writes the shared toggle file.
     @MainActor
     static func startObservingWidgetToggles() {
