@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1SH00012F3EE20E00A5063F /* OurWeekShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1WG00012F3EE20E00A5063F /* OurWeekWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1WG00022F3EE20E00A5063F /* OurWeekWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +18,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A1SH000B2F3EE20E00A5063F;
 			remoteInfo = OurWeekShare;
+		};
+		A1WG00052F3EE20E00A5063F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9C775242F3EE20E00A5063F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1WG000B2F3EE20E00A5063F;
+			remoteInfo = OurWeekWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -28,6 +36,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				A1SH00012F3EE20E00A5063F /* OurWeekShare.appex in Embed Foundation Extensions */,
+				A1WG00012F3EE20E00A5063F /* OurWeekWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -36,6 +45,7 @@
 
 /* Begin PBXFileReference section */
 		A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OurWeekShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1WG00022F3EE20E00A5063F /* OurWeekWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OurWeekWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9C7752C2F3EE20E00A5063F /* OurWeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OurWeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -54,6 +64,13 @@
 			);
 			target = A1SH000B2F3EE20E00A5063F /* OurWeekShare */;
 		};
+		A1WG00032F3EE20E00A5063F /* Exceptions for "OurWeekWidget" folder in "OurWeekWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A1WG000B2F3EE20E00A5063F /* OurWeekWidget */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +80,14 @@
 				A1SH00032F3EE20E00A5063F /* Exceptions for "OurWeekShare" folder in "OurWeekShare" target */,
 			);
 			path = OurWeekShare;
+			sourceTree = "<group>";
+		};
+		A1WG00042F3EE20E00A5063F /* OurWeekWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1WG00032F3EE20E00A5063F /* Exceptions for "OurWeekWidget" folder in "OurWeekWidget" target */,
+			);
+			path = OurWeekWidget;
 			sourceTree = "<group>";
 		};
 		E9C7752E2F3EE20E00A5063F /* OurWeek */ = {
@@ -77,6 +102,13 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		A1SH00082F3EE20E00A5063F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1WG00082F3EE20E00A5063F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -98,6 +130,7 @@
 			children = (
 				E9C7752E2F3EE20E00A5063F /* OurWeek */,
 				A1SH00042F3EE20E00A5063F /* OurWeekShare */,
+				A1WG00042F3EE20E00A5063F /* OurWeekWidget */,
 				E9C7752D2F3EE20E00A5063F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +140,7 @@
 			children = (
 				E9C7752C2F3EE20E00A5063F /* OurWeek.app */,
 				A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */,
+				A1WG00022F3EE20E00A5063F /* OurWeekWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -127,6 +161,7 @@
 			);
 			dependencies = (
 				A1SH00062F3EE20E00A5063F /* PBXTargetDependency */,
+				A1WG00062F3EE20E00A5063F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E9C7752E2F3EE20E00A5063F /* OurWeek */,
@@ -160,6 +195,28 @@
 			productReference = A1SH00022F3EE20E00A5063F /* OurWeekShare.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		A1WG000B2F3EE20E00A5063F /* OurWeekWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1WG000E2F3EE20E00A5063F /* Build configuration list for PBXNativeTarget "OurWeekWidget" */;
+			buildPhases = (
+				A1WG000A2F3EE20E00A5063F /* Sources */,
+				A1WG00082F3EE20E00A5063F /* Frameworks */,
+				A1WG00092F3EE20E00A5063F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1WG00042F3EE20E00A5063F /* OurWeekWidget */,
+			);
+			name = OurWeekWidget;
+			packageProductDependencies = (
+			);
+			productName = OurWeekWidget;
+			productReference = A1WG00022F3EE20E00A5063F /* OurWeekWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXTargetDependency section */
@@ -167,6 +224,11 @@
 			isa = PBXTargetDependency;
 			target = A1SH000B2F3EE20E00A5063F /* OurWeekShare */;
 			targetProxy = A1SH00052F3EE20E00A5063F /* PBXContainerItemProxy */;
+		};
+		A1WG00062F3EE20E00A5063F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1WG000B2F3EE20E00A5063F /* OurWeekWidget */;
+			targetProxy = A1WG00052F3EE20E00A5063F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -179,6 +241,9 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					A1SH000B2F3EE20E00A5063F = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					A1WG000B2F3EE20E00A5063F = {
 						CreatedOnToolsVersion = 26.2;
 					};
 					E9C7752B2F3EE20E00A5063F = {
@@ -202,12 +267,20 @@
 			targets = (
 				E9C7752B2F3EE20E00A5063F /* OurWeek */,
 				A1SH000B2F3EE20E00A5063F /* OurWeekShare */,
+				A1WG000B2F3EE20E00A5063F /* OurWeekWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A1SH00092F3EE20E00A5063F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1WG00092F3EE20E00A5063F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -231,6 +304,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1WG000A2F3EE20E00A5063F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9C775282F3EE20E00A5063F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -247,7 +327,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = OurWeekShare/OurWeekShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OurWeekShare/Info.plist;
@@ -276,7 +356,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = OurWeekShare/OurWeekShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OurWeekShare/Info.plist;
@@ -299,6 +379,58 @@
 			};
 			name = Release;
 		};
+		A1WG000C2F3EE20E00A5063F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OurWeekWidget/OurWeekWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 53;
+				DEVELOPMENT_TEAM = ZNKG8BKXAT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OurWeekWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Our Week";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kalebjensen.OurWeek.HomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1WG000D2F3EE20E00A5063F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OurWeekWidget/OurWeekWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 53;
+				DEVELOPMENT_TEAM = ZNKG8BKXAT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OurWeekWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Our Week";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kalebjensen.OurWeek.HomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E9C7753E2F3EE21100A5063F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -306,7 +438,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OurWeek/OurWeek.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -341,7 +473,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = OurWeek/OurWeek.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = ZNKG8BKXAT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -509,6 +641,15 @@
 			buildConfigurations = (
 				A1SH000C2F3EE20E00A5063F /* Debug */,
 				A1SH000D2F3EE20E00A5063F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1WG000E2F3EE20E00A5063F /* Build configuration list for PBXNativeTarget "OurWeekWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1WG000C2F3EE20E00A5063F /* Debug */,
+				A1WG000D2F3EE20E00A5063F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

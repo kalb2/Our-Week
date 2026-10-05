@@ -78,6 +78,8 @@ struct ContentView: View {
     @State private var triggerAddTodo = false
     @State private var isKeyboardVisible = false
     @Environment(DataManager.self) private var dataManager
+    @Environment(RemindersSync.self) private var remindersSync
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -156,9 +158,27 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .preferredColorScheme(.light)
-        .onAppear { openSharedImportIfNeeded() }
+        .onAppear {
+            openSharedImportIfNeeded()
+            HomeWidgetStore.noteTodosChanged()
+        }
+        .task { await remindersSync.resumeIfEnabled() }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
             openSharedImportIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenHome)) { _ in
+            selectedTab = .home
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            HomeWidgetStore.noteTodosChanged()
+            remindersSync.noteLocalTodosChanged()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+            Task { await remindersSync.pull() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await remindersSync.resumeIfEnabled() }
         }
     }
 
@@ -951,6 +971,10 @@ private struct HomeDisplaySheet: View {
                     .fill(HomeQuiet.rule)
                     .frame(height: 1)
                 displayToggle("Shopping list", isOn: $showShoppingList)
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                remindersRow
             }
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -984,6 +1008,65 @@ private struct HomeDisplaySheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : AccessibilityTraits())
+    }
+
+    @Environment(RemindersSync.self) private var remindersSync
+
+    private var remindersRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Text("Apple Reminders")
+                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Spacer(minLength: 8)
+                Toggle("Apple Reminders", isOn: Binding(
+                    get: { remindersSync.isEnabled },
+                    set: { on in
+                        Task { await remindersSync.setEnabled(on) }
+                    }
+                ))
+                .labelsHidden()
+                .tint(Color.terra500)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            if remindersSync.isEnabled, !remindersSync.lists.isEmpty {
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                Menu {
+                    ForEach(remindersSync.lists) { list in
+                        Button(list.title) {
+                            remindersSync.selectList(id: list.id)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("Reminders list")
+                            .font(.system(size: 17, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
+                        Spacer(minLength: 8)
+                        Text(remindersSync.listTitle)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+            }
+
+            if let note = remindersSync.statusNote {
+                Text(note)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+            }
+        }
     }
 
     private func displayToggle(_ title: String, isOn: Binding<Bool>) -> some View {
@@ -2574,6 +2657,8 @@ struct WeeklyCalendarCard: View {
         weekMeals = dataManager.fetchWeekMealPlans(from: start)
         weekEvents = dataManager.fetchWeekEvents(from: start)
         syncLines()
+        WeekGrocerySync.reconcile(meals: weekMeals, visibleDays: listedWeekDates, dataManager: dataManager)
+        publishHomeWidget()
     }
 
     /// Reload Apple events after the saved EventKit grant and calendar
@@ -2583,7 +2668,26 @@ struct WeeklyCalendarCard: View {
             await calendarSyncManager.prepareForReading()
             guard let start = loadedWeekStart else { return }
             appleEvents = calendarSyncManager.fetchWeekEvents(from: start)
+            publishHomeWidget()
         }
+    }
+
+    /// Tonight's meal and the next events, for the Home Screen widget.
+    private func publishHomeWidget() {
+        let today = Date()
+        let meals = dinners(for: today).compactMap { meal -> String? in
+            let title = (meal.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return title.isEmpty ? nil : title
+        }
+        let now = Date()
+        let upcoming = homeEventLines(on: today).filter { line in
+            if line.timeLabel == "All day" { return !line.title.isEmpty }
+            return line.sortDate >= now.addingTimeInterval(-15 * 60)
+        }
+        let events = upcoming.prefix(4).map {
+            HomeWidgetStore.Line(time: $0.timeLabel, title: $0.title)
+        }
+        HomeWidgetStore.updateDay(meals: meals, events: Array(events))
     }
 
     private func reloadMeals() {
@@ -2594,6 +2698,8 @@ struct WeeklyCalendarCard: View {
         if focusedField != focus {
             focusedField = focus
         }
+        WeekGrocerySync.reconcile(meals: weekMeals, visibleDays: listedWeekDates, dataManager: dataManager)
+        publishHomeWidget()
     }
 
     private func syncLines(keeping focus: DinnerField? = nil) {

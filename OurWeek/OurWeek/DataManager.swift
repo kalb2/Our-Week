@@ -900,6 +900,22 @@ class DataManager {
         save()
     }
 
+    func shoppingItem(id: UUID) -> ShoppingItem? {
+        let request = ShoppingItem.fetchRequest()
+        request.fetchLimit = 1
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return try? viewContext.fetch(request).first
+    }
+
+    func allShoppingItems() -> [ShoppingItem] {
+        (try? viewContext.fetch(ShoppingItem.fetchRequest())) ?? []
+    }
+
+    func setShoppingQuantity(_ item: ShoppingItem, quantity: String) {
+        item.quantity = quantity
+        save()
+    }
+
     // MARK: - Sync Meal Plan
     
     func syncMealPlanToShoppingList(syncRecipes: Bool) {

@@ -51,3 +51,7 @@ enum ShareImportStore {
         return Payload(kind: kind, text: text, imageData: imageData)
     }
 }
+
+extension Notification.Name {
+    static let ourWeekOpenHome = Notification.Name("OurWeek.openHome")
+}
