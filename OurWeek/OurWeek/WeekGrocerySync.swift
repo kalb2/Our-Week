@@ -6,6 +6,8 @@ import Foundation
 /// only what that meal added. Hand-added items and checked items stay.
 enum WeekGrocerySync {
     private static let storageKey = "weekGroceryLedger.v1"
+    /// Items the user removed, keyed by ingredient, so the same meals do not come back.
+    private static let removalStorageKey = "weekGroceryUserRemovals.v1"
     private static var isReconciling = false
 
     struct MealShare: Codable, Equatable {
@@ -58,14 +60,24 @@ enum WeekGrocerySync {
 
         var next: [Line] = []
         var usedKeys = Set<String>()
+        var removals = loadRemovals()
+        var removalsChanged = false
 
         for (key, bucket) in desired {
             usedKeys.insert(key)
+            let meals = Set(bucket.meals.map(\.mealID))
             if let index = ledger.lines.firstIndex(where: { lineKey($0) == key }) {
                 var line = ledger.lines[index]
                 if dataManager.shoppingItem(id: line.itemID) == nil {
-                    let sameMeals = Set(line.meals.map(\.mealID)) == Set(bucket.meals.map(\.mealID))
-                    if sameMeals { continue }
+                    let sameMeals = Set(line.meals.map(\.mealID)) == meals
+                    if sameMeals {
+                        // The row is gone and the meals have not changed. Remember that
+                        // instead of creating the ingredient again.
+                        recordRemoval(key: key, meals: meals, into: &removals, changed: &removalsChanged)
+                        next.append(line)
+                        continue
+                    }
+                    dropRemoval(key: key, from: &removals, changed: &removalsChanged)
                     if let created = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
                         next.append(created)
                         changed = true
@@ -78,10 +90,24 @@ enum WeekGrocerySync {
                 line.meals = bucket.meals
                 line.displayName = bucket.displayName
                 next.append(line)
-            } else if let line = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
-                next.append(line)
-                changed = true
+            } else if removalMatches(key, meals: meals, in: removals) {
+                continue
+            } else {
+                dropRemoval(key: key, from: &removals, changed: &removalsChanged)
+                if let line = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
+                    next.append(line)
+                    changed = true
+                }
             }
+        }
+
+        let keptRemovals = removals.filter { usedKeys.contains($0.key) }
+        if keptRemovals.count != removals.count {
+            removals = keptRemovals
+            removalsChanged = true
+        }
+        if removalsChanged {
+            saveRemovals(removals)
         }
 
         for line in ledger.lines where !usedKeys.contains(lineKey(line)) {
@@ -265,6 +291,70 @@ enum WeekGrocerySync {
 
     private static func lineKey(_ line: Line) -> String {
         "\(line.nameKey)|\(line.unitKey)"
+    }
+
+    /// Marks ledger lines for these shopping rows as removed by the user.
+    /// Call before the rows are deleted.
+    static func noteUserRemoved(itemIDs: [UUID]) {
+        let ids = Set(itemIDs)
+        guard !ids.isEmpty else { return }
+        var removals = loadRemovals()
+        var changed = false
+        for line in load().lines where ids.contains(line.itemID) {
+            let meals = Set(line.meals.map(\.mealID))
+            guard !meals.isEmpty else { continue }
+            recordRemoval(key: lineKey(line), meals: meals, into: &removals, changed: &changed)
+        }
+        if changed {
+            saveRemovals(removals)
+        }
+    }
+
+    private struct Removal: Codable, Equatable {
+        var key: String
+        var mealIDs: [String]
+    }
+
+    private static func removalMatches(_ key: String, meals: Set<String>, in removals: [Removal]) -> Bool {
+        guard let removal = removals.first(where: { $0.key == key }) else { return false }
+        return Set(removal.mealIDs) == meals
+    }
+
+    private static func recordRemoval(
+        key: String,
+        meals: Set<String>,
+        into removals: inout [Removal],
+        changed: inout Bool
+    ) {
+        let sorted = meals.sorted()
+        if let index = removals.firstIndex(where: { $0.key == key }) {
+            if removals[index].mealIDs != sorted {
+                removals[index].mealIDs = sorted
+                changed = true
+            }
+        } else {
+            removals.append(Removal(key: key, mealIDs: sorted))
+            changed = true
+        }
+    }
+
+    private static func dropRemoval(key: String, from removals: inout [Removal], changed: inout Bool) {
+        guard let index = removals.firstIndex(where: { $0.key == key }) else { return }
+        removals.remove(at: index)
+        changed = true
+    }
+
+    private static func loadRemovals() -> [Removal] {
+        guard let data = UserDefaults.standard.data(forKey: removalStorageKey),
+              let removals = try? JSONDecoder().decode([Removal].self, from: data) else {
+            return []
+        }
+        return removals
+    }
+
+    private static func saveRemovals(_ removals: [Removal]) {
+        guard let data = try? JSONEncoder().encode(removals) else { return }
+        UserDefaults.standard.set(data, forKey: removalStorageKey)
     }
 
     private static func load() -> Ledger {

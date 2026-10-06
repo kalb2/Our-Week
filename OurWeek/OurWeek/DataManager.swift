@@ -916,6 +916,32 @@ class DataManager {
         save()
     }
 
+    func deleteShoppingItems(_ items: [ShoppingItem]) {
+        guard !items.isEmpty else { return }
+        for item in items {
+            viewContext.delete(item)
+        }
+        save()
+    }
+
+    func setShoppingItemsChecked(_ items: [ShoppingItem], checked: Bool) {
+        var didChange = false
+        for item in items where item.isChecked != checked {
+            item.isChecked = checked
+            didChange = true
+        }
+        if didChange { save() }
+    }
+
+    func moveShoppingItems(_ items: [ShoppingItem], to list: ShoppingList) {
+        var didChange = false
+        for item in items where item.list?.objectID != list.objectID {
+            item.list = list
+            didChange = true
+        }
+        if didChange { save() }
+    }
+
     // MARK: - Sync Meal Plan
     
     func syncMealPlanToShoppingList(syncRecipes: Bool) {
