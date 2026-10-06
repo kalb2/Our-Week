@@ -510,56 +510,6 @@ struct TodayGoalsSection: View {
     }
 }
 
-struct HomeGoalStrip: View {
-    @State private var center = GoalsCenter.shared
-    @State private var detail: Goal?
-
-    var body: some View {
-        let items = center.homeGoals
-        if !items.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(items) { goal in
-                        chip(goal)
-                    }
-                }
-            }
-            .sheet(item: $detail) { goal in
-                GoalDetailSheet(goalID: goal.id)
-            }
-        }
-    }
-
-    private func chip(_ goal: Goal) -> some View {
-        let current = center.progress(goal)
-        return Button {
-            center.bump(goal.id)
-        } label: {
-            Text(chipText(goal, current: current))
-                .font(.system(size: 13, weight: .regular, design: .serif))
-                .foregroundStyle(HomeQuiet.ink)
-                .lineLimit(1)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button("Adjust") { detail = center.goals.first { $0.id == goal.id } }
-        }
-        .accessibilityLabel(goal.kind == .check ? goal.name : "Add to \(goal.name)")
-    }
-
-    private func chipText(_ goal: Goal, current: Double) -> String {
-        if goal.kind == .check {
-            return center.isMet(goal) ? "\(goal.name) · Done" : goal.name
-        }
-        return "\(goal.name) \(GoalNumber.text(current))/\(GoalNumber.text(goal.target))"
-    }
-}
-
 /// One dot per unit of the target. Huge targets stay on the ring instead of a hairline.
 struct GoalProgressDots: View {
     let goal: Goal
