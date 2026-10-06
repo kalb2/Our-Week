@@ -178,6 +178,11 @@ struct ContentView: View {
             HomeWidgetStore.startObservingWidgetToggles()
             HomeWidgetStore.applyWidgetTodoEdits()
             GoalsCenter.shared.applyWidgetBumps()
+            GoalsCenter.shared.refreshReminders()
+            if GoalReminderRoute.openGoals {
+                GoalReminderRoute.openGoals = false
+                selectedTab = .goals
+            }
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
         .task {
@@ -191,6 +196,10 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenHome)) { _ in
             selectedTab = .home
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenGoals)) { _ in
+            GoalReminderRoute.openGoals = false
+            selectedTab = .goals
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             // To-do edits only. A full publish here loops: the snapshot write posts this notification.
@@ -209,6 +218,11 @@ struct ContentView: View {
                 HomeWidgetStore.startObservingWidgetToggles()
                 HomeWidgetStore.applyWidgetTodoEdits()
                 GoalsCenter.shared.applyWidgetBumps()
+                GoalsCenter.shared.refreshReminders()
+                if GoalReminderRoute.openGoals {
+                    GoalReminderRoute.openGoals = false
+                    selectedTab = .goals
+                }
                 Task {
                     await Task.yield()
                     dataManager.recordPassedCookedMeals()

@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct GoalsView: View {
     @State private var center = GoalsCenter.shared
@@ -7,17 +8,23 @@ struct GoalsView: View {
     @State private var detail: Goal?
     @State private var showSettings = false
     @State private var showArchived = false
+    @State private var reminders: Goal?
+    @State private var undoVisible = false
+    @State private var undoHide: Task<Void, Never>?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                if undoVisible, center.undoAction != nil {
+                    undoBanner
+                }
                 if center.activeGoals.isEmpty {
                     empty
                 } else {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 16) {
                         ForEach(center.activeGoals) { goal in
-                            goalRow(goal)
+                            goalCard(goal)
                         }
                     }
                 }
@@ -26,7 +33,21 @@ struct GoalsView: View {
             .padding(.top, 20)
             .padding(.bottom, 140)
         }
+        .animation(.easeInOut(duration: 0.2), value: undoVisible)
         .background(Color.bgBase)
+        .onChange(of: center.undoAction) { _, action in
+            undoHide?.cancel()
+            guard action != nil else {
+                undoVisible = false
+                return
+            }
+            undoVisible = true
+            undoHide = Task {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                undoVisible = false
+            }
+        }
         .sheet(isPresented: $creating) {
             GoalEditor(goal: nil) { center.save($0) }
         }
@@ -48,24 +69,32 @@ struct GoalsView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.bgBase)
         }
+        .sheet(item: $reminders) { goal in
+            GoalRemindersBoundSheet(goalID: goal.id)
+        }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(spacing: 0) {
             Text("Goals")
                 .font(.system(size: 34, weight: .regular, design: .serif))
                 .foregroundStyle(HomeQuiet.ink)
-            Spacer()
-            if center.undoAction != nil {
-                Button("Undo") { center.undoLast() }
-                    .font(.system(size: 15, weight: .regular, design: .serif))
-                    .foregroundStyle(Color.terra500)
-                    .buttonStyle(.plain)
+            Spacer(minLength: 8)
+            Button { creating = true } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("New goal")
             Menu {
-                Button("New goal", action: { creating = true })
-                Button("Archived", action: { showArchived = true })
+                if center.undoAction != nil {
+                    Button("Undo") { center.undoLast() }
+                }
                 Button("Settings", action: { showSettings = true })
+                Button("Archived", action: { showArchived = true })
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .regular))
@@ -75,6 +104,24 @@ struct GoalsView: View {
             }
             .accessibilityLabel("Goal options")
         }
+    }
+
+    private var undoBanner: some View {
+        HStack(spacing: 12) {
+            Text("Logged")
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.quiet)
+            Spacer()
+            Button("Undo") { center.undoLast() }
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .foregroundStyle(Color.terra500)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.white)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
     }
 
     private var empty: some View {
@@ -96,54 +143,170 @@ struct GoalsView: View {
         .padding(.top, 28)
     }
 
-    private func goalRow(_ goal: Goal) -> some View {
+    private func goalCard(_ goal: Goal) -> some View {
         let current = center.progress(goal)
         let streak = center.streak(for: goal)
         let scheduled = center.isScheduled(goal, on: Date())
-        return Button {
-            if scheduled {
-                center.bump(goal.id)
-            } else {
-                detail = fresh(goal.id)
-            }
-        } label: {
-            HStack(spacing: 12) {
-                GoalMark(goal: goal, current: current, diameter: 28)
-                VStack(alignment: .leading, spacing: 2) {
+        let today = goal.logs[center.dayKey(for: Date())] ?? 0
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(goal.name)
-                        .font(.system(size: 18, weight: .regular, design: .serif))
+                        .font(.system(size: 28, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !scheduled {
                         Text("Not today")
-                            .font(.system(size: 12, weight: .regular))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(HomeQuiet.quiet)
                     } else if streak > 0 {
                         Text(streakLabel(streak, period: goal.period))
-                            .font(.system(size: 12, weight: .regular))
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                    }
+                    if goal.reminder.enabled {
+                        Text(goal.reminder.summary)
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(HomeQuiet.quiet)
                     }
                 }
                 Spacer(minLength: 8)
-                if goal.kind != .check {
-                    Text(progressText(current, goal: goal))
-                        .font(.system(size: 15, weight: .regular, design: .serif))
-                        .foregroundStyle(HomeQuiet.quiet)
+                Menu {
+                    Button("Edit") { editing = fresh(goal.id) }
+                    Button("Reminders") { reminders = fresh(goal.id) }
+                    Button("History") { detail = fresh(goal.id) }
+                    Button("Archive") { center.archive(goal.id) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Options for \(goal.name)")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .homeQuietCard()
-            .contentShape(HomeQuiet.card)
+
+            goalGraphic(goal, current: current, scheduled: scheduled)
+                .frame(maxWidth: .infinity)
+
+            if scheduled, goal.kind != .check {
+                HStack(spacing: 28) {
+                    if today > 0 {
+                        stepControl("minus", filled: false) { center.add(goal.id, delta: -goal.step) }
+                            .accessibilityLabel("Decrease \(goal.name)")
+                    }
+                    stepControl("plus", filled: true) { center.add(goal.id, delta: goal.step) }
+                        .accessibilityLabel("Add \(GoalNumber.text(goal.step)) to \(goal.name)")
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .homeQuietCard()
         .contextMenu {
-            Button("Adjust") { detail = fresh(goal.id) }
             Button("Edit") { editing = fresh(goal.id) }
+            Button("Reminders") { reminders = fresh(goal.id) }
+            Button("History") { detail = fresh(goal.id) }
             Button("Archive") { center.archive(goal.id) }
         }
-        .accessibilityLabel(scheduled ? accessibility(goal, current: current) : "Open \(goal.name)")
+    }
+
+    @ViewBuilder
+    private func goalGraphic(_ goal: Goal, current: Double, scheduled: Bool) -> some View {
+        if goal.kind == .check {
+            let checked = goalChecked(goal)
+            if scheduled {
+                Button { center.bump(goal.id) } label: {
+                    checkGraphic(goal, checked: checked, scheduled: true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(checked ? "Clear \(goal.name)" : "Check \(goal.name)")
+            } else {
+                checkGraphic(goal, checked: checked, scheduled: false)
+            }
+        } else {
+            countGraphic(goal, current: current)
+        }
+    }
+
+    private func goalChecked(_ goal: Goal) -> Bool {
+        let today = goal.logs[center.dayKey(for: Date())] ?? 0
+        if goal.period == .week { return today >= 1 }
+        return center.isMet(goal)
+    }
+
+    private func checkGraphic(_ goal: Goal, checked: Bool, scheduled: Bool) -> some View {
+        let tint = GoalPalette.color(goal.color)
+        return VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .strokeBorder(checked ? tint : HomeQuiet.ink.opacity(0.28), lineWidth: 2)
+                    .background { Circle().fill(checked ? tint : Color.white) }
+                if checked {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 36, weight: .regular))
+                        .foregroundStyle(.white)
+                } else if !goal.icon.isEmpty {
+                    Image(systemName: goal.icon)
+                        .font(.system(size: 28, weight: .regular))
+                        .foregroundStyle(tint)
+                }
+            }
+            .frame(width: 120, height: 120)
+            if scheduled {
+                Text(checked ? "Done" : "Today")
+                    .font(.system(size: 15, weight: .regular, design: .serif))
+                    .foregroundStyle(checked ? tint : HomeQuiet.quiet)
+            }
+        }
+    }
+
+    private func countGraphic(_ goal: Goal, current: Double) -> some View {
+        let tint = GoalPalette.color(goal.color)
+        let fraction = goal.target > 0 ? min(current / goal.target, 1) : 0
+        let caption = goal.unitLabel.isEmpty
+            ? "of \(GoalNumber.text(goal.target))"
+            : "of \(GoalNumber.text(goal.target)) \(goal.unitLabel)"
+        return ZStack {
+            Circle()
+                .stroke(tint.opacity(0.2), lineWidth: 8)
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(tint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: 2) {
+                if !goal.icon.isEmpty {
+                    Image(systemName: goal.icon)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(tint)
+                }
+                Text(GoalNumber.text(current))
+                    .font(.system(size: 40, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Text(caption)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 18)
+        }
+        .frame(width: 156, height: 156)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(goal.name), \(GoalNumber.text(current)) \(caption)")
+    }
+
+    private func stepControl(_ symbol: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(filled ? Color.white : HomeQuiet.ink)
+                .frame(width: 56, height: 56)
+                .background(filled ? Color.terra500 : Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(filled ? Color.clear : HomeQuiet.cardStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func fresh(_ id: UUID) -> Goal? {
@@ -153,19 +316,6 @@ struct GoalsView: View {
     private func streakLabel(_ count: Int, period: GoalPeriod) -> String {
         let unit = period == .week ? "week" : "day"
         return count == 1 ? "1 \(unit)" : "\(count) \(unit)s"
-    }
-
-    private func progressText(_ current: Double, goal: Goal) -> String {
-        let value = "\(GoalNumber.text(current))/\(GoalNumber.text(goal.target))"
-        if goal.unitLabel.isEmpty { return value }
-        return value
-    }
-
-    private func accessibility(_ goal: Goal, current: Double) -> String {
-        if goal.kind == .check {
-            return center.isMet(goal) ? "Clear \(goal.name)" : "Check \(goal.name)"
-        }
-        return "Add \(GoalNumber.text(goal.step)) to \(goal.name)"
     }
 }
 
@@ -391,11 +541,16 @@ struct GoalEditor: View {
     var onSave: (Goal) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var draft: Goal
+    @State private var showReminders = false
 
     init(goal: Goal?, onSave: @escaping (Goal) -> Void) {
         self.goal = goal
         self.onSave = onSave
         _draft = State(initialValue: goal ?? Goal.draft())
+    }
+
+    private var canSave: Bool {
+        !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draft.target > 0
     }
 
     var body: some View {
@@ -507,37 +662,49 @@ struct GoalEditor: View {
                     }
                     .tint(Color.terra500)
 
-                    if !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, draft.target > 0 {
-                        Button {
-                            onSave(draft)
-                            dismiss()
-                        } label: {
-                            Text("Save")
+                    Button { showReminders = true } label: {
+                        HStack {
+                            Text("Reminders")
                                 .font(.system(size: 16, weight: .regular, design: .serif))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color.terra500)
-                                .clipShape(Capsule())
+                                .foregroundStyle(HomeQuiet.ink)
+                            Spacer()
+                            Text(draft.reminder.summary)
+                                .font(.system(size: 15, weight: .regular))
+                                .foregroundStyle(Color.terra600)
+                                .multilineTextAlignment(.trailing)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(24)
+                .padding(.bottom, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color.bgBase)
             .navigationTitle(goal == nil ? "New goal" : "Edit goal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Cancel") { dismiss() }
                         .foregroundStyle(HomeQuiet.ink)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if canSave {
+                        Button("Save") {
+                            onSave(draft)
+                            dismiss()
+                        }
+                        .foregroundStyle(Color.terra500)
+                    }
                 }
             }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color.bgBase)
+        .sheet(isPresented: $showReminders) {
+            GoalRemindersSheet(reminder: $draft.reminder)
+        }
     }
 
     private var weekdayRow: some View {
@@ -796,5 +963,208 @@ struct ArchivedGoalsSheet: View {
             .padding(24)
         }
         .background(Color.bgBase)
+    }
+}
+
+struct GoalRemindersSheet: View {
+    @Binding var reminder: GoalReminder
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 22) {
+                Text("Reminders")
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                GoalReminderControls(reminder: $reminder)
+            }
+            .padding(24)
+        }
+        .background(Color.bgBase)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color.bgBase)
+    }
+}
+
+struct GoalRemindersBoundSheet: View {
+    let goalID: UUID
+    @State private var center = GoalsCenter.shared
+
+    private var reminder: Binding<GoalReminder> {
+        Binding(
+            get: { center.goals.first { $0.id == goalID }?.reminder ?? GoalReminder() },
+            set: { newValue in
+                guard var goal = center.goals.first(where: { $0.id == goalID }) else { return }
+                goal.reminder = newValue
+                center.save(goal)
+            }
+        )
+    }
+
+    var body: some View {
+        GoalRemindersSheet(reminder: reminder)
+    }
+}
+
+struct GoalReminderControls: View {
+    @Binding var reminder: GoalReminder
+    @State private var blocked = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Toggle(isOn: enabled) {
+                Text("Reminders")
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+            }
+            .tint(Color.terra500)
+
+            if blocked {
+                Text("Notifications are off in Settings.")
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+
+            if reminder.enabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    choice("Every hour", on: reminder.mode == .everyHour) { reminder.mode = .everyHour }
+                    choice("Every 2 hours", on: reminder.mode == .everyTwoHours) { reminder.mode = .everyTwoHours }
+                    choice("Custom", on: reminder.mode == .custom) { reminder.mode = .custom }
+                    choice("Spread across the day", on: reminder.mode == .spread) { reminder.mode = .spread }
+                }
+
+                if reminder.mode == .custom {
+                    stepper(
+                        title: "Every",
+                        value: "\(min(max(reminder.customHours, 1), 12)) hours",
+                        canDecrease: reminder.customHours > 1,
+                        canIncrease: reminder.customHours < 12,
+                        decrease: { reminder.customHours = max(1, reminder.customHours - 1) },
+                        increase: { reminder.customHours = min(12, reminder.customHours + 1) }
+                    )
+                }
+
+                if reminder.mode == .spread {
+                    stepper(
+                        title: "How many",
+                        value: "\(min(max(reminder.spreadCount, 2), 12))",
+                        canDecrease: reminder.spreadCount > 2,
+                        canIncrease: reminder.spreadCount < 12,
+                        decrease: { reminder.spreadCount = max(2, reminder.spreadCount - 1) },
+                        increase: { reminder.spreadCount = min(12, reminder.spreadCount + 1) }
+                    )
+                }
+
+                DatePicker("From", selection: startDate, displayedComponents: .hourAndMinute)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .tint(Color.terra500)
+                DatePicker("Until", selection: endDate, displayedComponents: .hourAndMinute)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .tint(Color.terra500)
+
+                if reminder.wakeEndMinutes <= reminder.wakeStartMinutes {
+                    Text("Until needs to be later than from.")
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
+            }
+        }
+        .task {
+            let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            blocked = status == .denied
+        }
+    }
+
+    private var enabled: Binding<Bool> {
+        Binding(
+            get: { reminder.enabled },
+            set: { on in
+                if !on {
+                    reminder.enabled = false
+                    return
+                }
+                Task {
+                    let allowed = await GoalReminderScheduler.requestAccess()
+                    reminder.enabled = allowed
+                    blocked = !allowed
+                }
+            }
+        )
+    }
+
+    private var startDate: Binding<Date> {
+        Binding(
+            get: { GoalReminder.date(reminder.wakeStartMinutes) },
+            set: { reminder.wakeStartMinutes = Self.minutes(from: $0) }
+        )
+    }
+
+    private var endDate: Binding<Date> {
+        Binding(
+            get: { GoalReminder.date(reminder.wakeEndMinutes) },
+            set: { reminder.wakeEndMinutes = Self.minutes(from: $0) }
+        )
+    }
+
+    private static func minutes(from date: Date) -> Int {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    private func choice(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .foregroundStyle(on ? .white : HomeQuiet.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(on ? Color.terra500 : Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(on ? Color.clear : HomeQuiet.cardStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func stepper(
+        title: String,
+        value: String,
+        canDecrease: Bool,
+        canIncrease: Bool,
+        decrease: @escaping () -> Void,
+        increase: @escaping () -> Void
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            Spacer()
+            if canDecrease {
+                stepButton("minus", action: decrease)
+            } else {
+                Color.clear.frame(width: 32, height: 32)
+            }
+            Text(value)
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .frame(minWidth: 72)
+            if canIncrease {
+                stepButton("plus", action: increase)
+            } else {
+                Color.clear.frame(width: 32, height: 32)
+            }
+        }
+    }
+
+    private func stepButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(HomeQuiet.ink)
+                .frame(width: 32, height: 32)
+                .background(Color.white)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }

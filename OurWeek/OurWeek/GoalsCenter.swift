@@ -378,13 +378,19 @@ final class GoalsCenter {
             }
         }
         let file = GoalsFile(goals: goals, settings: settings, appliedBumps: appliedBumps)
-        guard let data = try? JSONEncoder().encode(file) else { return }
-        let url = Self.fileURL
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: url, options: .atomic)
+        if let data = try? JSONEncoder().encode(file) {
+            let url = Self.fileURL
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: url, options: .atomic)
+        }
         if notify {
             HomeWidgetStore.noteGoalsChanged()
         }
+        GoalReminderScheduler.reschedule(goals: goals)
+    }
+
+    func refreshReminders() {
+        GoalReminderScheduler.reschedule(goals: goals)
     }
 
     private static func readFile() -> GoalsFile {
@@ -434,6 +440,12 @@ struct Goal: Identifiable, Codable, Equatable {
     var archived: Bool
     var sort: Int
     var logs: [String: Double]
+    var reminder: GoalReminder
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, kind, unit, customUnit, period, target, step, color, icon
+        case weekdays, showOnHome, showOnWidget, archived, sort, logs, reminder
+    }
 
     static func draft() -> Goal {
         Goal(
@@ -452,8 +464,68 @@ struct Goal: Identifiable, Codable, Equatable {
             showOnWidget: false,
             archived: false,
             sort: 0,
-            logs: [:]
+            logs: [:],
+            reminder: GoalReminder()
         )
+    }
+
+    init(
+        id: UUID,
+        name: String,
+        kind: GoalKind,
+        unit: GoalUnit,
+        customUnit: String,
+        period: GoalPeriod,
+        target: Double,
+        step: Double,
+        color: String,
+        icon: String,
+        weekdays: [Int],
+        showOnHome: Bool,
+        showOnWidget: Bool,
+        archived: Bool,
+        sort: Int,
+        logs: [String: Double],
+        reminder: GoalReminder = GoalReminder()
+    ) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.unit = unit
+        self.customUnit = customUnit
+        self.period = period
+        self.target = target
+        self.step = step
+        self.color = color
+        self.icon = icon
+        self.weekdays = weekdays
+        self.showOnHome = showOnHome
+        self.showOnWidget = showOnWidget
+        self.archived = archived
+        self.sort = sort
+        self.logs = logs
+        self.reminder = reminder
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        kind = try container.decode(GoalKind.self, forKey: .kind)
+        unit = try container.decode(GoalUnit.self, forKey: .unit)
+        customUnit = try container.decodeIfPresent(String.self, forKey: .customUnit) ?? ""
+        period = try container.decode(GoalPeriod.self, forKey: .period)
+        target = try container.decode(Double.self, forKey: .target)
+        step = try container.decodeIfPresent(Double.self, forKey: .step) ?? 1
+        color = try container.decodeIfPresent(String.self, forKey: .color) ?? "terra"
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? ""
+        weekdays = try container.decodeIfPresent([Int].self, forKey: .weekdays) ?? Array(1...7)
+        showOnHome = try container.decodeIfPresent(Bool.self, forKey: .showOnHome) ?? true
+        showOnWidget = try container.decodeIfPresent(Bool.self, forKey: .showOnWidget) ?? false
+        archived = try container.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        sort = try container.decodeIfPresent(Int.self, forKey: .sort) ?? 0
+        logs = try container.decodeIfPresent([String: Double].self, forKey: .logs) ?? [:]
+        reminder = try container.decodeIfPresent(GoalReminder.self, forKey: .reminder) ?? GoalReminder()
     }
 
     var unitLabel: String {
@@ -466,6 +538,113 @@ struct Goal: Identifiable, Codable, Equatable {
             return trimmed.isEmpty ? "" : trimmed
         }
     }
+}
+
+enum GoalReminderMode: String, Codable, CaseIterable {
+    case everyHour
+    case everyTwoHours
+    case custom
+    case spread
+}
+
+struct GoalReminder: Codable, Equatable {
+    var enabled: Bool
+    var mode: GoalReminderMode
+    var customHours: Int
+    var spreadCount: Int
+    var wakeStartMinutes: Int
+    var wakeEndMinutes: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, mode, customHours, spreadCount, wakeStartMinutes, wakeEndMinutes
+    }
+
+    init(
+        enabled: Bool = false,
+        mode: GoalReminderMode = .everyHour,
+        customHours: Int = 3,
+        spreadCount: Int = 4,
+        wakeStartMinutes: Int = 8 * 60,
+        wakeEndMinutes: Int = 21 * 60
+    ) {
+        self.enabled = enabled
+        self.mode = mode
+        self.customHours = customHours
+        self.spreadCount = spreadCount
+        self.wakeStartMinutes = wakeStartMinutes
+        self.wakeEndMinutes = wakeEndMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        mode = try container.decodeIfPresent(GoalReminderMode.self, forKey: .mode) ?? .everyHour
+        customHours = try container.decodeIfPresent(Int.self, forKey: .customHours) ?? 3
+        spreadCount = try container.decodeIfPresent(Int.self, forKey: .spreadCount) ?? 4
+        wakeStartMinutes = try container.decodeIfPresent(Int.self, forKey: .wakeStartMinutes) ?? 8 * 60
+        wakeEndMinutes = try container.decodeIfPresent(Int.self, forKey: .wakeEndMinutes) ?? 21 * 60
+    }
+
+    /// Clock minutes inside the wake window. Empty when the window is backwards.
+    var slots: [Int] {
+        let start = min(max(wakeStartMinutes, 0), 24 * 60 - 1)
+        let end = min(max(wakeEndMinutes, 0), 24 * 60)
+        guard end > start else { return [] }
+        switch mode {
+        case .everyHour:
+            return Self.stride(from: start, through: end, by: 60)
+        case .everyTwoHours:
+            return Self.stride(from: start, through: end, by: 120)
+        case .custom:
+            let step = min(max(customHours, 1), 12) * 60
+            return Self.stride(from: start, through: end, by: step)
+        case .spread:
+            let count = min(max(spreadCount, 2), 12)
+            guard count > 1 else { return [(start + end) / 2] }
+            return (0..<count).map { start + (end - start) * $0 / (count - 1) }
+        }
+    }
+
+    var summary: String {
+        guard enabled else { return "Off" }
+        let window = "\(Self.clock.string(from: Self.date(wakeStartMinutes)))–\(Self.clock.string(from: Self.date(wakeEndMinutes)))"
+        switch mode {
+        case .everyHour:
+            return "Every hour · \(window)"
+        case .everyTwoHours:
+            return "Every 2 hours · \(window)"
+        case .custom:
+            let hours = min(max(customHours, 1), 12)
+            return hours == 1 ? "Every hour · \(window)" : "Every \(hours) hours · \(window)"
+        case .spread:
+            let count = min(max(spreadCount, 2), 12)
+            return "\(count) times · \(window)"
+        }
+    }
+
+    private static func stride(from start: Int, through end: Int, by step: Int) -> [Int] {
+        guard step > 0 else { return [] }
+        var minute = start
+        var slots: [Int] = []
+        while minute <= end && slots.count < 24 {
+            slots.append(minute)
+            minute += step
+        }
+        return slots
+    }
+
+    static func date(_ minutes: Int) -> Date {
+        let hour = min(max(minutes, 0), 24 * 60) / 60
+        let minute = min(max(minutes, 0), 24 * 60) % 60
+        return Calendar.current.date(bySettingHour: hour % 24, minute: minute, second: 0, of: Date()) ?? Date()
+    }
+
+    private static let clock: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter
+    }()
 }
 
 enum GoalKind: String, Codable, CaseIterable {
