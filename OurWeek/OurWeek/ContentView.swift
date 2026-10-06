@@ -182,6 +182,7 @@ struct ContentView: View {
         .task {
             // Let the first frame finish. Reminders work is not part of scene creation.
             await Task.yield()
+            dataManager.recordPassedCookedMeals()
             await remindersSync.resumeIfEnabled()
         }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
@@ -208,6 +209,7 @@ struct ContentView: View {
                 HomeWidgetStore.applyWidgetTodoEdits()
                 Task {
                     await Task.yield()
+                    dataManager.recordPassedCookedMeals()
                     await remindersSync.resumeIfEnabled()
                 }
                 HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
@@ -1275,7 +1277,7 @@ struct WeeklyCalendarCard: View {
             loadData()
             refreshAppleEvents()
         }) {
-            WeekPlannerView(weekStart: weekDates.first ?? Date())
+            WeekPlannerView(weekDays: listedWeekDates)
         }
         .fullScreenCover(isPresented: $showClearWeek) {
             clearWeekPrompt

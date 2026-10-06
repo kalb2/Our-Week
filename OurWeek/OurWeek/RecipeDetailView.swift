@@ -9,6 +9,8 @@ struct RecipeDetailView: View {
     init(recipe: Recipe) {
         self.recipe = recipe
         _adjustedServings = State(initialValue: max(1, Int(recipe.servings)))
+        _cookedDisplay = State(initialValue: Int(recipe.timesCooked))
+        _cookedWhen = State(initialValue: recipe.lastCookedDate)
     }
 
     @Environment(\.dismiss) private var dismiss
@@ -28,8 +30,27 @@ struct RecipeDetailView: View {
     @State private var imageStyle: ImageStyle = .realistic
     @State private var generationError: String?
     @State private var hasAIKey = KeychainManager.hasGeminiAPIKey()
+    @State private var cookedDisplay: Int
+    @State private var cookedWhen: Date?
 
     private var totalTime: Int16 { recipe.prepTime + recipe.cookTime }
+
+    private var cookedLine: String? {
+        guard cookedDisplay > 0 else { return nil }
+        var line = "Cooked \(cookedDisplay)×"
+        if let cookedWhen {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            line += " · \(formatter.string(from: cookedWhen))"
+        }
+        return line
+    }
+
+    private func refreshCooked() {
+        dataManager.recordPassedCookedMeals()
+        cookedDisplay = Int(recipe.timesCooked)
+        cookedWhen = recipe.lastCookedDate
+    }
     private var servingMultiplier: Double {
         recipe.servings > 0 ? Double(adjustedServings) / Double(recipe.servings) : 1.0
     }
@@ -127,6 +148,7 @@ struct RecipeDetailView: View {
             }
         }
         .background(Color.bgBase)
+        .onAppear(perform: refreshCooked)
         .overlay(alignment: .topLeading) {
             // Back button
             Button(action: { dismiss() }) {
@@ -343,9 +365,42 @@ struct RecipeDetailView: View {
                 Text(recipe.name ?? "Untitled")
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .tracking(-0.5)
+
+                if let cookedLine {
+                    Text(cookedLine)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
             }
 
             Spacer()
+
+            Menu {
+                Button {
+                    dataManager.adjustTimesCooked(recipe, by: 1)
+                    refreshCooked()
+                } label: {
+                    Label("Cooked once more", systemImage: "plus")
+                }
+                if cookedDisplay > 0 {
+                    Button {
+                        dataManager.adjustTimesCooked(recipe, by: -1)
+                        refreshCooked()
+                    } label: {
+                        Label("Cooked one less", systemImage: "minus")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .frame(width: 40, height: 40)
+                    .background(Color.white)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Recipe options")
 
             // Favorite button
             Button(action: { dataManager.toggleRecipeFavorite(recipe) }) {
@@ -610,39 +665,6 @@ struct RecipeDetailView: View {
                 }
             }
 
-            // Stats
-            HStack(spacing: 16) {
-                VStack(spacing: 4) {
-                    Text("\(recipe.timesCooked)")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
-                        .foregroundStyle(Color.terra500)
-                    Text("Times Cooked")
-                        .font(.system(size: 10, weight: .regular))
-                        .foregroundStyle(.gray)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1))
-
-                if let lastCooked = recipe.lastCookedDate {
-                    VStack(spacing: 4) {
-                        Text(lastCooked, style: .date)
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(Color.terra500)
-                        Text("Last Cooked")
-                            .font(.system(size: 10, weight: .regular))
-                            .foregroundStyle(.gray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.terra200, lineWidth: 1))
-                }
-            }
-
             // Notes
             VStack(alignment: .leading, spacing: 8) {
                 Text("PERSONAL NOTES")
@@ -707,23 +729,6 @@ struct RecipeDetailView: View {
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 
-            }
-            .buttonStyle(.plain)
-
-            // Mark as cooked
-            Button(action: { dataManager.incrementTimesCooked(recipe) }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 16, weight: .bold))
-                    Text("Mark as cooked")
-                        .font(.system(size: 15, weight: .regular))
-                }
-                .foregroundStyle(HomeQuiet.ink)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.white)
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
