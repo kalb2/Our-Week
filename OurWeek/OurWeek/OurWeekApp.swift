@@ -69,6 +69,9 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             let host = url.host?.lowercased()
             if host == "home" || host == "todo" {
                 NotificationCenter.default.post(name: .ourWeekOpenHome, object: nil)
+            } else if host == "goals" {
+                GoalReminderRoute.openGoals = true
+                NotificationCenter.default.post(name: .ourWeekOpenGoals, object: nil)
             } else {
                 NotificationCenter.default.post(name: ShareImportStore.didArrive, object: nil)
             }

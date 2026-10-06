@@ -9,7 +9,9 @@ private enum WidgetSnapshotStore {
     static let fileName = "home-widget-snapshot.json"
     static let todosFileName = "home-todos.json"
     static let togglesFileName = "home-todo-toggles.json"
+    static let goalBumpsFileName = "home-goal-bumps.json"
     static let widgetTodoNote = "com.kalebjensen.OurWeek.widgetTodo" as CFString
+    static let widgetGoalNote = "com.kalebjensen.OurWeek.widgetGoal" as CFString
 
     struct Line: Codable {
         var time: String
@@ -65,16 +67,108 @@ private enum WidgetSnapshotStore {
         }
     }
 
+    struct GoalLine: Codable {
+        var id: String
+        var name: String
+        var kind: String
+        var period: String
+        var current: Double
+        var solo: Double
+        var target: Double
+        var step: Double
+        var day: String
+        var red: Double
+        var green: Double
+        var blue: Double
+
+        private enum CodingKeys: String, CodingKey {
+            case id, name, kind, period, current, solo, target, step, day, red, green, blue
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decodeIfPresent(String.self, forKey: .id) ?? ""
+            name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+            kind = try container.decodeIfPresent(String.self, forKey: .kind) ?? "count"
+            period = try container.decodeIfPresent(String.self, forKey: .period) ?? "day"
+            current = try container.decodeIfPresent(Double.self, forKey: .current) ?? 0
+            solo = try container.decodeIfPresent(Double.self, forKey: .solo) ?? 0
+            target = try container.decodeIfPresent(Double.self, forKey: .target) ?? 1
+            step = try container.decodeIfPresent(Double.self, forKey: .step) ?? 1
+            day = try container.decodeIfPresent(String.self, forKey: .day) ?? ""
+            red = try container.decodeIfPresent(Double.self, forKey: .red) ?? 0.878
+            green = try container.decodeIfPresent(Double.self, forKey: .green) ?? 0.478
+            blue = try container.decodeIfPresent(Double.self, forKey: .blue) ?? 0.373
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(name, forKey: .name)
+            try container.encode(kind, forKey: .kind)
+            try container.encode(period, forKey: .period)
+            try container.encode(current, forKey: .current)
+            try container.encode(solo, forKey: .solo)
+            try container.encode(target, forKey: .target)
+            try container.encode(step, forKey: .step)
+            try container.encode(day, forKey: .day)
+            try container.encode(red, forKey: .red)
+            try container.encode(green, forKey: .green)
+            try container.encode(blue, forKey: .blue)
+        }
+    }
+
     struct Day: Codable {
         var day: String
         var meals: [String]
         var events: [Line]
         var todos: [Line]
+        var goals: [GoalLine]
+
+        private enum CodingKeys: String, CodingKey {
+            case day, meals, events, todos, goals
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            day = try container.decodeIfPresent(String.self, forKey: .day) ?? ""
+            meals = try container.decodeIfPresent([String].self, forKey: .meals) ?? []
+            events = try container.decodeIfPresent([Line].self, forKey: .events) ?? []
+            todos = try container.decodeIfPresent([Line].self, forKey: .todos) ?? []
+            goals = try container.decodeIfPresent([GoalLine].self, forKey: .goals) ?? []
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(day, forKey: .day)
+            try container.encode(meals, forKey: .meals)
+            try container.encode(events, forKey: .events)
+            try container.encode(todos, forKey: .todos)
+            try container.encode(goals, forKey: .goals)
+        }
     }
 
     struct Snapshot: Codable {
         var days: [Day]
         var undatedTodos: [Line]
+        var resetMinutes: Int
+
+        private enum CodingKeys: String, CodingKey {
+            case days, undatedTodos, resetMinutes
+        }
+
+        init(days: [Day], undatedTodos: [Line], resetMinutes: Int = 0) {
+            self.days = days
+            self.undatedTodos = undatedTodos
+            self.resetMinutes = resetMinutes
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            days = try container.decodeIfPresent([Day].self, forKey: .days) ?? []
+            undatedTodos = try container.decodeIfPresent([Line].self, forKey: .undatedTodos) ?? []
+            resetMinutes = try container.decodeIfPresent(Int.self, forKey: .resetMinutes) ?? 0
+        }
     }
 
     static func load() -> Snapshot {
@@ -112,6 +206,7 @@ private struct HomeEntry: TimelineEntry {
     var meals: [String]
     var events: [WidgetSnapshotStore.Line]
     var todos: [WidgetSnapshotStore.Line]
+    var goals: [WidgetSnapshotStore.GoalLine]
 }
 
 private struct HomeProvider: TimelineProvider {
@@ -120,7 +215,8 @@ private struct HomeProvider: TimelineProvider {
             date: Date(),
             meals: ["Chicken tortilla soup"],
             events: [WidgetSnapshotStore.Line(time: "6:30 PM", title: "Practice")],
-            todos: [WidgetSnapshotStore.Line(time: "8:00 AM", title: "Grocery run")]
+            todos: [WidgetSnapshotStore.Line(time: "8:00 AM", title: "Grocery run")],
+            goals: []
         )
     }
 
@@ -129,28 +225,42 @@ private struct HomeProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HomeEntry>) -> Void) {
+        let snapshot = WidgetSnapshotStore.load()
         let calendar = Calendar.current
         let now = Date()
         let start = calendar.startOfDay(for: now)
         let midnight = calendar.date(byAdding: .day, value: 1, to: start) ?? now.addingTimeInterval(86_400)
-        let entries = [
-            entry(for: now),
-            entry(for: midnight)
-        ]
-        completion(Timeline(entries: entries, policy: .after(midnight.addingTimeInterval(60))))
+        var dates = [now, midnight]
+        if snapshot.resetMinutes > 0 {
+            let resetToday = start.addingTimeInterval(TimeInterval(snapshot.resetMinutes * 60))
+            if resetToday > now {
+                dates.append(resetToday)
+            }
+            if let resetTomorrow = calendar.date(byAdding: .day, value: 1, to: resetToday), resetTomorrow > now {
+                dates.append(resetTomorrow)
+            }
+        }
+        dates.sort()
+        let entries = dates.map { entry(for: $0, snapshot: snapshot) }
+        let refresh = dates.last ?? midnight
+        completion(Timeline(entries: entries, policy: .after(refresh.addingTimeInterval(60))))
     }
 
-    private func entry(for date: Date) -> HomeEntry {
-        let snapshot = WidgetSnapshotStore.load()
+    private func entry(for date: Date, snapshot loaded: WidgetSnapshotStore.Snapshot? = nil) -> HomeEntry {
+        let snapshot = loaded ?? WidgetSnapshotStore.load()
         let key = WidgetSnapshotStore.dayKey(for: date)
         let day = snapshot.days.first { $0.day == key }
+        let goalDate = date.addingTimeInterval(TimeInterval(-snapshot.resetMinutes * 60))
+        let goalKey = WidgetSnapshotStore.dayKey(for: goalDate)
+        let goalDay = goalKey == key ? day : snapshot.days.first { $0.day == goalKey }
         // Undated to-dos stay on whichever day is on screen, including the midnight entry.
         let todos = (day?.todos ?? []) + snapshot.undatedTodos
         return HomeEntry(
             date: date,
             meals: day?.meals ?? [],
             events: day?.events ?? [],
-            todos: todos
+            todos: todos,
+            goals: goalDay?.goals ?? []
         )
     }
 }
@@ -182,9 +292,12 @@ private struct HomeWidgetView: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: entry.goals.isEmpty ? 6 : 4) {
             dayHeading(nameSize: 16, dateSize: 11)
-            mealBlock(text: entry.meals.first ?? "Add dinner", size: 18, limit: 3)
+            mealBlock(text: entry.meals.first ?? "Add dinner", size: 18, limit: entry.goals.isEmpty ? 3 : 2)
+            if !entry.goals.isEmpty {
+                goalMarks
+            }
             if let todo = entry.todos.first {
                 todoRow(todo, limit: 1)
             }
@@ -199,6 +312,9 @@ private struct HomeWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             dayHeading(nameSize: 18, dateSize: 12)
             mealBlock(text: joinedMeals, size: 22, limit: 2)
+            if !entry.goals.isEmpty {
+                goalMarks
+            }
             if !entry.events.isEmpty || !entry.todos.isEmpty {
                 HStack(alignment: .top, spacing: 16) {
                     if !entry.todos.isEmpty {
@@ -273,6 +389,46 @@ private struct HomeWidgetView: View {
             .minimumScaleFactor(0.85)
             .fixedSize(horizontal: false, vertical: true)
             .widgetAccentable()
+    }
+
+    private var goalMarks: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(entry.goals.prefix(3).enumerated()), id: \.offset) { _, goal in
+                Button(intent: BumpGoalIntent(goalID: goal.id, day: goal.day, op: goal.kind == "check" ? "toggle" : "increment")) {
+                    goalMark(goal)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func goalMark(_ goal: WidgetSnapshotStore.GoalLine) -> some View {
+        let tint = Color(red: goal.red, green: goal.green, blue: goal.blue)
+        let fraction = goal.target > 0 ? min(goal.current / goal.target, 1) : 0
+        let checked = goal.period == "week" ? goal.solo >= 1 : fraction >= 1
+        return HStack(spacing: 4) {
+            if goal.kind == "check" {
+                checkbox(done: checked)
+            } else {
+                ZStack {
+                    Circle()
+                        .stroke(tint.opacity(0.28), lineWidth: 1.5)
+                    Circle()
+                        .trim(from: 0, to: fraction)
+                        .stroke(tint, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 14, height: 14)
+            }
+            if family != .systemSmall {
+                Text(goal.name)
+                    .font(.system(size: 12, weight: .regular, design: .serif))
+                    .foregroundStyle(ink)
+                    .lineLimit(1)
+            }
+        }
+        .accessibilityLabel(goal.name)
     }
 
     private var hairline: some View {
@@ -493,13 +649,131 @@ private enum WidgetTodoToggle {
     }
 }
 
+struct BumpGoalIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log goal"
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Goal")
+    var goalID: String
+
+    @Parameter(title: "Day")
+    var day: String
+
+    @Parameter(title: "Op")
+    var op: String
+
+    init() {
+        goalID = ""
+        day = ""
+        op = "increment"
+    }
+
+    init(goalID: String, day: String, op: String) {
+        self.goalID = goalID
+        self.day = day
+        self.op = op
+    }
+
+    func perform() async throws -> some IntentResult {
+        WidgetGoalBump.apply(goalID: goalID, day: day, op: op)
+        return .result()
+    }
+}
+
+private enum WidgetGoalBump {
+    static func apply(goalID: String, day: String, op: String) {
+        let id = goalID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return }
+        patchSnapshot(id: id, day: day, op: op)
+        record(id: id, day: day, op: op)
+        WidgetCenter.shared.reloadTimelines(ofKind: "HomeToday")
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(WidgetSnapshotStore.widgetGoalNote),
+            nil,
+            nil,
+            true
+        )
+    }
+
+    private static func record(id: String, day: String, op: String) {
+        guard let url = fileURL(WidgetSnapshotStore.goalBumpsFileName) else { return }
+        var items = (try? Data(contentsOf: url)).flatMap {
+            try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]]
+        } ?? []
+        items.append([
+            "bump": UUID().uuidString,
+            "goal": id,
+            "day": day,
+            "op": op
+        ])
+        guard let written = try? JSONSerialization.data(withJSONObject: items) else { return }
+        try? written.write(to: url, options: .atomic)
+    }
+
+    private static func patchSnapshot(id: String, day: String, op: String) {
+        guard let url = fileURL(WidgetSnapshotStore.fileName),
+              let data = try? Data(contentsOf: url),
+              var root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              var days = root["days"] as? [[String: Any]] else { return }
+        for index in days.indices {
+            var goals = days[index]["goals"] as? [[String: Any]] ?? []
+            for goalIndex in goals.indices {
+                let currentID = (goals[goalIndex]["id"] as? String) ?? ""
+                guard currentID.caseInsensitiveCompare(id) == .orderedSame else { continue }
+                let lineDay = (goals[goalIndex]["day"] as? String) ?? ""
+                if !day.isEmpty, lineDay != day { continue }
+                let kind = (goals[goalIndex]["kind"] as? String) ?? ""
+                let period = (goals[goalIndex]["period"] as? String) ?? "day"
+                let target = doubleValue(goals[goalIndex]["target"])
+                let step = max(doubleValue(goals[goalIndex]["step"]), 1)
+                var current = doubleValue(goals[goalIndex]["current"])
+                var solo = doubleValue(goals[goalIndex]["solo"])
+                if op == "toggle" && kind == "check" && period == "week" {
+                    if solo >= 1 {
+                        solo = 0
+                        current = max(0, current - 1)
+                    } else {
+                        solo = 1
+                        current += 1
+                    }
+                } else if op == "toggle" && kind == "check" {
+                    current = current >= target ? 0 : target
+                    solo = current
+                } else {
+                    current += step
+                    solo += step
+                }
+                goals[goalIndex]["current"] = current
+                goals[goalIndex]["solo"] = solo
+            }
+            days[index]["goals"] = goals
+        }
+        root["days"] = days
+        guard let written = try? JSONSerialization.data(withJSONObject: root) else { return }
+        try? written.write(to: url, options: .atomic)
+    }
+
+    private static func doubleValue(_ value: Any?) -> Double {
+        if let value = value as? Double { return value }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return 0
+    }
+
+    private static func fileURL(_ name: String) -> URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshotStore.appGroupID)?
+            .appendingPathComponent(name)
+    }
+}
+
 struct HomeWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "HomeToday", provider: HomeProvider()) { entry in
             HomeWidgetView(entry: entry)
         }
         .configurationDisplayName("Today")
-        .description("Tonight's meal, the next events, and today's to-dos.")
+        .description("Tonight's meal, today's goals, the next events, and to-dos.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

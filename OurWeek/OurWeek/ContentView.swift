@@ -91,7 +91,7 @@ struct ContentView: View {
                 case .calendar: CalendarView()
                 case .add:     PlaceholderView(title: "Add")
                 case .meals:   RecipeLibraryView(showSharingSettings: $showSharingSettings)
-                case .shop:    ShoppingListView(showSharingSettings: $showSharingSettings)
+                case .goals:   GoalsView()
                 }
             }
             if !isKeyboardVisible {
@@ -150,7 +150,7 @@ struct ContentView: View {
                 },
                 onAddShopping: {
                     showAddSheet = false
-                    selectedTab = .shop
+                    selectedTab = .home
                 }
             )
                 .presentationDetents([.medium])
@@ -177,6 +177,12 @@ struct ContentView: View {
             openSharedImportIfNeeded()
             HomeWidgetStore.startObservingWidgetToggles()
             HomeWidgetStore.applyWidgetTodoEdits()
+            GoalsCenter.shared.applyWidgetBumps()
+            GoalsCenter.shared.refreshReminders()
+            if GoalReminderRoute.openGoals {
+                GoalReminderRoute.openGoals = false
+                selectedTab = .goals
+            }
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
         .task {
@@ -190,6 +196,10 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenHome)) { _ in
             selectedTab = .home
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenGoals)) { _ in
+            GoalReminderRoute.openGoals = false
+            selectedTab = .goals
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             // To-do edits only. A full publish here loops: the snapshot write posts this notification.
@@ -207,6 +217,12 @@ struct ContentView: View {
             case .active:
                 HomeWidgetStore.startObservingWidgetToggles()
                 HomeWidgetStore.applyWidgetTodoEdits()
+                GoalsCenter.shared.applyWidgetBumps()
+                GoalsCenter.shared.refreshReminders()
+                if GoalReminderRoute.openGoals {
+                    GoalReminderRoute.openGoals = false
+                    selectedTab = .goals
+                }
                 Task {
                     await Task.yield()
                     dataManager.recordPassedCookedMeals()
@@ -940,9 +956,7 @@ private struct HomeDisplaySheet: View {
                 Spacer(minLength: 8)
                 Toggle("Apple Reminders", isOn: Binding(
                     get: { remindersSync.isEnabled },
-                    set: { on in
-                        Task { await remindersSync.setEnabled(on) }
-                    }
+                    set: { remindersSync.setEnabled($0) }
                 ))
                 .labelsHidden()
                 .tint(Color.terra500)
@@ -978,12 +992,23 @@ private struct HomeDisplaySheet: View {
             }
 
             if let note = remindersSync.statusNote {
-                Text(note)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(note)
+                        .font(.system(size: 13, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if remindersSync.statusOffersSettings {
+                        Button("Settings") {
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                            UIApplication.shared.open(url)
+                        }
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra500)
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
         }
     }
@@ -1070,6 +1095,7 @@ struct WeeklyCalendarCard: View {
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
+    @State private var goalsCenter = GoalsCenter.shared
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -1655,6 +1681,9 @@ struct WeeklyCalendarCard: View {
                     }
                 }
                 if isToday, !dayFocused {
+                    if !goalsCenter.homeGoals.isEmpty {
+                        HomeGoalStrip()
+                    }
                     todayPlanColumns(on: date)
                 } else if !dayFocused {
                     if showEvents {
@@ -4399,7 +4428,7 @@ struct AddGoalSheet: View {
 
 // MARK: - Tab Bar
 enum Tab: String, CaseIterable {
-    case home, calendar, add, meals, shop
+    case home, calendar, add, meals, goals
 }
 
 struct MainTabBar: View {
@@ -4438,10 +4467,9 @@ struct MainTabBar: View {
                     isSelected: selectedTab == .meals)
                 .onTapGesture { selectedTab = .meals }
 
-            // Shop
-            TabItem(icon: "bag.fill", label: "Shop",
-                    isSelected: selectedTab == .shop)
-                .onTapGesture { selectedTab = .shop }
+            TabItem(icon: "target", label: "Goals",
+                    isSelected: selectedTab == .goals)
+                .onTapGesture { selectedTab = .goals }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
