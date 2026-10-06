@@ -20,10 +20,10 @@ struct GoalsView: View {
                     undoBanner
                 }
                 if center.activeGoals.isEmpty {
-                    empty
+                    suggestions
                 } else {
                     VStack(spacing: 16) {
-                        ForEach(center.activeGoals) { goal in
+                        ForEach(trackingGoals) { goal in
                             goalCard(goal)
                         }
                     }
@@ -90,8 +90,8 @@ struct GoalsView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("New goal")
             Menu {
-                if center.undoAction != nil {
-                    Button("Undo") { center.undoLast() }
+                ForEach(tuckedGoals) { goal in
+                    Button(goal.name) { editing = goal }
                 }
                 Button("Settings", action: { showSettings = true })
                 Button("Archived", action: { showArchived = true })
@@ -124,23 +124,79 @@ struct GoalsView: View {
         .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
     }
 
-    private var empty: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("No goals yet")
-                .font(.system(size: 22, weight: .regular, design: .serif))
-                .foregroundStyle(HomeQuiet.ink)
-            Button { creating = true } label: {
-                Text("New goal")
-                    .font(.system(size: 16, weight: .regular, design: .serif))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 12)
-                    .background(Color.terra500)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
+    private var trackingGoals: [Goal] {
+        let today = center.todayGoals
+        return today.isEmpty ? center.activeGoals : today
+    }
+
+    private var tuckedGoals: [Goal] {
+        let shown = Set(trackingGoals.map(\.id))
+        return center.activeGoals.filter { !shown.contains($0.id) }
+    }
+
+    private var suggestions: some View {
+        VStack(spacing: 12) {
+            suggestion("Drink water", "8 glasses") { center.save(Self.suggestedWater()) }
+            suggestion("Move", "10,000 steps") { center.save(Self.suggestedMove()) }
+            suggestion("Read", "Each day") { center.save(Self.suggestedRead()) }
         }
-        .padding(.top, 28)
+        .padding(.top, 8)
+    }
+
+    private func suggestion(_ title: String, _ detail: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Text(detail)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 22)
+            .homeQuietCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private static func suggestedWater() -> Goal {
+        var goal = Goal.draft()
+        goal.name = "Drink water"
+        goal.kind = .count
+        goal.unit = .glasses
+        goal.target = 8
+        goal.step = 1
+        goal.icon = "drop.fill"
+        goal.color = "terra"
+        goal.reminder = GoalReminder(enabled: false, mode: .spread, spreadCount: 8)
+        return goal
+    }
+
+    private static func suggestedMove() -> Goal {
+        var goal = Goal.draft()
+        goal.name = "Move"
+        goal.kind = .count
+        goal.unit = .steps
+        goal.target = 10_000
+        goal.step = 500
+        goal.icon = "figure.walk"
+        goal.color = "sage"
+        return goal
+    }
+
+    private static func suggestedRead() -> Goal {
+        var goal = Goal.draft()
+        goal.name = "Read"
+        goal.kind = .check
+        goal.unit = .custom
+        goal.customUnit = ""
+        goal.target = 1
+        goal.step = 1
+        goal.icon = "book.fill"
+        goal.color = "ink"
+        return goal
     }
 
     private func goalCard(_ goal: Goal) -> some View {
@@ -148,7 +204,7 @@ struct GoalsView: View {
         let streak = center.streak(for: goal)
         let scheduled = center.isScheduled(goal, on: Date())
         let today = goal.logs[center.dayKey(for: Date())] ?? 0
-        return VStack(alignment: .leading, spacing: 16) {
+        return VStack(spacing: 20) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(goal.name)
@@ -159,22 +215,13 @@ struct GoalsView: View {
                         Text("Not today")
                             .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(HomeQuiet.quiet)
-                    } else if streak > 0 {
-                        Text(streakLabel(streak, period: goal.period))
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(HomeQuiet.quiet)
-                    }
-                    if goal.reminder.enabled {
-                        Text(goal.reminder.summary)
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(HomeQuiet.quiet)
                     }
                 }
                 Spacer(minLength: 8)
                 Menu {
                     Button("Edit") { editing = fresh(goal.id) }
                     Button("Reminders") { reminders = fresh(goal.id) }
-                    Button("History") { detail = fresh(goal.id) }
+                    Button("Week") { detail = fresh(goal.id) }
                     Button("Archive") { center.archive(goal.id) }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -189,10 +236,8 @@ struct GoalsView: View {
             goalGraphic(goal, current: current, scheduled: scheduled)
                 .frame(maxWidth: .infinity)
 
-            GoalProgressDots(goal: goal, current: current)
-
             if scheduled, goal.kind != .check {
-                HStack(spacing: 28) {
+                HStack(spacing: 36) {
                     if today > 0 {
                         stepControl("minus", filled: false) { center.add(goal.id, delta: -goal.step) }
                             .accessibilityLabel("Decrease \(goal.name)")
@@ -201,17 +246,26 @@ struct GoalsView: View {
                         .accessibilityLabel("Add \(GoalNumber.text(goal.step)) to \(goal.name)")
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+            }
+
+            if scheduled, streak > 0 {
+                Text(streakLabel(streak, period: goal.period))
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .frame(maxWidth: .infinity)
             }
         }
-        .padding(22)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
         .homeQuietCard()
-        .contextMenu {
-            Button("Edit") { editing = fresh(goal.id) }
-            Button("Reminders") { reminders = fresh(goal.id) }
-            Button("History") { detail = fresh(goal.id) }
-            Button("Archive") { center.archive(goal.id) }
-        }
+    }
+
+    private func goalChecked(_ goal: Goal) -> Bool {
+        let today = goal.logs[center.dayKey(for: Date())] ?? 0
+        if goal.period == .week { return today >= 1 }
+        return center.isMet(goal)
     }
 
     @ViewBuilder
@@ -227,15 +281,11 @@ struct GoalsView: View {
             } else {
                 checkGraphic(goal, checked: checked, scheduled: false)
             }
+        } else if GoalProgressDots.count(for: goal) != nil {
+            countReadout(goal, current: current)
         } else {
-            countGraphic(goal, current: current)
+            ringGraphic(goal, current: current)
         }
-    }
-
-    private func goalChecked(_ goal: Goal) -> Bool {
-        let today = goal.logs[center.dayKey(for: Date())] ?? 0
-        if goal.period == .week { return today >= 1 }
-        return center.isMet(goal)
     }
 
     private func checkGraphic(_ goal: Goal, checked: Bool, scheduled: Bool) -> some View {
@@ -255,7 +305,7 @@ struct GoalsView: View {
                         .foregroundStyle(tint)
                 }
             }
-            .frame(width: 120, height: 120)
+            .frame(width: 140, height: 140)
             if scheduled {
                 Text(checked ? "Done" : "Today")
                     .font(.system(size: 15, weight: .regular, design: .serif))
@@ -264,38 +314,49 @@ struct GoalsView: View {
         }
     }
 
-    private func countGraphic(_ goal: Goal, current: Double) -> some View {
+    private func countReadout(_ goal: Goal, current: Double) -> some View {
+        VStack(spacing: 14) {
+            Text(GoalNumber.text(current))
+                .font(.system(size: 64, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            Text(caption(goal))
+                .font(.system(size: 15, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.quiet)
+            GoalProgressDots(goal: goal, current: current)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func ringGraphic(_ goal: Goal, current: Double) -> some View {
         let tint = GoalPalette.color(goal.color)
         let fraction = goal.target > 0 ? min(current / goal.target, 1) : 0
-        let caption = goal.unitLabel.isEmpty
-            ? "of \(GoalNumber.text(goal.target))"
-            : "of \(GoalNumber.text(goal.target)) \(goal.unitLabel)"
         return ZStack {
             Circle()
-                .stroke(tint.opacity(0.2), lineWidth: 8)
+                .stroke(tint.opacity(0.18), lineWidth: 14)
             Circle()
                 .trim(from: 0, to: fraction)
-                .stroke(tint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .stroke(tint, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             VStack(spacing: 2) {
-                if !goal.icon.isEmpty {
-                    Image(systemName: goal.icon)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundStyle(tint)
-                }
                 Text(GoalNumber.text(current))
-                    .font(.system(size: 40, weight: .regular, design: .serif))
+                    .font(.system(size: 36, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
-                Text(caption)
+                Text(caption(goal))
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(HomeQuiet.quiet)
                     .multilineTextAlignment(.center)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 28)
         }
-        .frame(width: 156, height: 156)
+        .frame(width: 168, height: 168)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(goal.name), \(GoalNumber.text(current)) \(caption)")
+        .accessibilityLabel("\(goal.name), \(GoalNumber.text(current)) \(caption(goal))")
+    }
+
+    private func caption(_ goal: Goal) -> String {
+        let amount = "of \(GoalNumber.text(goal.target))"
+        if goal.unitLabel.isEmpty { return amount }
+        return "\(amount) \(goal.unitLabel)"
     }
 
     private func stepControl(_ symbol: String, filled: Bool, action: @escaping () -> Void) -> some View {
@@ -303,7 +364,7 @@ struct GoalsView: View {
             Image(systemName: symbol)
                 .font(.system(size: 18, weight: .regular))
                 .foregroundStyle(filled ? Color.white : HomeQuiet.ink)
-                .frame(width: 56, height: 56)
+                .frame(width: 64, height: 64)
                 .background(filled ? Color.terra500 : Color.white)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(filled ? Color.clear : HomeQuiet.cardStroke, lineWidth: 1))
@@ -317,7 +378,7 @@ struct GoalsView: View {
 
     private func streakLabel(_ count: Int, period: GoalPeriod) -> String {
         let unit = period == .week ? "week" : "day"
-        return count == 1 ? "1 \(unit)" : "\(count) \(unit)s"
+        return count == 1 ? "1-\(unit) streak" : "\(count)-\(unit) streak"
     }
 }
 
@@ -346,18 +407,10 @@ struct HomeGoalStrip: View {
         return Button {
             center.bump(goal.id)
         } label: {
-            HStack(spacing: 6) {
-                GoalMark(goal: goal, current: current, diameter: 16)
-                Text(goal.name)
-                    .font(.system(size: 13, weight: .regular, design: .serif))
-                    .foregroundStyle(HomeQuiet.ink)
-                    .lineLimit(1)
-                if goal.kind != .check {
-                    Text(GoalNumber.text(current))
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(HomeQuiet.quiet)
-                }
-            }
+            Text(chipText(goal, current: current))
+                .font(.system(size: 13, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .lineLimit(1)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Color.white)
@@ -370,6 +423,13 @@ struct HomeGoalStrip: View {
         }
         .accessibilityLabel(goal.kind == .check ? goal.name : "Add to \(goal.name)")
     }
+
+    private func chipText(_ goal: Goal, current: Double) -> String {
+        if goal.kind == .check {
+            return center.isMet(goal) ? "\(goal.name) · Done" : goal.name
+        }
+        return "\(goal.name) \(GoalNumber.text(current))/\(GoalNumber.text(goal.target))"
+    }
 }
 
 /// One dot per unit of the target. Huge targets stay on the ring instead of a hairline.
@@ -379,12 +439,14 @@ struct GoalProgressDots: View {
 
     private static let maxDots = 16
 
-    private var dotCount: Int? {
-        guard goal.kind != .check, goal.target > 0 else { return nil }
+    static func count(for goal: Goal) -> Int? {
+        guard goal.kind == .count, goal.target > 0 else { return nil }
         let count = Int(goal.target.rounded())
-        guard count >= 1, count <= Self.maxDots else { return nil }
+        guard count >= 1, count <= maxDots else { return nil }
         return count
     }
+
+    private var dotCount: Int? { Self.count(for: goal) }
 
     private var filled: Int {
         guard let dotCount else { return 0 }
@@ -548,16 +610,59 @@ struct GoalDetailSheet: View {
                     .accessibilityLabel("Increase")
                 }
 
-                GoalProgressDots(goal: goal, current: current)
+                if GoalProgressDots.count(for: goal) != nil {
+                    GoalProgressDots(goal: goal, current: current)
+                }
+
+                weekStrip(goal)
 
                 if streak > 0 {
-                    Text(goal.period == .week ? "\(streak) week\(streak == 1 ? "" : "s")" : "\(streak) day\(streak == 1 ? "" : "s")")
+                    Text(streak == 1
+                         ? (goal.period == .week ? "1-week streak" : "1-day streak")
+                         : (goal.period == .week ? "\(streak)-week streak" : "\(streak)-day streak"))
                         .font(.system(size: 15, weight: .regular, design: .serif))
-                        .foregroundStyle(Color.terra500)
+                        .foregroundStyle(HomeQuiet.quiet)
                 }
             }
             .padding(24)
         }
+    }
+
+    private func weekStrip(_ goal: Goal) -> some View {
+        let marks = center.history(goal, days: 7)
+        return HStack(spacing: 0) {
+            ForEach(marks) { mark in
+                VStack(spacing: 6) {
+                    Text(Self.weekdayLetter(mark.key))
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Circle()
+                        .fill(mark.met ? GoalPalette.color(goal.color) : Color.clear)
+                        .overlay(
+                            Circle().stroke(
+                                mark.scheduled ? GoalPalette.color(goal.color).opacity(mark.isToday ? 1 : 0.35) : HomeQuiet.rule,
+                                lineWidth: 1.5
+                            )
+                        )
+                        .frame(width: 16, height: 16)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("This week")
+    }
+
+    private static func weekdayLetter(_ key: String) -> String {
+        let parser = DateFormatter()
+        parser.calendar = Calendar(identifier: .gregorian)
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = .current
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: key) else { return "" }
+        let letter = DateFormatter()
+        letter.dateFormat = "EEEEE"
+        return letter.string(from: date)
     }
 }
 
@@ -728,7 +833,7 @@ struct GoalEditor: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(Color.bgBase)
         .sheet(isPresented: $showReminders) {
-            GoalRemindersSheet(reminder: $draft.reminder)
+            GoalRemindersSheet(reminder: $draft.reminder, kind: draft.kind, target: draft.target)
         }
     }
 
@@ -993,6 +1098,8 @@ struct ArchivedGoalsSheet: View {
 
 struct GoalRemindersSheet: View {
     @Binding var reminder: GoalReminder
+    var kind: GoalKind = .count
+    var target: Double = 8
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1000,7 +1107,7 @@ struct GoalRemindersSheet: View {
                 Text("Reminders")
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
-                GoalReminderControls(reminder: $reminder)
+                GoalReminderControls(reminder: $reminder, kind: kind, target: target)
             }
             .padding(24)
         }
@@ -1027,12 +1134,19 @@ struct GoalRemindersBoundSheet: View {
     }
 
     var body: some View {
-        GoalRemindersSheet(reminder: reminder)
+        let goal = center.goals.first { $0.id == goalID }
+        GoalRemindersSheet(
+            reminder: reminder,
+            kind: goal?.kind ?? .count,
+            target: goal?.target ?? 8
+        )
     }
 }
 
 struct GoalReminderControls: View {
     @Binding var reminder: GoalReminder
+    var kind: GoalKind = .count
+    var target: Double = 8
     @State private var blocked = false
 
     var body: some View {
@@ -1052,10 +1166,10 @@ struct GoalReminderControls: View {
 
             if reminder.enabled {
                 VStack(alignment: .leading, spacing: 8) {
+                    choice("Spread across the day", on: reminder.mode == .spread) { reminder.mode = .spread }
                     choice("Every hour", on: reminder.mode == .everyHour) { reminder.mode = .everyHour }
                     choice("Every 2 hours", on: reminder.mode == .everyTwoHours) { reminder.mode = .everyTwoHours }
                     choice("Custom", on: reminder.mode == .custom) { reminder.mode = .custom }
-                    choice("Spread across the day", on: reminder.mode == .spread) { reminder.mode = .spread }
                 }
 
                 if reminder.mode == .custom {
@@ -1092,6 +1206,13 @@ struct GoalReminderControls: View {
                         .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.quiet)
                 }
+
+                Button(isPausedToday ? "Resume" : "Pause today") {
+                    reminder.pausedDay = isPausedToday ? "" : GoalsCenter.shared.dayKey(for: Date())
+                }
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(Color.terra500)
+                .buttonStyle(.plain)
             }
         }
         .task {
@@ -1110,11 +1231,30 @@ struct GoalReminderControls: View {
                 }
                 Task {
                     let allowed = await GoalReminderScheduler.requestAccess()
-                    reminder.enabled = allowed
-                    blocked = !allowed
+                    if allowed {
+                        var next = reminder
+                        next.enabled = true
+                        if kind == .count || kind == .ring {
+                            next.mode = .spread
+                            let raw = Int(target.rounded())
+                            next.spreadCount = (2...12).contains(raw) ? raw : 4
+                        } else {
+                            next.mode = .everyTwoHours
+                        }
+                        reminder = next
+                        blocked = false
+                    } else {
+                        reminder.enabled = false
+                        blocked = true
+                    }
                 }
             }
         )
+    }
+
+    private var isPausedToday: Bool {
+        let today = GoalsCenter.shared.dayKey(for: Date())
+        return !reminder.pausedDay.isEmpty && reminder.pausedDay == today
     }
 
     private var startDate: Binding<Date> {

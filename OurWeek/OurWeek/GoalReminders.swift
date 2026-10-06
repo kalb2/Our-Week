@@ -69,6 +69,8 @@ enum GoalReminderScheduler {
                     guard let date = calendar.date(byAdding: .minute, value: minutes, to: day) else { continue }
                     guard date > now.addingTimeInterval(45) else { continue }
                     guard GoalsCenter.shared.isScheduled(goal, on: date) else { continue }
+                    let paused = goal.reminder.pausedDay
+                    if !paused.isEmpty, GoalsCenter.shared.dayKey(for: date) == paused { continue }
                     guard !GoalsCenter.shared.isMet(goal, on: date) else { continue }
                     pairs.append((date, goal))
                 }

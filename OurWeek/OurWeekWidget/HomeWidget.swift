@@ -294,7 +294,7 @@ private struct HomeWidgetView: View {
     private var small: some View {
         VStack(alignment: .leading, spacing: entry.goals.isEmpty ? 6 : 4) {
             dayHeading(nameSize: 16, dateSize: 11)
-            mealBlock(text: entry.meals.first ?? "Add dinner", size: entry.goals.isEmpty ? 18 : 16, limit: entry.goals.isEmpty ? 3 : 2)
+            mealBlock(text: entry.meals.first ?? "Add dinner", size: 18, limit: entry.goals.isEmpty ? 3 : 2)
             if !entry.goals.isEmpty {
                 goalMarks
             }

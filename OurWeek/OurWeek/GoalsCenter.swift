@@ -554,18 +554,21 @@ struct GoalReminder: Codable, Equatable {
     var spreadCount: Int
     var wakeStartMinutes: Int
     var wakeEndMinutes: Int
+    /// Logical day key while reminders are paused. Empty means they are on.
+    var pausedDay: String
 
     private enum CodingKeys: String, CodingKey {
-        case enabled, mode, customHours, spreadCount, wakeStartMinutes, wakeEndMinutes
+        case enabled, mode, customHours, spreadCount, wakeStartMinutes, wakeEndMinutes, pausedDay
     }
 
     init(
         enabled: Bool = false,
-        mode: GoalReminderMode = .everyHour,
+        mode: GoalReminderMode = .spread,
         customHours: Int = 3,
-        spreadCount: Int = 4,
+        spreadCount: Int = 8,
         wakeStartMinutes: Int = 8 * 60,
-        wakeEndMinutes: Int = 21 * 60
+        wakeEndMinutes: Int = 21 * 60,
+        pausedDay: String = ""
     ) {
         self.enabled = enabled
         self.mode = mode
@@ -573,16 +576,18 @@ struct GoalReminder: Codable, Equatable {
         self.spreadCount = spreadCount
         self.wakeStartMinutes = wakeStartMinutes
         self.wakeEndMinutes = wakeEndMinutes
+        self.pausedDay = pausedDay
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
-        mode = try container.decodeIfPresent(GoalReminderMode.self, forKey: .mode) ?? .everyHour
+        mode = try container.decodeIfPresent(GoalReminderMode.self, forKey: .mode) ?? .spread
         customHours = try container.decodeIfPresent(Int.self, forKey: .customHours) ?? 3
-        spreadCount = try container.decodeIfPresent(Int.self, forKey: .spreadCount) ?? 4
+        spreadCount = try container.decodeIfPresent(Int.self, forKey: .spreadCount) ?? 8
         wakeStartMinutes = try container.decodeIfPresent(Int.self, forKey: .wakeStartMinutes) ?? 8 * 60
         wakeEndMinutes = try container.decodeIfPresent(Int.self, forKey: .wakeEndMinutes) ?? 21 * 60
+        pausedDay = try container.decodeIfPresent(String.self, forKey: .pausedDay) ?? ""
     }
 
     /// Clock minutes inside the wake window. Empty when the window is backwards.
