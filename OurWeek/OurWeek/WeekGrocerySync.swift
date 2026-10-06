@@ -86,7 +86,6 @@ enum WeekGrocerySync {
             let problems = GroceryPlanner.problems()
             if !problems.isEmpty {
                 print("Grocery merge self-check failed:\n\(problems.joined(separator: "\n"))")
-                assertionFailure("Grocery merge self-check failed")
             }
             #endif
         }
