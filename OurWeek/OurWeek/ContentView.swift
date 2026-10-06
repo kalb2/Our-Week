@@ -1214,7 +1214,6 @@ struct WeeklyCalendarCard: View {
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
-    @State private var goalsCenter = GoalsCenter.shared
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -1752,9 +1751,6 @@ struct WeeklyCalendarCard: View {
                     }
                 }
                 if isToday, !dayFocused {
-                    if !goalsCenter.homeGoals.isEmpty {
-                        HomeGoalStrip()
-                    }
                     if showEvents {
                         eventLines(on: date, wraps: true)
                             .transition(.opacity)
