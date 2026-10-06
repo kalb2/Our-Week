@@ -91,7 +91,7 @@ struct ContentView: View {
                 case .calendar: CalendarView()
                 case .add:     PlaceholderView(title: "Add")
                 case .meals:   RecipeLibraryView(showSharingSettings: $showSharingSettings)
-                case .shop:    ShoppingListView(showSharingSettings: $showSharingSettings)
+                case .goals:   GoalsView()
                 }
             }
             if !isKeyboardVisible {
@@ -150,7 +150,7 @@ struct ContentView: View {
                 },
                 onAddShopping: {
                     showAddSheet = false
-                    selectedTab = .shop
+                    selectedTab = .home
                 }
             )
                 .presentationDetents([.medium])
@@ -177,6 +177,7 @@ struct ContentView: View {
             openSharedImportIfNeeded()
             HomeWidgetStore.startObservingWidgetToggles()
             HomeWidgetStore.applyWidgetTodoEdits()
+            GoalsCenter.shared.applyWidgetBumps()
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
         }
         .task {
@@ -207,6 +208,7 @@ struct ContentView: View {
             case .active:
                 HomeWidgetStore.startObservingWidgetToggles()
                 HomeWidgetStore.applyWidgetTodoEdits()
+                GoalsCenter.shared.applyWidgetBumps()
                 Task {
                     await Task.yield()
                     dataManager.recordPassedCookedMeals()
@@ -1070,6 +1072,7 @@ struct WeeklyCalendarCard: View {
     @AppStorage("homeShowPastDays") private var showPastDays = false
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
+    @State private var goalsCenter = GoalsCenter.shared
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -1655,6 +1658,9 @@ struct WeeklyCalendarCard: View {
                     }
                 }
                 if isToday, !dayFocused {
+                    if !goalsCenter.homeGoals.isEmpty {
+                        HomeGoalStrip()
+                    }
                     todayPlanColumns(on: date)
                 } else if !dayFocused {
                     if showEvents {
@@ -4399,7 +4405,7 @@ struct AddGoalSheet: View {
 
 // MARK: - Tab Bar
 enum Tab: String, CaseIterable {
-    case home, calendar, add, meals, shop
+    case home, calendar, add, meals, goals
 }
 
 struct MainTabBar: View {
@@ -4438,10 +4444,9 @@ struct MainTabBar: View {
                     isSelected: selectedTab == .meals)
                 .onTapGesture { selectedTab = .meals }
 
-            // Shop
-            TabItem(icon: "bag.fill", label: "Shop",
-                    isSelected: selectedTab == .shop)
-                .onTapGesture { selectedTab = .shop }
+            TabItem(icon: "target", label: "Goals",
+                    isSelected: selectedTab == .goals)
+                .onTapGesture { selectedTab = .goals }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)

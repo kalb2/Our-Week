@@ -12,7 +12,9 @@ enum HomeWidgetStore {
     static let fileName = "home-widget-snapshot.json"
     static let todosFileName = "home-todos.json"
     static let togglesFileName = "home-todo-toggles.json"
+    static let goalBumpsFileName = "home-goal-bumps.json"
     static let widgetTodoNote = "com.kalebjensen.OurWeek.widgetTodo" as CFString
+    static let widgetGoalNote = "com.kalebjensen.OurWeek.widgetGoal" as CFString
     static let needsRefresh = Notification.Name("HomeWidgetNeedsRefresh")
 
     struct Line: Codable, Equatable {
@@ -25,17 +27,89 @@ enum HomeWidgetStore {
         var blue: Double? = nil
     }
 
+    struct GoalLine: Codable, Equatable {
+        var id: String
+        var name: String
+        var kind: String
+        var period: String
+        var current: Double
+        var solo: Double
+        var target: Double
+        var step: Double
+        var day: String
+        var red: Double
+        var green: Double
+        var blue: Double
+    }
+
     struct Day: Codable, Equatable {
         var day: String
         var meals: [String]
         var events: [Line]
         var todos: [Line]
+        var goals: [GoalLine]
+
+        private enum CodingKeys: String, CodingKey {
+            case day, meals, events, todos, goals
+        }
+
+        init(day: String, meals: [String], events: [Line], todos: [Line], goals: [GoalLine] = []) {
+            self.day = day
+            self.meals = meals
+            self.events = events
+            self.todos = todos
+            self.goals = goals
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            day = try container.decode(String.self, forKey: .day)
+            meals = try container.decodeIfPresent([String].self, forKey: .meals) ?? []
+            events = try container.decodeIfPresent([Line].self, forKey: .events) ?? []
+            todos = try container.decodeIfPresent([Line].self, forKey: .todos) ?? []
+            goals = try container.decodeIfPresent([GoalLine].self, forKey: .goals) ?? []
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(day, forKey: .day)
+            try container.encode(meals, forKey: .meals)
+            try container.encode(events, forKey: .events)
+            try container.encode(todos, forKey: .todos)
+            try container.encode(goals, forKey: .goals)
+        }
     }
 
     struct Snapshot: Codable, Equatable {
         var days: [Day]
         /// To-dos with no date. They stay on today, including after midnight refreshes the timeline.
         var undatedTodos: [Line]
+        /// Minutes after midnight when a goal day rolls. Meals stay on the calendar day.
+        var resetMinutes: Int
+
+        private enum CodingKeys: String, CodingKey {
+            case days, undatedTodos, resetMinutes
+        }
+
+        init(days: [Day], undatedTodos: [Line], resetMinutes: Int = 0) {
+            self.days = days
+            self.undatedTodos = undatedTodos
+            self.resetMinutes = resetMinutes
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            days = try container.decodeIfPresent([Day].self, forKey: .days) ?? []
+            undatedTodos = try container.decodeIfPresent([Line].self, forKey: .undatedTodos) ?? []
+            resetMinutes = try container.decodeIfPresent(Int.self, forKey: .resetMinutes) ?? 0
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(days, forKey: .days)
+            try container.encode(undatedTodos, forKey: .undatedTodos)
+            try container.encode(resetMinutes, forKey: .resetMinutes)
+        }
     }
 
     private static var lastTodoRaw: String?
@@ -96,6 +170,21 @@ enum HomeWidgetStore {
             nil,
             .deliverImmediately
         )
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            homeWidgetGoalNotificationCallback,
+            widgetGoalNote,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    /// Goal edits. Same debounce as a to-do change, without reading EventKit.
+    @MainActor
+    static func noteGoalsChanged() {
+        guard dataManager != nil else { return }
+        arm()
     }
 
     /// Coalesces widget updates. Returns immediately. Does not touch EventKit.
@@ -143,6 +232,7 @@ enum HomeWidgetStore {
     @MainActor
     private static func commit(reloadEvenIfUnchanged: Bool) {
         applyWidgetTodoEdits()
+        GoalsCenter.shared.applyWidgetBumps()
         guard let dataManager else {
             if reloadEvenIfUnchanged { reload() }
             return
@@ -157,8 +247,10 @@ enum HomeWidgetStore {
         lastTodoRaw = raw
         saveTodosRaw(raw)
 
+        let reset = GoalsCenter.shared.settings.resetMinutes
         var days: [Day] = []
-        for offset in 0..<2 {
+        let offsets = reset > 0 ? [-1, 0, 1] : [0, 1]
+        for offset in offsets {
             guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
             days.append(
                 makeDay(
@@ -171,7 +263,11 @@ enum HomeWidgetStore {
                 )
             )
         }
-        let snapshot = Snapshot(days: days, undatedTodos: undatedTodos(raw: raw))
+        let snapshot = Snapshot(
+            days: days,
+            undatedTodos: undatedTodos(raw: raw),
+            resetMinutes: reset
+        )
         if snapshot == lastWritten {
             if reloadEvenIfUnchanged { reload() }
             return
@@ -193,7 +289,8 @@ enum HomeWidgetStore {
             day: TodoTask.dayKey(for: date),
             meals: dinnerTitles(on: date, meals: meals),
             events: eventLines(on: date, now: now, localEvents: localEvents, appleEvents: appleEvents),
-            todos: todoLines(on: date, raw: todosRaw)
+            todos: todoLines(on: date, raw: todosRaw),
+            goals: GoalsCenter.shared.lines(forCalendarDay: date)
         )
     }
 
@@ -418,5 +515,12 @@ enum HomeWidgetStore {
 nonisolated private let homeWidgetTodoNotificationCallback: CFNotificationCallback = { _, _, _, _, _ in
     Task { @MainActor in
         HomeWidgetStore.applyWidgetTodoEdits()
+    }
+}
+
+nonisolated private let homeWidgetGoalNotificationCallback: CFNotificationCallback = { _, _, _, _, _ in
+    Task { @MainActor in
+        GoalsCenter.shared.applyWidgetBumps()
+        HomeWidgetStore.noteGoalsChanged()
     }
 }
