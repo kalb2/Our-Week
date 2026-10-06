@@ -101,9 +101,9 @@ final class GoalsCenter {
         }
     }
 
-    func bump(_ id: UUID) {
-        mutate(id, undoable: true) { goal in
-            let key = self.dayKey(for: Date())
+    func bump(_ id: UUID, on date: Date = Date()) {
+        mutate(id, undoable: true, on: date) { goal in
+            let key = self.dayKey(for: date)
             let old = goal.logs[key] ?? 0
             if goal.kind == .check {
                 if goal.period == .week {
@@ -117,10 +117,10 @@ final class GoalsCenter {
         }
     }
 
-    func add(_ id: UUID, delta: Double) {
+    func add(_ id: UUID, delta: Double, on date: Date = Date()) {
         guard delta != 0 else { return }
-        mutate(id, undoable: true) { goal in
-            let key = self.dayKey(for: Date())
+        mutate(id, undoable: true, on: date) { goal in
+            let key = self.dayKey(for: date)
             let next = max(0, (goal.logs[key] ?? 0) + delta)
             if next == 0 {
                 goal.logs.removeValue(forKey: key)
@@ -347,9 +347,9 @@ final class GoalsCenter {
         )
     }
 
-    private func mutate(_ id: UUID, undoable: Bool, change: (inout Goal) -> Void) {
+    private func mutate(_ id: UUID, undoable: Bool, on date: Date = Date(), change: (inout Goal) -> Void) {
         guard let index = goals.firstIndex(where: { $0.id == id }) else { return }
-        let key = dayKey(for: Date())
+        let key = dayKey(for: date)
         let previous = goals[index].logs[key] ?? 0
         change(&goals[index])
         if undoable {

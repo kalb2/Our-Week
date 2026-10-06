@@ -144,7 +144,7 @@ struct ContentView: View {
                 onAddTodo: {
                     showAddSheet = false
                     selectedTab = .home
-                    UserDefaults.standard.set(HomeSurface.today.rawValue, forKey: "homeSurface")
+                    UserDefaults.standard.set(TodoTask.dayKey(for: Date()), forKey: "homeFocusDay")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         triggerAddTodo = true
                     }
@@ -293,47 +293,6 @@ extension View {
     }
 }
 
-/// Week is the dense home. Today is one page for meals, events, to-dos, and goal tracking.
-enum HomeSurface: String {
-    case week
-    case today
-}
-
-struct HomeSurfaceToggle: View {
-    @Binding var selection: HomeSurface
-
-    var body: some View {
-        HStack(spacing: 4) {
-            segment("Week", .week)
-            segment("Today", .today)
-        }
-        .padding(4)
-        .background(Color.white)
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Home")
-    }
-
-    private func segment(_ title: String, _ mode: HomeSurface) -> some View {
-        let selected = selection == mode
-        return Button {
-            selection = mode
-        } label: {
-            Text(title)
-                .font(.system(size: 16, weight: .regular, design: .serif))
-                .foregroundStyle(selected ? Color.white : HomeQuiet.ink)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 9)
-                .background(selected ? Color.terra500 : Color.clear)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(mode == .week ? "Week view" : "Today focus")
-        .accessibilityAddTraits(selected ? .isSelected : AccessibilityTraits())
-    }
-}
-
 // MARK: - Home View
 struct HomeView: View {
     @Binding var showSharingSettings: Bool
@@ -342,17 +301,12 @@ struct HomeView: View {
     @State private var focusedLineID: String?
     @State private var showHomeDisplay = false
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
-    @AppStorage("homeSurface") private var homeSurfaceRaw = HomeSurface.week.rawValue
+    /// Empty is the week. A `yyyy-MM-dd` key is the full-page day opened from a weekday.
+    @AppStorage("homeFocusDay") private var homeFocusDay = ""
 
-    private var surface: HomeSurface {
-        HomeSurface(rawValue: homeSurfaceRaw) ?? .week
-    }
-
-    private var surfaceBinding: Binding<HomeSurface> {
-        Binding(
-            get: { HomeSurface(rawValue: homeSurfaceRaw) ?? .week },
-            set: { homeSurfaceRaw = $0.rawValue }
-        )
+    private var focusDate: Date? {
+        guard !homeFocusDay.isEmpty else { return nil }
+        return TodoTask.date(fromDayKey: homeFocusDay)
     }
 
     var body: some View {
@@ -360,26 +314,26 @@ struct HomeView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     GreetingHeader(showSharingSettings: $showSharingSettings)
-                    HomeSurfaceToggle(selection: surfaceBinding)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
-                    if surface == .today {
-                        todayFocusHeader
+                    if let focusDate {
+                        dayFocusHeader(focusDate)
                     }
-                    WeeklyCalendarCard(surface: surface) { id in
+                    WeeklyCalendarCard(focusDate: focusDate, onOpenDay: { date in
+                        KeyboardDismiss.resign()
+                        homeFocusDay = TodoTask.dayKey(for: date)
+                    }) { id in
                         focusedLineID = id
                         reveal(id, proxy: proxy)
                     }
-                    if surface == .week {
+                    if focusDate == nil {
                         if showShoppingList {
                             ShoppingListBoard(quietToolbar: true, showsSectionLabel: true)
                                 .padding(.bottom, 24)
                         }
-                    } else {
-                        TodayGoalsSection()
+                    } else if let focusDate {
+                        TodayGoalsSection(day: focusDate)
                             .padding(.top, 22)
                             .padding(.bottom, 22)
-                        TodoSection(triggerAdd: $triggerAddTodo)
+                        TodoSection(day: focusDate, triggerAdd: $triggerAddTodo)
                             .id("today-todos")
                             .padding(.bottom, 24)
                     }
@@ -388,11 +342,12 @@ struct HomeView: View {
             }
             .scrollDismissesKeyboard(.immediately)
             .background(Color.bgBase)
-            .onChange(of: homeSurfaceRaw) { _, _ in
+            .onAppear(perform: migrateSavedSurface)
+            .onChange(of: homeFocusDay) { _, _ in
                 KeyboardDismiss.resign()
             }
             .onChange(of: triggerAddTodo) { _, shouldAdd in
-                guard shouldAdd, surface == .today else { return }
+                guard shouldAdd, focusDate != nil else { return }
                 reveal("today-todos", proxy: proxy)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
@@ -413,19 +368,44 @@ struct HomeView: View {
         }
     }
 
-    private var todayFocusHeader: some View {
+    /// The old Week/Today pill wrote `homeSurface`. One launch moves a saved Today onto this page.
+    private func migrateSavedSurface() {
+        let saved = UserDefaults.standard.string(forKey: "homeSurface")
+        if saved == "today", homeFocusDay.isEmpty {
+            homeFocusDay = TodoTask.dayKey(for: Date())
+        }
+        if saved != nil {
+            UserDefaults.standard.removeObject(forKey: "homeSurface")
+        }
+    }
+
+    private func dayFocusHeader(_ date: Date) -> some View {
         let weekday = DateFormatter()
         weekday.dateFormat = "EEEE"
         let day = DateFormatter()
         day.dateFormat = "MMMM d"
-        return HStack(alignment: .top, spacing: 12) {
+        let isToday = Calendar.current.isDateInToday(date)
+        return HStack(alignment: .center, spacing: 8) {
+            Button {
+                KeyboardDismiss.resign()
+                homeFocusDay = ""
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .frame(width: 36, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back to week")
+
             VStack(alignment: .leading, spacing: 2) {
-                Text(weekday.string(from: Date()))
+                Text(weekday.string(from: date))
                     .font(.system(size: 40, weight: .regular, design: .serif))
-                    .foregroundStyle(Color.terra500)
+                    .foregroundStyle(isToday ? Color.terra500 : HomeQuiet.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                Text(day.string(from: Date()))
+                Text(day.string(from: date))
                     .font(.system(size: 18, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.quiet)
             }
@@ -444,7 +424,8 @@ struct HomeView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Home display")
         }
-        .padding(.horizontal, 24)
+        .padding(.leading, 12)
+        .padding(.trailing, 24)
         .padding(.bottom, 14)
     }
 
@@ -951,7 +932,6 @@ private struct HomeDisplaySheet: View {
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
-    @AppStorage("homeSurface") private var homeSurfaceRaw = HomeSurface.week.rawValue
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -980,11 +960,6 @@ private struct HomeDisplaySheet: View {
                     .font(.system(size: 28, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
             }
-
-            HomeSurfaceToggle(selection: Binding(
-                get: { HomeSurface(rawValue: homeSurfaceRaw) ?? .week },
-                set: { homeSurfaceRaw = $0.rawValue }
-            ))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("THIS WEEK")
@@ -1179,7 +1154,8 @@ private enum WeekSharePresenter {
 }
 
 struct WeeklyCalendarCard: View {
-    var surface: HomeSurface = .week
+    var focusDate: Date? = nil
+    var onOpenDay: (Date) -> Void = { _ in }
     var onFocusScroll: (String) -> Void = { _ in }
 
     @Environment(DataManager.self) private var dataManager
@@ -1203,7 +1179,6 @@ struct WeeklyCalendarCard: View {
     @State private var showHomeDisplay = false
     @State private var suppressCommit = false
     @State private var mealFocusStamp = 0
-    @State private var expandedDay: Date?
     @State private var viewingRecipe: Recipe?
     @FocusState private var focusedField: DinnerField?
     @AppStorage("homeWeekDisplay") private var homeWeekDisplayRaw = ""
@@ -1347,7 +1322,6 @@ struct WeeklyCalendarCard: View {
                     .presentationDragIndicator(.visible)
             }
             .onChange(of: weekOffset) { _, _ in
-                expandedDay = nil
                 if case .line(let day, let id) = focusedField {
                     commitLine(day: day, lineID: id)
                 }
@@ -1356,7 +1330,6 @@ struct WeeklyCalendarCard: View {
                 refreshAppleEvents()
             }
             .onChange(of: homeWeekDisplayRaw) { _, _ in
-                expandedDay = nil
                 loadData()
                 refreshAppleEvents()
             }
@@ -1373,9 +1346,9 @@ struct WeeklyCalendarCard: View {
                     onFocusScroll(scrollID(day: day, lineID: id))
                 }
             }
-            .onChange(of: surface) { _, _ in
-                expandedDay = nil
+            .onChange(of: focusDate) { _, _ in
                 focusedField = nil
+                ensureFocusMeals()
             }
             .onDisappear {
                 if case .line(let day, let id) = focusedField {
@@ -1463,15 +1436,11 @@ struct WeeklyCalendarCard: View {
                 .accessibilityLabel("Choose calendars")
             }
 
-            if surface == .today {
+            if focusDate != nil {
                 todayMealsCard
             } else {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let expandedDay {
-                        dayExpanded(expandedDay)
-                    } else {
-                        weekContent
-                    }
+                    weekContent
                     weekFooterActions
                 }
                 .background(Color.white)
@@ -1486,15 +1455,16 @@ struct WeeklyCalendarCard: View {
 
     /// One day, larger type. Same dinner fields as the week, without the week chrome.
     private var todayMealsCard: some View {
-        let date = Date()
+        let date = focusDate ?? Date()
         let key = dayKey(date)
         let lines = linesByDay[key] ?? [blankLine(for: key)]
         let events = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
+        let dayName = Calendar.current.isDateInToday(date) ? "Today" : expandedDayTitle(date)
         return VStack(alignment: .leading, spacing: 18) {
             if !otherMealGroups(on: date).isEmpty {
                 otherMealBlocks(on: date, mealSize: 28)
             }
-            dinnerBlock(lines, on: key, dayName: "Today", mealSize: 28)
+            dinnerBlock(lines, on: key, dayName: dayName, mealSize: 28)
             if showWeekEvents, !events.isEmpty {
                 eventLines(on: date, wraps: true)
             }
@@ -1521,54 +1491,6 @@ struct WeeklyCalendarCard: View {
                 }
             }
         }
-    }
-
-    private func dayExpanded(_ date: Date) -> some View {
-        let key = dayKey(date)
-        let lines = linesByDay[key] ?? [blankLine(for: key)]
-        let isToday = Calendar.current.isDateInToday(date)
-        let title = expandedDayTitle(date)
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 8) {
-                Button {
-                    dismissMealKeyboard()
-                    expandedDay = nil
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(Self.weekQuiet)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back to week")
-
-                Text(title)
-                    .font(.system(size: 22, weight: .regular, design: .serif))
-                    .foregroundStyle(Self.weekInk)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                if isToday {
-                    todayPill
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-
-            if !otherMealGroups(on: date).isEmpty {
-                otherMealBlocks(on: date)
-                    .padding(.horizontal, 16)
-            }
-
-            dinnerBlock(lines, on: key, dayName: isToday ? "Today" : title)
-                .padding(.horizontal, 16)
-
-            if showWeekEvents, !homeEventLines(on: date).isEmpty {
-                eventLines(on: date)
-                    .padding(.horizontal, 16)
-            }
-        }
-        .padding(.bottom, 16)
     }
 
     private func expandedDayTitle(_ date: Date) -> String {
@@ -1783,7 +1705,7 @@ struct WeeklyCalendarCard: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 dismissMealKeyboard()
-                expandedDay = key
+                onOpenDay(date)
             }
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(isToday ? "Open today" : "Open \(weekday) \(dayNumber)")
@@ -1818,7 +1740,7 @@ struct WeeklyCalendarCard: View {
             if !dayFocused {
                 Button {
                     dismissMealKeyboard()
-                    expandedDay = key
+                    onOpenDay(date)
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .regular))
@@ -2503,11 +2425,36 @@ struct WeeklyCalendarCard: View {
         reloadMeals()
     }
 
+    /// A focused day outside the loaded week still needs its meals. Does not touch the widget.
+    private func mergeFocusMeals() {
+        guard let focusDate, !focusDayIsLoaded(focusDate) else { return }
+        let extra = dataManager.fetchMealPlans(for: focusDate)
+        let known = Set(weekMeals.map(\.objectID))
+        let fresh = extra.filter { !known.contains($0.objectID) }
+        guard !fresh.isEmpty else { return }
+        weekMeals.append(contentsOf: fresh)
+    }
+
+    private func ensureFocusMeals() {
+        mergeFocusMeals()
+        syncLines()
+    }
+
+    private func focusDayIsLoaded(_ date: Date) -> Bool {
+        guard let start = loadedWeekStart else { return false }
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: date)
+        let startDay = calendar.startOfDay(for: start)
+        guard let end = calendar.date(byAdding: .day, value: 7, to: startDay) else { return false }
+        return day >= startDay && day < end
+    }
+
     private func loadData() {
         guard let start = loadedWeekStart else { return }
         recipes = dataManager.fetchRecipes()
         weekMeals = dataManager.fetchWeekMealPlans(from: start)
         weekEvents = dataManager.fetchWeekEvents(from: start)
+        mergeFocusMeals()
         syncLines()
         let mealsForGroceries = weekMeals
         let daysForGroceries = listedWeekDates
@@ -2538,6 +2485,7 @@ struct WeeklyCalendarCard: View {
         guard let start = loadedWeekStart else { return }
         let focus = focusedField
         weekMeals = dataManager.fetchWeekMealPlans(from: start)
+        mergeFocusMeals()
         syncLines(keeping: focus)
         if focusedField != focus {
             focusedField = focus
@@ -2549,7 +2497,13 @@ struct WeeklyCalendarCard: View {
     private func syncLines(keeping focus: DinnerField? = nil) {
         let protected = focus ?? focusedField
         var next: [Date: [DinnerLine]] = [:]
-        let dates = (weekOffset == 0 && weekDisplay == .rolling) ? listedWeekDates : weekDates
+        var dates = (weekOffset == 0 && weekDisplay == .rolling) ? listedWeekDates : weekDates
+        if let focusDate {
+            let key = dayKey(focusDate)
+            if !dates.contains(where: { dayKey($0) == key }) {
+                dates.append(focusDate)
+            }
+        }
         for date in dates {
             let key = dayKey(date)
             var lines = dinners(for: date).map { meal in
@@ -2998,6 +2952,7 @@ extension View {
 
 // MARK: - Today's To-Do Section
 struct TodoSection: View {
+    var day: Date = Date()
     @Binding var triggerAdd: Bool
     
     @AppStorage("homeTodosWrapper") private var todosWrapper = TodosWrapper(todos: [
@@ -3007,6 +2962,23 @@ struct TodoSection: View {
     
     private var todos: [TodoTask] {
         get { todosWrapper.todos }
+    }
+
+    private var isFocusedToday: Bool {
+        Calendar.current.isDateInToday(day)
+    }
+
+    /// Today keeps the full reminders list. Another day shows the items due that day.
+    private var visibleTodos: [TodoTask] {
+        if isFocusedToday { return todos }
+        return todos.filter { $0.occurs(on: day) }
+    }
+
+    private var dayTitle: String {
+        if isFocusedToday { return "Today" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: day)
     }
 
     @State private var isAddingTodo = false
@@ -3023,7 +2995,7 @@ struct TodoSection: View {
                         .font(.system(size: 11, weight: .regular))
                         .tracking(1.4)
                         .foregroundStyle(HomeQuiet.quiet)
-                    Text("Today")
+                    Text(dayTitle)
                         .font(.system(size: 22, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
                 }
@@ -3047,14 +3019,14 @@ struct TodoSection: View {
             }
 
             VStack(spacing: 0) {
-                if todos.isEmpty && !isAddingTodo {
+                if visibleTodos.isEmpty && !isAddingTodo {
                     Text("No tasks yet")
                         .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.quiet)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
                 } else {
-                    ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
+                    ForEach(Array(visibleTodos.enumerated()), id: \.element.id) { index, todo in
                         TodoItem(
                             todo: binding(for: todo),
                             onTap: {
@@ -3067,7 +3039,7 @@ struct TodoSection: View {
                             }
                         )
                         
-                        if index < todos.count - 1 || isAddingTodo {
+                        if index < visibleTodos.count - 1 || isAddingTodo {
                             Rectangle()
                                 .fill(HomeQuiet.rule)
                                 .frame(height: 1)
@@ -3141,7 +3113,10 @@ struct TodoSection: View {
         if !title.isEmpty {
             let colors = ["terra", "lilac", "lime", "sky"]
             let color = colors[todos.count % colors.count]
-            let newTask = TodoTask(title: title, subtitle: "", subtitleColorHex: color)
+            var newTask = TodoTask(title: title, subtitle: "", subtitleColorHex: color)
+            if !isFocusedToday {
+                newTask.dueDay = TodoTask.dayKey(for: day)
+            }
             var mutated = todos
             mutated.append(newTask)
             todosWrapper = TodosWrapper(todos: mutated)
