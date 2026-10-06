@@ -217,6 +217,7 @@ struct GoalsView: View {
 /// Today's tracking card. Goals tab passes the edit menu. Home today focus leaves those off.
 struct GoalTrackingCard: View {
     let goal: Goal
+    var day: Date = Date()
     var onEdit: (() -> Void)? = nil
     var onReminders: (() -> Void)? = nil
     var onWeek: (() -> Void)? = nil
@@ -234,10 +235,11 @@ struct GoalTrackingCard: View {
 
     var body: some View {
         let goal = live
-        let current = center.progress(goal)
+        let current = center.progress(goal, on: day)
         let streak = center.streak(for: goal)
-        let scheduled = center.isScheduled(goal, on: Date())
-        let today = goal.logs[center.dayKey(for: Date())] ?? 0
+        let scheduled = center.isScheduled(goal, on: day)
+        let logged = goal.logs[center.dayKey(for: day)] ?? 0
+        let isToday = Calendar.current.isDateInToday(day)
         return VStack(spacing: 20) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -245,7 +247,7 @@ struct GoalTrackingCard: View {
                         .font(.system(size: 28, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    if !scheduled {
+                    if isToday, !scheduled {
                         Text("Not today")
                             .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(HomeQuiet.quiet)
@@ -282,18 +284,18 @@ struct GoalTrackingCard: View {
 
             if scheduled, goal.kind != .check {
                 HStack(spacing: 36) {
-                    if today > 0 {
-                        stepControl("minus", filled: false) { center.add(goal.id, delta: -goal.step) }
+                    if logged > 0 {
+                        stepControl("minus", filled: false) { center.add(goal.id, delta: -goal.step, on: day) }
                             .accessibilityLabel("Decrease \(goal.name)")
                     }
-                    stepControl("plus", filled: true) { center.add(goal.id, delta: goal.step) }
+                    stepControl("plus", filled: true) { center.add(goal.id, delta: goal.step, on: day) }
                         .accessibilityLabel("Add \(GoalNumber.text(goal.step)) to \(goal.name)")
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 4)
             }
 
-            if scheduled, streak > 0 {
+            if isToday, scheduled, streak > 0 {
                 Text(streakLabel(streak, period: goal.period))
                     .font(.system(size: 14, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.quiet)
@@ -307,9 +309,9 @@ struct GoalTrackingCard: View {
     }
 
     private func goalChecked(_ goal: Goal) -> Bool {
-        let today = goal.logs[center.dayKey(for: Date())] ?? 0
-        if goal.period == .week { return today >= 1 }
-        return center.isMet(goal)
+        let logged = goal.logs[center.dayKey(for: day)] ?? 0
+        if goal.period == .week { return logged >= 1 }
+        return center.isMet(goal, on: day)
     }
 
     @ViewBuilder
@@ -317,7 +319,7 @@ struct GoalTrackingCard: View {
         if goal.kind == .check {
             let checked = goalChecked(goal)
             if scheduled {
-                Button { center.bump(goal.id) } label: {
+                Button { center.bump(goal.id, on: day) } label: {
                     checkGraphic(goal, checked: checked, scheduled: true)
                 }
                 .buttonStyle(.plain)
@@ -351,7 +353,7 @@ struct GoalTrackingCard: View {
             }
             .frame(width: 140, height: 140)
             if scheduled {
-                Text(checked ? "Done" : "Today")
+                Text(checked ? "Done" : (Calendar.current.isDateInToday(day) ? "Today" : dayLabel))
                     .font(.system(size: 15, weight: .regular, design: .serif))
                     .foregroundStyle(checked ? tint : HomeQuiet.quiet)
             }
@@ -416,17 +418,35 @@ struct GoalTrackingCard: View {
         .buttonStyle(.plain)
     }
 
+    private var dayLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: day)
+    }
+
     private func streakLabel(_ count: Int, period: GoalPeriod) -> String {
         let unit = period == .week ? "week" : "day"
         return count == 1 ? "1-\(unit) streak" : "\(count)-\(unit) streak"
     }
 }
 
-/// Goals scheduled today, for tracking on Home. Creating and editing stay on the Goals tab.
+/// Goals scheduled on this day, for tracking on Home. Creating and editing stay on the Goals tab.
 struct TodayGoalsSection: View {
+    var day: Date = Date()
     @State private var center = GoalsCenter.shared
     @State private var undoVisible = false
     @State private var undoHide: Task<Void, Never>?
+
+    private var dayGoals: [Goal] {
+        center.activeGoals.filter { center.isScheduled($0, on: day) }
+    }
+
+    private var dayTitle: String {
+        if Calendar.current.isDateInToday(day) { return "Today" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: day)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -435,7 +455,7 @@ struct TodayGoalsSection: View {
                     .font(.system(size: 11, weight: .regular))
                     .tracking(1.4)
                     .foregroundStyle(HomeQuiet.quiet)
-                Text("Today")
+                Text(dayTitle)
                     .font(.system(size: 22, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
             }
@@ -458,16 +478,16 @@ struct TodayGoalsSection: View {
                 .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
             }
 
-            if center.todayGoals.isEmpty {
-                Text("Nothing for today")
+            if dayGoals.isEmpty {
+                Text(Calendar.current.isDateInToday(day) ? "Nothing for today" : "Nothing on \(dayTitle)")
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.quiet)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 4)
             } else {
                 VStack(spacing: 16) {
-                    ForEach(center.todayGoals) { goal in
-                        GoalTrackingCard(goal: goal)
+                    ForEach(dayGoals) { goal in
+                        GoalTrackingCard(goal: goal, day: day)
                     }
                 }
             }
