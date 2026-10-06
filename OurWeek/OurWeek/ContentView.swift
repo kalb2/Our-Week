@@ -144,6 +144,7 @@ struct ContentView: View {
                 onAddTodo: {
                     showAddSheet = false
                     selectedTab = .home
+                    UserDefaults.standard.set(true, forKey: "homeShowDayTodos")
                     UserDefaults.standard.set(TodoTask.dayKey(for: Date()), forKey: "homeFocusDay")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         triggerAddTodo = true
@@ -301,6 +302,8 @@ struct HomeView: View {
     @State private var focusedLineID: String?
     @State private var showHomeDisplay = false
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
+    @AppStorage("homeShowDayTodos") private var showDayTodos = true
+    @AppStorage("homeShowDayGoals") private var showDayGoals = false
     /// Empty is the week. A `yyyy-MM-dd` key is the full-page day opened from a weekday.
     @AppStorage("homeFocusDay") private var homeFocusDay = ""
 
@@ -330,12 +333,17 @@ struct HomeView: View {
                                 .padding(.bottom, 24)
                         }
                     } else if let focusDate {
-                        TodayGoalsSection(day: focusDate)
-                            .padding(.top, 22)
-                            .padding(.bottom, 22)
-                        TodoSection(day: focusDate, triggerAdd: $triggerAddTodo)
-                            .id("today-todos")
-                            .padding(.bottom, 24)
+                        if showDayTodos {
+                            TodoSection(day: focusDate, triggerAdd: $triggerAddTodo)
+                                .id("today-todos")
+                                .padding(.top, 22)
+                                .padding(.bottom, showDayGoals ? 8 : 24)
+                        }
+                        if showDayGoals {
+                            TodayGoalsSection(day: focusDate)
+                                .padding(.top, showDayTodos ? 14 : 22)
+                                .padding(.bottom, 22)
+                        }
                     }
                     Spacer().frame(height: 120 + keyboardOverlap)
                 }
@@ -347,7 +355,7 @@ struct HomeView: View {
                 KeyboardDismiss.resign()
             }
             .onChange(of: triggerAddTodo) { _, shouldAdd in
-                guard shouldAdd, focusDate != nil else { return }
+                guard shouldAdd, focusDate != nil, showDayTodos else { return }
                 reveal("today-todos", proxy: proxy)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
@@ -932,6 +940,8 @@ private struct HomeDisplaySheet: View {
     @AppStorage("homeShowWeekEvents") private var showWeekEvents = true
     @AppStorage("homeShowDinnerLabel") private var showDinnerLabel = true
     @AppStorage("homeShowShoppingList") private var showShoppingList = true
+    @AppStorage("homeShowDayTodos") private var showDayTodos = true
+    @AppStorage("homeShowDayGoals") private var showDayGoals = false
 
     private var weekDisplay: HomeWeekDisplay {
         HomeWeekDisplay.resolve(stored: homeWeekDisplayRaw, showPastDays: showPastDays)
@@ -983,6 +993,27 @@ private struct HomeDisplaySheet: View {
                     weekChoice("Next 7 days", selected: weekDisplay == .rolling) {
                         selectWeek(.rolling)
                     }
+                }
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("THIS DAY")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.4)
+                    .foregroundStyle(HomeQuiet.quiet)
+
+                VStack(spacing: 0) {
+                    displayToggle("To-dos", isOn: $showDayTodos)
+                    Rectangle()
+                        .fill(HomeQuiet.rule)
+                        .frame(height: 1)
+                    displayToggle("Goals", isOn: $showDayGoals)
                 }
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -2968,7 +2999,7 @@ struct TodoSection: View {
         Calendar.current.isDateInToday(day)
     }
 
-    /// Today keeps the full reminders list. Another day shows the items due that day.
+    /// Today keeps the full to-do list. Another day shows the items due that day.
     private var visibleTodos: [TodoTask] {
         if isFocusedToday { return todos }
         return todos.filter { $0.occurs(on: day) }
