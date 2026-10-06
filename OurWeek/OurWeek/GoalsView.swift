@@ -189,6 +189,8 @@ struct GoalsView: View {
             goalGraphic(goal, current: current, scheduled: scheduled)
                 .frame(maxWidth: .infinity)
 
+            GoalProgressDots(goal: goal, current: current)
+
             if scheduled, goal.kind != .check {
                 HStack(spacing: 28) {
                     if today > 0 {
@@ -331,12 +333,6 @@ struct HomeGoalStrip: View {
                     ForEach(items) { goal in
                         chip(goal)
                     }
-                    if center.undoAction != nil {
-                        Button("Undo") { center.undoLast() }
-                            .font(.system(size: 13, weight: .regular, design: .serif))
-                            .foregroundStyle(Color.terra500)
-                            .buttonStyle(.plain)
-                    }
                 }
             }
             .sheet(item: $detail) { goal in
@@ -373,6 +369,47 @@ struct HomeGoalStrip: View {
             Button("Adjust") { detail = center.goals.first { $0.id == goal.id } }
         }
         .accessibilityLabel(goal.kind == .check ? goal.name : "Add to \(goal.name)")
+    }
+}
+
+/// One dot per unit of the target. Huge targets stay on the ring instead of a hairline.
+struct GoalProgressDots: View {
+    let goal: Goal
+    let current: Double
+
+    private static let maxDots = 16
+
+    private var dotCount: Int? {
+        guard goal.kind != .check, goal.target > 0 else { return nil }
+        let count = Int(goal.target.rounded())
+        guard count >= 1, count <= Self.maxDots else { return nil }
+        return count
+    }
+
+    private var filled: Int {
+        guard let dotCount else { return 0 }
+        if current >= goal.target { return dotCount }
+        return min(dotCount, max(0, Int(current.rounded(.down))))
+    }
+
+    var body: some View {
+        if let dotCount {
+            let tint = GoalPalette.color(goal.color)
+            let diameter: CGFloat = dotCount > 12 ? 12 : (dotCount > 8 ? 14 : 16)
+            HStack(spacing: dotCount > 12 ? 6 : 8) {
+                ForEach(0..<dotCount, id: \.self) { index in
+                    Circle()
+                        .fill(index < filled ? tint : Color.clear)
+                        .overlay(
+                            Circle().stroke(tint.opacity(index < filled ? 1 : 0.35), lineWidth: 1.5)
+                        )
+                        .frame(width: diameter, height: diameter)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(filled) of \(dotCount)")
+        }
     }
 }
 
@@ -511,24 +548,12 @@ struct GoalDetailSheet: View {
                     .accessibilityLabel("Increase")
                 }
 
+                GoalProgressDots(goal: goal, current: current)
+
                 if streak > 0 {
                     Text(goal.period == .week ? "\(streak) week\(streak == 1 ? "" : "s")" : "\(streak) day\(streak == 1 ? "" : "s")")
                         .font(.system(size: 15, weight: .regular, design: .serif))
                         .foregroundStyle(Color.terra500)
-                }
-
-                HStack(spacing: 5) {
-                    ForEach(center.history(goal, days: 30)) { mark in
-                        Circle()
-                            .fill(mark.met ? GoalPalette.color(goal.color) : Color.clear)
-                            .overlay(
-                                Circle().stroke(
-                                    mark.scheduled ? GoalPalette.color(goal.color).opacity(mark.isToday ? 1 : 0.35) : HomeQuiet.rule,
-                                    lineWidth: mark.isToday ? 1.5 : 1
-                                )
-                            )
-                            .frame(width: mark.isToday ? 12 : 9, height: mark.isToday ? 12 : 9)
-                    }
                 }
             }
             .padding(24)
