@@ -40,6 +40,87 @@ extension Notification.Name {
     static let shoppingItemFieldFocused = Notification.Name("shoppingItemFieldFocused")
 }
 
+/// Selection actions for the bar that floats above the tab bar.
+@MainActor
+@Observable
+final class ShoppingSelectChrome {
+    var count = 0
+    var canMove = false
+    var checkOff: () -> Void = {}
+    var move: () -> Void = {}
+    var delete: () -> Void = {}
+
+    func update(
+        count: Int,
+        canMove: Bool,
+        checkOff: @escaping () -> Void,
+        move: @escaping () -> Void,
+        delete: @escaping () -> Void
+    ) {
+        self.count = count
+        self.canMove = canMove
+        self.checkOff = checkOff
+        self.move = move
+        self.delete = delete
+    }
+
+    func clear() {
+        guard count != 0 || canMove else { return }
+        count = 0
+        canMove = false
+        checkOff = {}
+        move = {}
+        delete = {}
+    }
+}
+
+struct ShoppingSelectActionBar: View {
+    var count: Int
+    var canMove: Bool
+    var onCheckOff: () -> Void
+    var onMove: () -> Void
+    var onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("\(count)")
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(Color.terra500)
+                .frame(minWidth: 24)
+            barAction("Check off", "checkmark", onCheckOff)
+            if canMove {
+                barAction("Move", "arrow.right", onMove)
+            }
+            barAction("Delete", "trash", onDelete)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .background(Color.white)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.06), radius: 14, y: 4)
+        .padding(.horizontal, 20)
+    }
+
+    private func barAction(_ title: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .regular))
+                Text(title)
+                    .font(.system(size: 13, weight: .regular))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(title == "Delete" ? Color.terra600 : HomeQuiet.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private func noteShoppingRemovals(_ items: [ShoppingItem]) {
     WeekGrocerySync.noteUserRemoved(itemIDs: items.compactMap(\.id))
 }
@@ -98,52 +179,20 @@ struct ShoppingListBoard: View {
     @State private var isSelectMode = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var showSyncModal = false
+    @State private var showAddSectionModal = false
+    @State private var showEditModal = false
     @State private var showMoveSheet = false
     @State private var showBulkDeleteConfirm = false
     @State private var bulkRevision = 0
 
+    @Environment(ShoppingSelectChrome.self) private var shoppingSelectChrome
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if showsSectionLabel {
-                Text("SHOPPING")
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(1.4)
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 36)
-                    .padding(.bottom, 14)
-            }
-
-            ShoppingToolbar(
-                undoStack: undoStack,
-                isReorderMode: $isReorderMode,
-                isSelectMode: $isSelectMode,
-                showSyncModal: $showSyncModal,
-                shoppingLists: $shoppingLists,
-                hasCheckedItems: hasCheckedItems,
-                hasSelection: !selectedIDs.isEmpty,
-                hasItems: hasItems,
-                onListsChanged: { loadLists() },
-                onClearChecked: clearChecked,
-                onUncheckAll: uncheckAll,
-                onSelectAll: selectAll,
-                onSelectNone: selectNone,
-                onCheckOff: { setSelectionChecked(true) },
-                onUncheck: { setSelectionChecked(false) },
-                onMove: {
-                    guard !selectedIDs.isEmpty else { return }
-                    showMoveSheet = true
-                },
-                onDelete: {
-                    guard !selectedIDs.isEmpty else { return }
-                    showBulkDeleteConfirm = true
-                },
-                quiet: quietToolbar
-            )
-            .padding(.horizontal, quietToolbar ? 24 : 0)
-            .padding(.top, showsSectionLabel ? 0 : (quietToolbar ? 22 : 12))
-            .padding(.bottom, quietToolbar ? 2 : 0)
-            .frame(maxWidth: .infinity)
+            shoppingHeader
+                .padding(.horizontal, 24)
+                .padding(.top, showsSectionLabel ? 36 : (quietToolbar ? 8 : 12))
+                .padding(.bottom, 2)
 
             if isReorderMode {
                 if quietToolbar {
@@ -323,16 +372,39 @@ struct ShoppingListBoard: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 24)
             .padding(.top, quietToolbar ? 16 : 24)
-            .padding(.bottom, reservesTabBarSpace ? 120 : 0)
+            .padding(.bottom, (reservesTabBarSpace ? 120 : 0) + (selectionBarVisible ? 72 : 0))
         }
         .onAppear {
             loadLists()
+            publishSelectChrome()
+        }
+        .onDisappear {
+            shoppingSelectChrome.clear()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadLists()
         }
         .onChange(of: isSelectMode) { _, on in
             if !on { selectedIDs.removeAll() }
+            publishSelectChrome()
+        }
+        .onChange(of: selectedIDs) { _, _ in
+            publishSelectChrome()
+        }
+        .sheet(isPresented: $showAddSectionModal) {
+            AddSectionModal(onAdd: { loadLists() }, quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showEditModal) {
+            EditListModal(shoppingLists: $shoppingLists, onListsChanged: { loadLists() }, quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSyncModal) {
+            SyncModal(quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showMoveSheet) {
             MoveToSectionSheet(
@@ -373,6 +445,106 @@ struct ShoppingListBoard: View {
 
     private var hasItems: Bool {
         everyItem.contains { $0.id != nil }
+    }
+
+    private var allItemsSelected: Bool {
+        let ids = Set(everyItem.compactMap(\.id))
+        return !ids.isEmpty && ids.isSubset(of: selectedIDs)
+    }
+
+    private var selectionBarVisible: Bool {
+        isSelectMode && !selectedIDs.isEmpty
+    }
+
+    private var shoppingHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            if isSelectMode {
+                if hasItems {
+                    Button(allItemsSelected ? "Select none" : "Select all") {
+                        if allItemsSelected {
+                            selectNone()
+                        } else {
+                            selectAll()
+                        }
+                    }
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .buttonStyle(.plain)
+                }
+                Spacer(minLength: 8)
+                Button("Done") {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isSelectMode = false
+                    }
+                }
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(Color.terra500)
+                .buttonStyle(.plain)
+            } else {
+                if showsSectionLabel {
+                    Text("SHOPPING")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
+                Spacer(minLength: 8)
+                groceryMenu
+            }
+        }
+    }
+
+    private var groceryMenu: some View {
+        Menu {
+            Button("Select", systemImage: "checkmark.circle") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isSelectMode = true
+                    isReorderMode = false
+                }
+            }
+            Button(isReorderMode ? "Done" : "Reorder", systemImage: "arrow.up.arrow.down") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isReorderMode.toggle()
+                    if isReorderMode { isSelectMode = false }
+                }
+            }
+            Button("Add section", systemImage: "plus") { showAddSectionModal = true }
+            Button("Edit", systemImage: "pencil") { showEditModal = true }
+            Button("Sync", systemImage: "arrow.triangle.2.circlepath") { showSyncModal = true }
+            if hasCheckedItems {
+                Button("Clear checked", systemImage: "trash") { clearChecked() }
+                Button("Uncheck all", systemImage: "circle") { uncheckAll() }
+            }
+            if undoStack.canUndo {
+                Button("Undo", systemImage: "arrow.uturn.backward") { undoStack.undo() }
+            }
+            if undoStack.canRedo {
+                Button("Redo", systemImage: "arrow.uturn.forward") { undoStack.redo() }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(HomeQuiet.ink)
+                .frame(width: 44, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func publishSelectChrome() {
+        let items = selectedShoppingItems()
+        guard isSelectMode, !items.isEmpty else {
+            shoppingSelectChrome.clear()
+            return
+        }
+        shoppingSelectChrome.update(
+            count: items.count,
+            canMove: shoppingLists.contains { list in
+                !items.allSatisfy { $0.list?.objectID == list.objectID }
+            },
+            checkOff: { setSelectionChecked(true) },
+            move: { showMoveSheet = true },
+            delete: { showBulkDeleteConfirm = true }
+        )
     }
 
     private func selectedShoppingItems() -> [ShoppingItem] {
@@ -514,306 +686,6 @@ struct ShoppingListHeader: View {
             )
             .presentationDetents([.height(200)])
             .presentationDragIndicator(.visible)
-        }
-    }
-}
-
-// MARK: - Toolbar
-struct ShoppingToolbar: View {
-    var undoStack: ShoppingUndoStack
-    @Binding var isReorderMode: Bool
-    @Binding var isSelectMode: Bool
-    @Binding var showSyncModal: Bool
-    @Binding var shoppingLists: [ShoppingList]
-    var hasCheckedItems: Bool = false
-    var hasSelection: Bool = false
-    var hasItems: Bool = false
-    var onListsChanged: () -> Void
-    var onClearChecked: () -> Void = {}
-    var onUncheckAll: () -> Void = {}
-    var onSelectAll: () -> Void = {}
-    var onSelectNone: () -> Void = {}
-    var onCheckOff: () -> Void = {}
-    var onUncheck: () -> Void = {}
-    var onMove: () -> Void = {}
-    var onDelete: () -> Void = {}
-    var quiet: Bool = false
-    @State private var showAddSectionModal = false
-    @State private var showEditModal = false
-
-    var body: some View {
-        Group {
-            if quiet {
-                quietBar
-            } else {
-                colorPills
-            }
-        }
-        .sheet(isPresented: $showAddSectionModal) {
-            AddSectionModal(onAdd: onListsChanged, quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showEditModal) {
-            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged, quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showSyncModal) {
-            SyncModal(quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-    }
-
-    private var quietBar: some View {
-        VStack(spacing: 10) {
-            quietPair(
-                leadingTitle: isReorderMode ? "Done" : "Reorder",
-                leadingIcon: "arrow.up.arrow.down",
-                leadingAction: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isReorderMode.toggle()
-                        if isReorderMode { isSelectMode = false }
-                    }
-                },
-                trailingTitle: "Add section",
-                trailingIcon: "plus",
-                trailingAction: { showAddSectionModal = true }
-            )
-
-            quietPair(
-                leadingTitle: "Edit",
-                leadingIcon: "pencil",
-                leadingAction: { showEditModal = true },
-                trailingTitle: "Sync",
-                trailingIcon: "arrow.triangle.2.circlepath",
-                trailingAction: { showSyncModal = true }
-            )
-
-            quietPair(
-                leadingTitle: isSelectMode ? "Done" : "Select",
-                leadingIcon: "checkmark.circle",
-                leadingAction: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isSelectMode.toggle()
-                        if isSelectMode { isReorderMode = false }
-                    }
-                },
-                trailingTitle: "Clear checked",
-                trailingIcon: "trash",
-                trailingEnabled: hasCheckedItems,
-                trailingAction: onClearChecked
-            )
-
-            quietButton(title: "Uncheck all", icon: "circle", enabled: hasCheckedItems, action: onUncheckAll)
-
-            if undoStack.canUndo || undoStack.canRedo {
-                quietPair(
-                    leadingTitle: "Undo",
-                    leadingIcon: "arrow.uturn.backward",
-                    leadingEnabled: undoStack.canUndo,
-                    leadingAction: { undoStack.undo() },
-                    trailingTitle: "Redo",
-                    trailingIcon: "arrow.uturn.forward",
-                    trailingEnabled: undoStack.canRedo,
-                    trailingAction: { undoStack.redo() }
-                )
-            }
-
-            if isSelectMode {
-                quietPair(
-                    leadingTitle: "Select all",
-                    leadingIcon: "checkmark.circle",
-                    leadingEnabled: hasItems,
-                    leadingAction: onSelectAll,
-                    trailingTitle: "Select none",
-                    trailingIcon: "circle",
-                    trailingEnabled: hasSelection,
-                    trailingAction: onSelectNone
-                )
-                quietPair(
-                    leadingTitle: "Check off",
-                    leadingIcon: "checkmark",
-                    leadingEnabled: hasSelection,
-                    leadingAction: onCheckOff,
-                    trailingTitle: "Uncheck",
-                    trailingIcon: "circle",
-                    trailingEnabled: hasSelection,
-                    trailingAction: onUncheck
-                )
-                quietPair(
-                    leadingTitle: "Move to section",
-                    leadingIcon: "arrow.right",
-                    leadingEnabled: hasSelection,
-                    leadingAction: onMove,
-                    trailingTitle: "Delete",
-                    trailingIcon: "trash",
-                    trailingEnabled: hasSelection,
-                    trailingAction: onDelete
-                )
-            }
-        }
-    }
-
-    private func quietPair(
-        leadingTitle: String,
-        leadingIcon: String,
-        leadingEnabled: Bool = true,
-        leadingAction: @escaping () -> Void,
-        trailingTitle: String,
-        trailingIcon: String,
-        trailingEnabled: Bool = true,
-        trailingAction: @escaping () -> Void
-    ) -> some View {
-        HStack(spacing: 10) {
-            quietButton(title: leadingTitle, icon: leadingIcon, enabled: leadingEnabled, action: leadingAction)
-            quietButton(title: trailingTitle, icon: trailingIcon, enabled: trailingEnabled, action: trailingAction)
-        }
-    }
-
-    private func quietButton(title: String, icon: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .regular))
-                Text(title)
-                    .font(.system(size: 14, weight: .regular))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .foregroundStyle(HomeQuiet.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.35)
-    }
-
-    private var colorPills: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ActionPill(icon: "arrow.up.arrow.down", label: isReorderMode ? "Done" : "Reorder",
-                           bg: isReorderMode ? Color.sky400 : Color.sky100,
-                           border: isReorderMode ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color.sky200,
-                           foreground: isReorderMode ? .white : Color(red: 0.03, green: 0.45, blue: 0.70),
-                           action: {
-                               withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                   isReorderMode.toggle()
-                                   if isReorderMode { isSelectMode = false }
-                               }
-                           })
-
-                ActionPill(icon: "plus.circle", label: "Add Section",
-                           bg: Color.lime100, border: Color(red: 0.85, green: 0.98, blue: 0.62),
-                           foreground: Color(red: 0.26, green: 0.53, blue: 0.09),
-                           action: { showAddSectionModal = true })
-
-                ActionPill(icon: "pencil", label: "Edit",
-                           bg: Color(red: 1.0, green: 0.90, blue: 0.88),
-                           border: Color(red: 1.0, green: 0.82, blue: 0.75),
-                           foreground: Color.terra600,
-                           action: { showEditModal = true })
-
-                ActionPill(icon: "arrow.triangle.2.circlepath", label: "Sync",
-                           bg: Color.lilac100, border: Color.lilac200,
-                           foreground: Color.lilac600,
-                           action: { showSyncModal = true })
-
-                ActionPill(icon: "arrow.uturn.backward", label: "Undo",
-                           bg: undoStack.canUndo ? Color.sky100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: undoStack.canUndo ? Color.sky200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: undoStack.canUndo ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { undoStack.undo() })
-
-                ActionPill(icon: "arrow.uturn.forward", label: "Redo",
-                           bg: undoStack.canRedo ? Color.sky100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: undoStack.canRedo ? Color.sky200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: undoStack.canRedo ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { undoStack.redo() })
-
-                ActionPill(icon: "checkmark.circle", label: isSelectMode ? "Done" : "Select",
-                           bg: isSelectMode ? Color.terra500 : Color.terra100,
-                           border: isSelectMode ? Color.terra600 : Color.terra200,
-                           foreground: isSelectMode ? .white : Color.terra600,
-                           action: {
-                               withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                   isSelectMode.toggle()
-                                   if isSelectMode { isReorderMode = false }
-                               }
-                           })
-
-                ActionPill(icon: "trash", label: "Clear checked",
-                           bg: hasCheckedItems ? Color.terra100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: hasCheckedItems ? Color.terra200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: hasCheckedItems ? Color.terra600 : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { if hasCheckedItems { onClearChecked() } })
-
-                ActionPill(icon: "circle", label: "Uncheck all",
-                           bg: hasCheckedItems ? Color.terra100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: hasCheckedItems ? Color.terra200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: hasCheckedItems ? Color.terra600 : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { if hasCheckedItems { onUncheckAll() } })
-
-                if isSelectMode {
-                    ActionPill(icon: "checkmark.circle", label: "Select all",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasItems { onSelectAll() } })
-                    ActionPill(icon: "circle", label: "Select none",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasSelection { onSelectNone() } })
-                    ActionPill(icon: "checkmark", label: "Check off",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasSelection { onCheckOff() } })
-                    ActionPill(icon: "circle", label: "Uncheck",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasSelection { onUncheck() } })
-                    ActionPill(icon: "arrow.right", label: "Move to section",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasSelection { onMove() } })
-                    ActionPill(icon: "trash", label: "Delete",
-                               bg: Color.terra100, border: Color.terra200, foreground: Color.terra600,
-                               action: { if hasSelection { onDelete() } })
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 4)
-        }
-    }
-}
-
-// MARK: - Action Pill Button
-struct ActionPill: View {
-    let icon: String
-    let label: String
-    let bg: Color
-    let border: Color
-    let foreground: Color
-    var action: () -> Void = {}
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(label)
-                    .font(.system(size: 11, weight: .regular))
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            .foregroundStyle(foreground)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(bg)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule().stroke(border, lineWidth: 1)
-            )
         }
     }
 }
@@ -986,31 +858,21 @@ struct StoreSection: View {
         Set(allItems.compactMap(\.id))
     }
 
-    private var sectionSelectButtons: some View {
-        HStack(spacing: 12) {
-            sectionSelectButton(
-                "Select all",
-                enabled: !sectionIDs.isEmpty && !sectionIDs.isSubset(of: selectedIDs.wrappedValue)
-            ) {
-                selectedIDs.wrappedValue.formUnion(sectionIDs)
-            }
-            sectionSelectButton(
-                "Select none",
-                enabled: !sectionIDs.isDisjoint(with: selectedIDs.wrappedValue)
-            ) {
-                selectedIDs.wrappedValue.subtract(sectionIDs)
-            }
-        }
+    private var sectionFullySelected: Bool {
+        !sectionIDs.isEmpty && sectionIDs.isSubset(of: selectedIDs.wrappedValue)
     }
 
-    private func sectionSelectButton(_ title: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(enabled ? (quiet ? HomeQuiet.ink : headerColor) : HomeQuiet.quiet)
+    private var sectionSelectToggle: some View {
+        Button(sectionFullySelected ? "Select none" : "Select all") {
+            if sectionFullySelected {
+                selectedIDs.wrappedValue.subtract(sectionIDs)
+            } else {
+                selectedIDs.wrappedValue.formUnion(sectionIDs)
+            }
         }
+        .font(.system(size: 13, weight: .regular))
+        .foregroundStyle(quiet ? HomeQuiet.ink : headerColor)
         .buttonStyle(.plain)
-        .disabled(!enabled)
     }
 
     private func quietMoveButton(_ systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -1179,8 +1041,8 @@ struct StoreSection: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                    } else {
-                        sectionSelectButtons
+                    } else if !sectionIDs.isEmpty {
+                        sectionSelectToggle
                             .fixedSize(horizontal: true, vertical: false)
                     }
                 }
@@ -1219,8 +1081,9 @@ struct StoreSection: View {
                                     quiet: quiet,
                                     onToggle: {
                                         withAnimation(.easeInOut(duration: 0.2)) {
-                                            dataManager.toggleShoppingItem(item)
-                                            loadItems()
+                                        dataManager.toggleShoppingItem(item)
+                                        loadItems()
+                                        NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
                                         }
                                     },
                                     onTap: {
@@ -1738,11 +1601,10 @@ struct ShopListEntryRow: View {
             if isSelecting {
                 Button(action: onToggle) {
                     HStack(spacing: 12) {
-                        markCircle(filled: isSelected, ring: quiet ? HomeQuiet.ink.opacity(0.28) : checkBorder, fill: Color.terra500)
                         markCircle(
-                            filled: isChecked,
+                            filled: isSelected,
                             ring: quiet ? HomeQuiet.ink.opacity(0.28) : checkBorder,
-                            fill: quiet ? Color.terra500 : checkFill
+                            fill: Color.terra500
                         )
                         titleBlock
                         Spacer(minLength: 0)
@@ -1839,23 +1701,20 @@ private struct MoveToSectionSheet: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    ForEach(sections, id: \.objectID) { list in
-                        let blocked = holdsAll(list)
+                    ForEach(sections.filter { !holdsAll($0) }, id: \.objectID) { list in
                         Button {
-                            guard !blocked else { return }
                             onMove(list)
                             dismiss()
                         } label: {
                             Text(list.name ?? "Section")
                                 .font(.system(size: 17, weight: .regular, design: .serif))
-                                .foregroundStyle(blocked ? HomeQuiet.quiet : HomeQuiet.ink)
+                                .foregroundStyle(HomeQuiet.ink)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 16)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .disabled(blocked)
                         Rectangle()
                             .fill(HomeQuiet.rule)
                             .frame(height: 1)

@@ -77,6 +77,7 @@ struct ContentView: View {
     @State private var showAddEventSheet = false
     @State private var triggerAddTodo = false
     @State private var isKeyboardVisible = false
+    @State private var shoppingSelectChrome = ShoppingSelectChrome()
     @Environment(DataManager.self) private var dataManager
     @Environment(RemindersSync.self) private var remindersSync
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
@@ -94,12 +95,25 @@ struct ContentView: View {
                 }
             }
             if !isKeyboardVisible {
-                MainTabBar(selectedTab: $selectedTab, onAddTapped: {
-                    showAddSheet = true
-                })
-                .transition(.opacity)
+                VStack(spacing: 8) {
+                    if shoppingSelectChrome.count > 0 {
+                        ShoppingSelectActionBar(
+                            count: shoppingSelectChrome.count,
+                            canMove: shoppingSelectChrome.canMove,
+                            onCheckOff: shoppingSelectChrome.checkOff,
+                            onMove: shoppingSelectChrome.move,
+                            onDelete: shoppingSelectChrome.delete
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    MainTabBar(selectedTab: $selectedTab, onAddTapped: {
+                        showAddSheet = true
+                    })
+                }
+                .animation(.spring(response: 0.32, dampingFraction: 0.86), value: shoppingSelectChrome.count)
             }
         }
+        .environment(shoppingSelectChrome)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) {
                 isKeyboardVisible = true
