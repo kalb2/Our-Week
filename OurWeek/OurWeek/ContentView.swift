@@ -956,9 +956,7 @@ private struct HomeDisplaySheet: View {
                 Spacer(minLength: 8)
                 Toggle("Apple Reminders", isOn: Binding(
                     get: { remindersSync.isEnabled },
-                    set: { on in
-                        Task { await remindersSync.setEnabled(on) }
-                    }
+                    set: { remindersSync.setEnabled($0) }
                 ))
                 .labelsHidden()
                 .tint(Color.terra500)
@@ -994,12 +992,23 @@ private struct HomeDisplaySheet: View {
             }
 
             if let note = remindersSync.statusNote {
-                Text(note)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(note)
+                        .font(.system(size: 13, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if remindersSync.statusOffersSettings {
+                        Button("Settings") {
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                            UIApplication.shared.open(url)
+                        }
+                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra500)
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
         }
     }

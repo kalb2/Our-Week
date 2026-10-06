@@ -16,6 +16,8 @@ final class RemindersSync {
 
     var isEnabled: Bool
     var statusNote: String?
+    /// True when the note should offer a way into the Settings app.
+    var statusOffersSettings: Bool
     var listTitle: String
     var lists: [ListChoice]
 
@@ -29,6 +31,7 @@ final class RemindersSync {
 
     init() {
         isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+        statusOffersSettings = false
         listTitle = "Our Week"
         lists = []
     }
@@ -40,33 +43,56 @@ final class RemindersSync {
         let status = EKEventStore.authorizationStatus(for: .reminder)
         guard status == .fullAccess else {
             if status == .denied || status == .restricted {
-                turnOff(note: "Reminders access is off, so to-dos stay on this phone.")
+                turnOff(
+                    note: "Reminders access is off. Turn it on in Settings to sync to-dos.",
+                    offerSettings: true
+                )
             }
             return
         }
-        guard await requestAccess() else { return }
+        store = EKEventStore()
+        if ensureList() == nil {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            store = EKEventStore()
+            _ = ensureList()
+        }
         refreshLists()
         await push()
         await pull()
     }
 
-    func setEnabled(_ on: Bool) async {
+    /// Writes the switch immediately. Permission is requested only when turning on.
+    func setEnabled(_ on: Bool) {
         if !on {
             turnOff(note: nil)
             return
         }
         isEnabled = true
+        statusNote = nil
+        statusOffersSettings = false
+        Task { await completeEnable() }
+    }
+
+    private func completeEnable() async {
+        guard isEnabled else { return }
         guard await requestAccess() else {
-            turnOff(note: "Reminders access is off, so to-dos stay on this phone.")
+            guard isEnabled else { return }
+            turnOff(
+                note: "Reminders access is off. Turn it on in Settings to sync to-dos.",
+                offerSettings: true
+            )
             return
         }
-        guard ensureList() != nil else {
-            turnOff(note: "To-dos stay on this phone.")
-            return
+        guard isEnabled else { return }
+        if ensureList() == nil {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            store = EKEventStore()
+            _ = ensureList()
         }
-        isEnabled = true
+        guard isEnabled else { return }
         UserDefaults.standard.set(true, forKey: Self.enabledKey)
         statusNote = nil
+        statusOffersSettings = false
         refreshLists()
         await push()
         await pull()
@@ -89,24 +115,32 @@ final class RemindersSync {
         }
     }
 
-    private func turnOff(note: String?) {
+    private func turnOff(note: String?, offerSettings: Bool = false) {
         isEnabled = false
         UserDefaults.standard.set(false, forKey: Self.enabledKey)
         statusNote = note
+        statusOffersSettings = offerSettings && note != nil
     }
 
+    /// Prompts only from not-determined or write-only. A store created before access cannot see lists, so replace it after a grant.
     private func requestAccess() async -> Bool {
         let status = EKEventStore.authorizationStatus(for: .reminder)
-        if status == .denied || status == .restricted || status == .writeOnly {
+        switch status {
+        case .denied, .restricted:
             return false
+        case .fullAccess:
+            store = EKEventStore()
+            return true
+        default:
+            break
         }
         do {
             let granted = try await store.requestFullAccessToReminders()
-            if granted, store.calendars(for: .reminder).isEmpty {
-                store = EKEventStore()
-                _ = try await store.requestFullAccessToReminders()
+            guard granted || EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
+                return false
             }
-            return EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
+            store = EKEventStore()
+            return true
         } catch {
             return false
         }
