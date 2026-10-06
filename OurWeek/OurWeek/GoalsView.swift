@@ -200,6 +200,40 @@ struct GoalsView: View {
     }
 
     private func goalCard(_ goal: Goal) -> some View {
+        GoalTrackingCard(
+            goal: goal,
+            onEdit: { editing = fresh(goal.id) },
+            onReminders: { reminders = fresh(goal.id) },
+            onWeek: { detail = fresh(goal.id) },
+            onArchive: { center.archive(goal.id) }
+        )
+    }
+
+    private func fresh(_ id: UUID) -> Goal? {
+        center.goals.first { $0.id == id }
+    }
+}
+
+/// Today's tracking card. Goals tab passes the edit menu. Home today focus leaves those off.
+struct GoalTrackingCard: View {
+    let goal: Goal
+    var onEdit: (() -> Void)? = nil
+    var onReminders: (() -> Void)? = nil
+    var onWeek: (() -> Void)? = nil
+    var onArchive: (() -> Void)? = nil
+
+    @State private var center = GoalsCenter.shared
+
+    private var live: Goal {
+        center.goals.first { $0.id == goal.id } ?? goal
+    }
+
+    private var showsMenu: Bool {
+        onEdit != nil || onReminders != nil || onWeek != nil || onArchive != nil
+    }
+
+    var body: some View {
+        let goal = live
         let current = center.progress(goal)
         let streak = center.streak(for: goal)
         let scheduled = center.isScheduled(goal, on: Date())
@@ -218,19 +252,29 @@ struct GoalsView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                Menu {
-                    Button("Edit") { editing = fresh(goal.id) }
-                    Button("Reminders") { reminders = fresh(goal.id) }
-                    Button("Week") { detail = fresh(goal.id) }
-                    Button("Archive") { center.archive(goal.id) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(HomeQuiet.ink)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                if showsMenu {
+                    Menu {
+                        if let onEdit {
+                            Button("Edit", action: onEdit)
+                        }
+                        if let onReminders {
+                            Button("Reminders", action: onReminders)
+                        }
+                        if let onWeek {
+                            Button("Week", action: onWeek)
+                        }
+                        if let onArchive {
+                            Button("Archive", action: onArchive)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Options for \(goal.name)")
                 }
-                .accessibilityLabel("Options for \(goal.name)")
             }
 
             goalGraphic(goal, current: current, scheduled: scheduled)
@@ -372,13 +416,77 @@ struct GoalsView: View {
         .buttonStyle(.plain)
     }
 
-    private func fresh(_ id: UUID) -> Goal? {
-        center.goals.first { $0.id == id }
-    }
-
     private func streakLabel(_ count: Int, period: GoalPeriod) -> String {
         let unit = period == .week ? "week" : "day"
         return count == 1 ? "1-\(unit) streak" : "\(count)-\(unit) streak"
+    }
+}
+
+/// Goals scheduled today, for tracking on Home. Creating and editing stay on the Goals tab.
+struct TodayGoalsSection: View {
+    @State private var center = GoalsCenter.shared
+    @State private var undoVisible = false
+    @State private var undoHide: Task<Void, Never>?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("GOALS")
+                    .font(.system(size: 11, weight: .regular))
+                    .tracking(1.4)
+                    .foregroundStyle(HomeQuiet.quiet)
+                Text("Today")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+            }
+
+            if undoVisible, center.undoAction != nil {
+                HStack(spacing: 12) {
+                    Text("Logged")
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.quiet)
+                    Spacer()
+                    Button("Undo") { center.undoLast() }
+                        .font(.system(size: 15, weight: .regular, design: .serif))
+                        .foregroundStyle(Color.terra500)
+                        .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(HomeQuiet.cardStroke, lineWidth: 1))
+            }
+
+            if center.todayGoals.isEmpty {
+                Text("Nothing for today")
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 16) {
+                    ForEach(center.todayGoals) { goal in
+                        GoalTrackingCard(goal: goal)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .animation(.easeInOut(duration: 0.2), value: undoVisible)
+        .onChange(of: center.undoAction) { _, action in
+            undoHide?.cancel()
+            guard action != nil else {
+                undoVisible = false
+                return
+            }
+            undoVisible = true
+            undoHide = Task {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                undoVisible = false
+            }
+        }
     }
 }
 
