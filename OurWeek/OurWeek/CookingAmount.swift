@@ -47,9 +47,9 @@ enum CookingAmount {
     }
 
     /// Text for a stored amount. Kitchen units snap to ⅛, ¼, ⅓, ½, ⅔, ¾, and the eighths between them.
-    static func format(_ amount: Double, unit: String) -> String {
+    static func format(_ amount: Double, unit: String, fractionsOnly: Bool = false) -> String {
         guard amount > 0 else { return "" }
-        if usesFractions(unit: unit) {
+        if fractionsOnly || usesFractions(unit: unit) {
             return fractionText(snapped(amount))
         }
         return decimalText(amount)
@@ -57,8 +57,8 @@ enum CookingAmount {
 
     /// Amount and unit together, e.g. "½ tsp" or "2 cups". Empty when there is no amount.
     /// The unit is plural when the amount is greater than 1. Abbreviations such as tsp stay as they are.
-    static func labeled(_ amount: Double, unit: String) -> String {
-        let amountText = format(amount, unit: unit)
+    static func labeled(_ amount: Double, unit: String, fractionsOnly: Bool = false) -> String {
+        let amountText = format(amount, unit: unit, fractionsOnly: fractionsOnly)
         let unitText = displayUnit(for: amount, unit: unit)
         return [amountText, unitText]
             .filter { !$0.isEmpty }
@@ -148,6 +148,8 @@ enum CookingAmount {
     static func reformatLine(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return text }
+        // Combined units are already formatted, e.g. "1 can + 2 cups".
+        if trimmed.contains(" + ") { return trimmed }
         let parsed = RecipeScraperService.parseIngredientString(trimmed)
         guard parsed.amount > 0 else { return trimmed }
         if parsed.name.hasPrefix("-") || parsed.name.hasPrefix("–") || parsed.name.hasPrefix("%") {

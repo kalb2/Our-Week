@@ -179,6 +179,7 @@ struct ShoppingListBoard: View {
     @State private var isSelectMode = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var showSyncModal = false
+    @State private var showPantrySheet = false
     @State private var showAddSectionModal = false
     @State private var showEditModal = false
     @State private var showMoveSheet = false
@@ -406,6 +407,12 @@ struct ShoppingListBoard: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showPantrySheet) {
+            PantryStaplesSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+        }
         .sheet(isPresented: $showMoveSheet) {
             MoveToSectionSheet(
                 sections: shoppingLists,
@@ -510,6 +517,7 @@ struct ShoppingListBoard: View {
             Button("Add section", systemImage: "plus") { showAddSectionModal = true }
             Button("Edit", systemImage: "pencil") { showEditModal = true }
             Button("Sync", systemImage: "arrow.triangle.2.circlepath") { showSyncModal = true }
+            Button("Pantry staples", systemImage: "cabinet") { showPantrySheet = true }
             if hasCheckedItems {
                 Button("Clear checked", systemImage: "trash") { clearChecked() }
                 Button("Uncheck all", systemImage: "circle") { uncheckAll() }
@@ -808,6 +816,22 @@ struct StoreSection: View {
         }
     }
 
+    private func haveItAction(for item: ShoppingItem) -> (() -> Void)? {
+        guard let id = item.id, WeekGrocerySync.generatedItemIDs().contains(id) else { return nil }
+        return { haveIt(item) }
+    }
+
+    private func haveIt(_ item: ShoppingItem) {
+        let name = item.name ?? ""
+        WeekGrocerySync.addStaple(name)
+        if !item.isDeleted {
+            dataManager.delete(item)
+        }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            loadItems()
+        }
+    }
+
     private func deleteItem(_ item: ShoppingItem) {
         let name = item.name ?? ""
         let qty = item.quantity ?? ""
@@ -1070,6 +1094,7 @@ struct StoreSection: View {
                         } else {
                             SwipeToDeleteRow(
                                 onDelete: { deleteItem(item) },
+                                onHaveIt: haveItAction(for: item),
                                 accentColor: accentColor
                             ) {
                                 ShopListEntryRow(
@@ -1239,19 +1264,39 @@ private struct ShoppingItemDragModifier: ViewModifier {
 // MARK: - Swipe To Delete Row
 struct SwipeToDeleteRow<Content: View>: View {
     let onDelete: () -> Void
+    var onHaveIt: (() -> Void)? = nil
     let accentColor: Color
     @ViewBuilder let content: () -> Content
 
     @State private var offset: CGFloat = 0
     @State private var showDeleteButton = false
-    private let deleteThreshold: CGFloat = -70
-    private let fullSwipeThreshold: CGFloat = -180
+    private var deleteThreshold: CGFloat { onHaveIt == nil ? -70 : -156 }
+    private var fullSwipeThreshold: CGFloat { onHaveIt == nil ? -180 : -260 }
 
     var body: some View {
         ZStack(alignment: .trailing) {
             // Quiet delete control, revealed by the swipe
-            HStack {
+            HStack(spacing: 8) {
                 Spacer()
+                if let onHaveIt {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            onHaveIt()
+                            offset = 0
+                            showDeleteButton = false
+                        }
+                    }) {
+                        Text("Have it")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         onDelete()
@@ -1680,6 +1725,95 @@ struct ShopListEntryRow: View {
         .padding(1)
         .fixedSize()
         .layoutPriority(1)
+    }
+}
+
+// MARK: - Pantry staples
+private struct PantryStaplesSheet: View {
+    @State private var names: [String] = []
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Pantry staples")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .padding(.bottom, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    ForEach(names, id: \.self) { name in
+                        HStack(spacing: 12) {
+                            Text(name)
+                                .font(.system(size: 17, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Button {
+                                WeekGrocerySync.removeStaple(name)
+                                reload()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(name)")
+                        }
+                        .padding(.leading, 24)
+                        .padding(.trailing, 8)
+                        Rectangle()
+                            .fill(HomeQuiet.rule)
+                            .frame(height: 1)
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                TextField("Add", text: $draft)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .submitLabel(.done)
+                    .onSubmit(commitDraft)
+                if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button(action: commitDraft) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(Color.terra500)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 6)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.bgBase)
+        .onAppear(perform: reload)
+    }
+
+    private func reload() {
+        names = WeekGrocerySync.stapleNames()
+    }
+
+    private func commitDraft() {
+        let name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        WeekGrocerySync.addStaple(name)
+        draft = ""
+        reload()
     }
 }
 
