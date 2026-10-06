@@ -214,7 +214,9 @@ enum CookingAmount {
         "package": "pkg", "packages": "pkg",
         "slices": "slice",
         "cloves": "clove",
-        "cans": "can"
+        "cans": "can",
+        "bunches": "bunch",
+        "heads": "head"
     ]
 
     private static func decimalText(_ amount: Double) -> String {
