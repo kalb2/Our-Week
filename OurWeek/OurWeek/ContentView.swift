@@ -334,15 +334,13 @@ struct HomeView: View {
                         }
                     } else if let focusDate {
                         if showDayTodos {
-                            TodoSection(day: focusDate, triggerAdd: $triggerAddTodo)
+                            TodoSection(triggerAdd: $triggerAddTodo)
                                 .id("today-todos")
-                                .padding(.top, 22)
-                                .padding(.bottom, showDayGoals ? 8 : 24)
+                                .padding(.bottom, 24)
                         }
                         if showDayGoals {
                             TodayGoalsSection(day: focusDate)
-                                .padding(.top, showDayTodos ? 14 : 22)
-                                .padding(.bottom, 22)
+                                .padding(.bottom, 24)
                         }
                     }
                     Spacer().frame(height: 120 + keyboardOverlap)
@@ -2983,7 +2981,6 @@ extension View {
 
 // MARK: - Today's To-Do Section
 struct TodoSection: View {
-    var day: Date = Date()
     @Binding var triggerAdd: Bool
     
     @AppStorage("homeTodosWrapper") private var todosWrapper = TodosWrapper(todos: [
@@ -2993,23 +2990,6 @@ struct TodoSection: View {
     
     private var todos: [TodoTask] {
         get { todosWrapper.todos }
-    }
-
-    private var isFocusedToday: Bool {
-        Calendar.current.isDateInToday(day)
-    }
-
-    /// Today keeps the full to-do list. Another day shows the items due that day.
-    private var visibleTodos: [TodoTask] {
-        if isFocusedToday { return todos }
-        return todos.filter { $0.occurs(on: day) }
-    }
-
-    private var dayTitle: String {
-        if isFocusedToday { return "Today" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: day)
     }
 
     @State private var isAddingTodo = false
@@ -3026,7 +3006,7 @@ struct TodoSection: View {
                         .font(.system(size: 11, weight: .regular))
                         .tracking(1.4)
                         .foregroundStyle(HomeQuiet.quiet)
-                    Text(dayTitle)
+                    Text("Today")
                         .font(.system(size: 22, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
                 }
@@ -3050,14 +3030,14 @@ struct TodoSection: View {
             }
 
             VStack(spacing: 0) {
-                if visibleTodos.isEmpty && !isAddingTodo {
+                if todos.isEmpty && !isAddingTodo {
                     Text("No tasks yet")
                         .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.quiet)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 8)
                 } else {
-                    ForEach(Array(visibleTodos.enumerated()), id: \.element.id) { index, todo in
+                    ForEach(Array(todos.enumerated()), id: \.element.id) { index, todo in
                         TodoItem(
                             todo: binding(for: todo),
                             onTap: {
@@ -3070,7 +3050,7 @@ struct TodoSection: View {
                             }
                         )
                         
-                        if index < visibleTodos.count - 1 || isAddingTodo {
+                        if index < todos.count - 1 || isAddingTodo {
                             Rectangle()
                                 .fill(HomeQuiet.rule)
                                 .frame(height: 1)
@@ -3144,10 +3124,7 @@ struct TodoSection: View {
         if !title.isEmpty {
             let colors = ["terra", "lilac", "lime", "sky"]
             let color = colors[todos.count % colors.count]
-            var newTask = TodoTask(title: title, subtitle: "", subtitleColorHex: color)
-            if !isFocusedToday {
-                newTask.dueDay = TodoTask.dayKey(for: day)
-            }
+            let newTask = TodoTask(title: title, subtitle: "", subtitleColorHex: color)
             var mutated = todos
             mutated.append(newTask)
             todosWrapper = TodosWrapper(todos: mutated)
