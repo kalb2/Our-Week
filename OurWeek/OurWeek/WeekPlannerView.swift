@@ -2,154 +2,383 @@
 //  WeekPlannerView.swift
 //  OurWeek
 //
-//  Swipe planner for the Monday–Sunday week shown on Home.
-//  Every new slot is Dinner, matching AddMealSheet.quickSave.
-//  Takeout and Leftovers are normal MealPlan rows (titles "Take Out" and
-//  "Leftovers", no recipe), matching AddMealSheet, so they show on the
-//  week grid and meal carousel.
-//  Nothing is written until the review screen confirms.
-//  Full week moves forward and opens Review at the end instead of wrapping.
-//  This day keeps swipes on the selected day.
-//  Randomize, inside this screen, sends each planned meal to a random open day.
-//  Surprise me fills the open days and opens Review. Nothing is chosen on Home.
-//  Review shows each dinner's photo. Change opens Add a Meal. Shuffle stays on Review.
-//  A committed swipe flies that recipe off-screen. The next recipe is a new
-//  card at rest — the deck does not advance while the card is still moving.
+//  Swipe keeps or skips a recipe. The day it lands on stays hidden until
+//  the summary, which places kept recipes on open days of the week Home
+//  is already showing (From today, Every day, or Next 7 days).
+//  Days that already have a dinner stay as they are unless a recipe is
+//  dropped on that day. Nothing is written until Save.
 //
 
 import SwiftUI
-import Foundation
 import CoreData
 import UIKit
+import UniformTypeIdentifiers
 
 struct WeekPlannerView: View {
-    /// First day of the week to plan. Home passes the Monday already used by `weekDates`.
-    let weekStart: Date
+    /// The days Home is listing right now. Not always Monday–Sunday.
+    let weekDays: [Date]
 
     @Environment(DataManager.self) private var dataManager
     @Environment(\.dismiss) private var dismiss
 
-    /// Meal type for every slot this flow creates. Kept aligned with AddMealSheet.
     private static let plannedMealType = "Dinner"
-    private static let takeoutTitle = "Take Out"
-    private static let leftoversTitle = "Leftovers"
-    /// Dark brown for labels on the light review cards. terra600 is too faint on terra100.
-    private static let reviewInk = Color(red: 0.29, green: 0.17, blue: 0.13)
+    private static let dropTypes: [UTType] = [.text, .plainText, .utf8PlainText]
 
-    private enum PlanScope {
-        case week
-        case day
+    private struct PlannerDay: Identifiable {
+        var date: Date
+        var existing: [MealPlan]
+        var planned: Recipe?
+        var id: Date { date }
     }
 
-    private enum ReviewReason {
-        case browsing
-        case weekComplete
-        case endOfWeek
-        case randomized
-    }
-
-    private enum WeekSlotPlan {
-        case recipe(Recipe)
-        case takeout
-        case leftovers
-        case named(String)
-
-        var title: String {
-            switch self {
-            case .recipe(let recipe):
-                let name = recipe.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                return name.isEmpty ? "Recipe" : name
-            case .takeout:
-                return WeekPlannerView.takeoutTitle
-            case .leftovers:
-                return WeekPlannerView.leftoversTitle
-            case .named(let title):
-                return title
-            }
-        }
-    }
-
-    private struct DayReplacement: Identifiable {
-        let index: Int
-        var id: Int { index }
+    private enum Swipe {
+        case keep(NSManagedObjectID)
+        case skip(NSManagedObjectID)
     }
 
     @State private var didLoad = false
-    @State private var existingMeals: [MealPlan] = []
+    @State private var planDays: [PlannerDay] = []
     @State private var sourceRecipes: [Recipe] = []
-    @State private var libraryHasRecipes = false
-    @State private var deck: [Recipe] = []
-    @State private var deckIndex = 0
-    @State private var assignments: [Int: WeekSlotPlan] = [:]
-    @State private var currentDayIndex = 0
-    @State private var showReview = false
-    @State private var dragOffset: CGSize = .zero
-    @State private var exitOffset: CGSize = .zero
-    @State private var exitingRecipe: Recipe?
-    @State private var swipeTicket = 0
-    @State private var isResolvingSwipe = false
+    @State private var remaining: [Recipe] = []
+    @State private var skipped: [Recipe] = []
+    @State private var kept: [Recipe] = []
+    @State private var history: [Swipe] = []
+    @State private var showSummary = false
+    @State private var drag: CGSize = .zero
+    @State private var flying = false
     @State private var isSaving = false
-    @State private var showDiscardAlert = false
-    @State private var replacingDay: DayReplacement?
-    @State private var planScope: PlanScope = .week
-    @State private var randomizeDays = false
-    @State private var reviewReason: ReviewReason = .browsing
-
-    private var weekDates: [Date] {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: weekStart)
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
-    }
-
-    private var dayCount: Int { weekDates.count }
-
-    private var currentRecipe: Recipe? {
-        guard deck.indices.contains(deckIndex) else { return nil }
-        return deck[deckIndex]
-    }
-
-    private var upcomingRecipe: Recipe? {
-        guard deck.count > 1 else { return nil }
-        return deck[(deckIndex + 1) % deck.count]
-    }
+    @State private var showDiscard = false
+    @State private var dropTarget: Date?
 
     private var openCount: Int {
-        (0..<dayCount).filter { isOpen($0) }.count
+        planDays.filter { $0.existing.isEmpty }.count
     }
 
-    private var filledCount: Int { dayCount - openCount }
+    private var hasDraft: Bool {
+        !kept.isEmpty || planDays.contains { $0.planned != nil }
+    }
+
+    private var canFinish: Bool {
+        !kept.isEmpty && (openCount == 0 || kept.count < openCount)
+    }
+
+    private var placedRecipes: [Recipe] {
+        planDays.compactMap(\.planned)
+    }
+
+    private var unplaced: [Recipe] {
+        let placed = Set(placedRecipes.map(\.objectID))
+        return kept.filter { !placed.contains($0.objectID) }
+    }
+
+    private var canReshuffle: Bool {
+        let recipes = placedRecipes
+        return recipes.count >= 2 && reshuffleSlots().count >= 2
+    }
+
+    private var canSave: Bool {
+        planDays.contains { $0.planned != nil }
+    }
 
     var body: some View {
         ZStack {
-            Group {
-                if didLoad {
-                    plannerContent
+            Color.bgBase.ignoresSafeArea()
+            if didLoad {
+                if showSummary {
+                    summary
+                } else if sourceRecipes.isEmpty {
+                    emptyLibrary
                 } else {
-                    Color.bgBase
+                    swiper
                 }
             }
-            if showDiscardAlert {
+            if showDiscard {
                 discardPrompt
             }
         }
+        .preferredColorScheme(.light)
         .onAppear(perform: load)
+    }
+
+    // MARK: - Swipe
+
+    private var swiper: some View {
+        VStack(spacing: 0) {
+            swipeBar
+            GeometryReader { geo in
+                let cardWidth = min(geo.size.width - 40, 520)
+                let cardHeight = min(geo.size.height - 24, 640)
+                ZStack {
+                    if remaining.count > 1 {
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(Color.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                    .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+                            )
+                            .frame(width: cardWidth, height: cardHeight)
+                            .scaleEffect(0.94)
+                            .offset(y: 16)
+                    }
+                    if let recipe = remaining.first {
+                        recipeCard(recipe, width: cardWidth, height: cardHeight)
+                            .id(recipe.objectID)
+                            .offset(drag)
+                            .rotationEffect(.degrees(Double(drag.width / 22)))
+                            .gesture(swipeGesture)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            swipeControls
+                .padding(.horizontal, 36)
+                .padding(.bottom, 28)
+                .padding(.top, 8)
+        }
+    }
+
+    private var swipeBar: some View {
+        HStack {
+            iconButton("xmark", label: "Close", action: requestClose)
+            Spacer()
+            if canFinish {
+                iconButton("checkmark", label: "Done", tint: Color.terra500, action: reveal)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    private var swipeControls: some View {
+        ZStack {
+            HStack(spacing: 48) {
+                circleButton("xmark", label: "Skip", fill: Color.white, foreground: HomeQuiet.ink) {
+                    fly(keep: false)
+                }
+                circleButton("checkmark", label: "Keep", fill: Color.terra500, foreground: .white) {
+                    fly(keep: true)
+                }
+            }
+            HStack {
+                if !history.isEmpty {
+                    iconButton("arrow.uturn.backward", label: "Undo", action: undo)
+                }
+                Spacer()
+            }
+        }
+        .frame(height: 76)
+    }
+
+    private func recipeCard(_ recipe: Recipe, width: CGFloat, height: CGFloat) -> some View {
+        let photo = recipeImage(recipe)
+        let wash = drag.width >= 0
+            ? Color.terra500.opacity(min(0.22, Double(drag.width) / 700))
+            : HomeQuiet.ink.opacity(min(0.16, Double(-drag.width) / 800))
+        return VStack(alignment: .leading, spacing: 0) {
+            if let photo {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: height * 0.62)
+                    .clipped()
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(displayName(for: recipe))
+                    .font(.system(size: 32, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let meta = meta(for: recipe) {
+                    Text(meta)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: photo == nil ? .infinity : nil, alignment: .topLeading)
+            Spacer(minLength: 0)
+        }
+        .frame(width: width, height: height, alignment: .top)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(wash)
+                .allowsHitTesting(false)
+        )
+        .shadow(color: Color.black.opacity(0.06), radius: 22, x: 0, y: 10)
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                guard !flying else { return }
+                drag = value.translation
+            }
+            .onEnded { value in
+                guard !flying else { return }
+                let travel = value.translation.width
+                if travel > 110 {
+                    fly(keep: true)
+                } else if travel < -110 {
+                    fly(keep: false)
+                } else {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                        drag = .zero
+                    }
+                }
+            }
+    }
+
+    private var emptyLibrary: some View {
+        VStack(spacing: 0) {
+            swipeBar
+            Spacer()
+            Text("No recipes to plan")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            Spacer()
+        }
+    }
+
+    // MARK: - Summary
+
+    private var summary: some View {
+        VStack(spacing: 0) {
+            HStack {
+                iconButton("chevron.left", label: "Back", action: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                        showSummary = false
+                    }
+                })
+                Spacer()
+                if canReshuffle {
+                    iconButton("shuffle", label: "Reshuffle", action: reshuffle)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 10) {
+                    ForEach(unplaced, id: \.objectID) { recipe in
+                        mealRow(title: displayName(for: recipe), photo: recipeImage(recipe), draggable: true, targeted: false)
+                            .onDrag { dragItem(recipe) }
+                    }
+                    ForEach(planDays.indices, id: \.self) { index in
+                        dayRow(index)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+
+            if canSave {
+                Button(action: savePlan) {
+                    Text("Save")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isSaving)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .accessibilityLabel("Save")
+            }
+        }
+    }
+
+    private func dayRow(_ index: Int) -> some View {
+        let day = planDays[index]
+        let planned = day.planned
+        let title = rowTitle(day)
+        let existingRecipe = day.existing.first?.recipe
+        let photo = planned.flatMap { recipeImage($0) } ?? existingRecipe.flatMap { recipeImage($0) }
+        let isToday = Calendar.current.isDateInToday(day.date)
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(formatted(day.date, "EEEE"))
+                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .foregroundStyle(isToday ? Color.terra500 : HomeQuiet.ink)
+                Text(formatted(day.date, "MMM d"))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            Spacer(minLength: 8)
+            if let title {
+                mealLabel(title: title, photo: photo)
+            }
+            if planned != nil {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background((dropTarget == day.date) ? Color.terra100 : Color.white)
+        .clipShape(HomeQuiet.card)
+        .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+        .modifier(DayDrop(planned: planned, dropTypes: Self.dropTypes, isTargeted: dropBinding(for: day.date), drag: { dragItem($0) }, accept: { providers in
+            acceptDrop(providers, on: index)
+        }))
+    }
+
+    private func mealRow(title: String, photo: UIImage?, draggable: Bool, targeted: Bool) -> some View {
+        HStack(spacing: 12) {
+            mealLabel(title: title, photo: photo)
+            Spacer()
+            if draggable {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(targeted ? Color.terra100 : Color.white)
+        .clipShape(HomeQuiet.card)
+        .overlay(HomeQuiet.card.stroke(HomeQuiet.cardStroke, lineWidth: 1))
+    }
+
+    private func mealLabel(title: String, photo: UIImage?) -> some View {
+        HStack(spacing: 10) {
+            if let photo {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            Text(title)
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .lineLimit(2)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     private var discardPrompt: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Color.black.opacity(0.28)
                 .ignoresSafeArea()
-
             VStack(spacing: 18) {
                 Text("Discard this plan?")
                     .font(.system(size: 22, weight: .regular, design: .serif))
-                    .foregroundStyle(.black)
-                    .multilineTextAlignment(.center)
+                    .foregroundStyle(HomeQuiet.ink)
                     .frame(maxWidth: .infinity)
-
                 VStack(spacing: 10) {
                     Button {
-                        showDiscardAlert = false
+                        showDiscard = false
                     } label: {
                         Text("Keep planning")
                             .font(.system(size: 16, weight: .regular, design: .serif))
@@ -157,1428 +386,348 @@ struct WeekPlannerView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(Color.terra500)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
-                            .boldShadow(Color.black, size: 3, radius: 14)
+                            .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-
                     Button {
                         dismiss()
                     } label: {
                         Text("Discard")
                             .font(.system(size: 16, weight: .regular, design: .serif))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(HomeQuiet.ink)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
-                            .boldShadow(Color.terra200, size: 3, radius: 14)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(20)
             .background(Color.bgBase)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
-            .boldShadow(Color.terra500, size: 4, radius: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(HomeQuiet.cardStroke, lineWidth: 1)
+            )
             .padding(.horizontal, 28)
         }
-        .preferredColorScheme(.light)
     }
 
-    private var plannerContent: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+    // MARK: - Controls
 
-            if showReview {
-                reviewList
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                saveBar
-                    .transition(.opacity)
-            } else {
-                dayStrip
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-
-                planningControls
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-
-                dayHeading
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-
-                slotContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if isOpen(currentDayIndex) {
-                    decisionBar
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                        .padding(.bottom, 10)
-                }
-            }
-        }
-        .frame(maxWidth: 560, maxHeight: .infinity)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.bgBase.ignoresSafeArea())
-        .preferredColorScheme(.light)
-        .allowsHitTesting(!isSaving && !isResolvingSwipe)
-        .sheet(item: $replacingDay) { day in
-            AddMealSheet(
-                date: weekDates.indices.contains(day.index) ? weekDates[day.index] : weekStart,
-                dataManager: dataManager,
-                onSelect: { title, recipe in
-                    applyMealChoice(title: title, recipe: recipe, to: day.index)
-                }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("PLAN WEEK")
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(1.2)
-                    .foregroundStyle(Color.terra500)
-                Text(weekRangeLabel)
-                    .font(.system(size: 22, weight: .regular, design: .serif))
-                    .foregroundStyle(.black)
-                Text(progressLine)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(.gray.opacity(0.7))
-            }
-
-            Spacer(minLength: 8)
-
-            Button {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                    if showReview {
-                        showReview = false
-                    } else {
-                        reviewReason = .browsing
-                        showReview = true
-                    }
-                }
-            } label: {
-                Text(showReview ? "PLAN" : "REVIEW")
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(0.6)
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white)
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.black.opacity(0.14), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            Button(action: requestClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.black)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
-        }
-    }
-
-    private var progressLine: String {
-        let counts = "\(filledCount) filled · \(openCount) open"
-        if showReview {
-            return counts
-        }
-        if randomizeDays {
-            return "Random day · \(counts)"
-        }
-        if planScope == .day, weekDates.indices.contains(currentDayIndex) {
-            return "\(formatted(weekDates[currentDayIndex], "EEE")) only · \(counts)"
-        }
-        return "Day \(currentDayIndex + 1) of \(dayCount) · \(counts)"
-    }
-
-    private var weekRangeLabel: String {
-        guard let first = weekDates.first, let last = weekDates.last else { return "This week" }
-        let calendar = Calendar.current
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        let start = formatter.string(from: first)
-        if calendar.component(.month, from: first) == calendar.component(.month, from: last) {
-            let dayFormatter = DateFormatter()
-            dayFormatter.dateFormat = "d"
-            return "\(start) – \(dayFormatter.string(from: last))"
-        }
-        return "\(start) – \(formatter.string(from: last))"
-    }
-
-    // MARK: - Day strip
-
-    private var dayStrip: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(0..<dayCount, id: \.self) { index in
-                    Capsule()
-                        .fill(segmentColor(for: index))
-                        .frame(height: 6)
-                }
-            }
-
-            HStack(spacing: 6) {
-                ForEach(0..<dayCount, id: \.self) { index in
-                    dayChip(index)
-                }
-            }
-        }
-    }
-
-    private func segmentColor(for index: Int) -> Color {
-        if index == currentDayIndex { return Color.terra500 }
-        if assignments[index] != nil { return Color.terra300 }
-        if existingDinner(on: index) != nil { return HomeQuiet.quiet }
-        return Color(red: 0.91, green: 0.86, blue: 0.83)
-    }
-
-    private func dayChip(_ index: Int) -> some View {
-        let date = weekDates[index]
-        let isCurrent = index == currentDayIndex
-        let planned = assignments[index] != nil
-        let locked = existingDinner(on: index) != nil
-
-        return Button {
-            selectDay(index)
-        } label: {
-            VStack(spacing: 1) {
-                Text(formatted(date, "EEE"))
-                    .font(.system(size: 9, weight: .regular))
-                    .foregroundStyle(isCurrent ? WeekPlannerView.reviewInk : Color(red: 0.35, green: 0.28, blue: 0.25))
-                Text(formatted(date, "d"))
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(.black)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(chipFill(isCurrent: isCurrent, planned: planned, locked: locked))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.black.opacity(isCurrent ? 0.18 : 0.08), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(chipAccessibility(index: index, date: date, planned: planned, locked: locked))
-    }
-
-    private func chipFill(isCurrent: Bool, planned: Bool, locked: Bool) -> Color {
-        if planned { return Color.terra100 }
-        if locked { return Color.white }
-        if isCurrent { return Color.white }
-        return Color.bgBase
-    }
-
-    private func chipAccessibility(index: Int, date: Date, planned: Bool, locked: Bool) -> String {
-        let name = formatted(date, "EEEE")
-        if planned { return "\(name), planned in this session" }
-        if locked { return "\(name), already has dinner" }
-        if index == currentDayIndex {
-            if randomizeDays { return "\(name), random open day. The next plan lands here." }
-            if planScope == .day { return "\(name), selected. Swipes plan only this day." }
-            return "\(name), current day in the week"
-        }
-        return "\(name), open"
-    }
-
-    private var planningControls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                modeButton(
-                    title: "RANDOMIZE",
-                    icon: "shuffle",
-                    selected: randomizeDays,
-                    fill: randomizeDays ? Color.terra500 : Color.white,
-                    foreground: randomizeDays ? .white : .black
-                ) {
-                    setRandomizeDays(!randomizeDays)
-                }
-                .accessibilityHint("Each meal you plan goes to a random open day")
-
-                modeButton(
-                    title: "SURPRISE ME",
-                    icon: "sparkles",
-                    selected: false,
-                    fill: Color.white,
-                    foreground: HomeQuiet.ink
-                ) {
-                    surpriseMe()
-                }
-                .disabled(!canSurprise)
-                .opacity(canSurprise ? 1 : 0.45)
-                .accessibilityHint("Fills open days with shuffled mains and opens Review. Nothing is saved yet.")
-            }
-
-            if !randomizeDays {
-                HStack(spacing: 8) {
-                    scopeButton(title: "THIS DAY", selected: planScope == .day) {
-                        planScope = .day
-                    }
-                    scopeButton(title: "FULL WEEK", selected: planScope == .week) {
-                        planScope = .week
-                    }
-                }
-            }
-        }
-    }
-
-    private func modeButton(
-        title: String,
-        icon: String,
-        selected: Bool,
-        fill: Color,
-        foreground: Color,
+    private func iconButton(
+        _ system: String,
+        label: String,
+        tint: Color = HomeQuiet.ink,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                Text(title)
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(0.4)
-            }
-            .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(fill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.black.opacity(selected ? 0.18 : 0.08), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    private var canSurprise: Bool {
-        !sourceRecipes.isEmpty && (0..<dayCount).contains(where: { isOpen($0) })
-    }
-
-    private func scopeButton(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .regular))
-                .tracking(0.6)
-                .foregroundStyle(selected ? .white : .black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(selected ? Color.terra500 : Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.black.opacity(selected ? 0.18 : 0.08), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var scopeCaption: String {
-        if randomizeDays {
-            return "Each meal you plan lands on a random open day. Tap a day to choose it yourself."
-        }
-        if planScope == .day {
-            return "Swipes stay on this day. Full week moves you forward again."
-        }
-        if currentDayIndex >= dayCount - 1 {
-            return "Last day. Planning it opens Review — you won’t loop back."
-        }
-        return "Swipes move through the week. Tap a day to plan just that one."
-    }
-
-    private var swipeHint: String {
-        if randomizeDays {
-            return "Swipe right to plan this random day"
-        }
-        if planScope == .day {
-            return "This day only · right plans it and stays here"
-        }
-        if currentDayIndex >= dayCount - 1 {
-            return "Last day · right plans it, then Review"
-        }
-        return "Swipe right to plan · left to skip"
-    }
-
-    private var plannedDayMessage: String {
-        let day = weekDates.indices.contains(currentDayIndex) ? formatted(weekDates[currentDayIndex], "EEEE") : "This day"
-        if randomizeDays {
-            return "\(day) is set. The next open day is chosen at random."
-        }
-        if planScope == .day {
-            return "\(day) is set. Stay here, pick another day, or review to save."
-        }
-        return "On the plan for this day. Save from Review when the week looks right."
-    }
-
-    private var dayHeading: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(weekDates.indices.contains(currentDayIndex) ? formatted(weekDates[currentDayIndex], "EEEE") : "DAY")
-                .font(.system(size: 18, weight: .regular, design: .serif))
-                .foregroundStyle(.black)
-            Spacer()
-            Text("DINNER")
-                .font(.system(size: 11, weight: .regular))
-                .tracking(1)
-                .foregroundStyle(Color.terra500)
-        }
-    }
-
-    // MARK: - Slot
-
-    @ViewBuilder
-    private var slotContent: some View {
-        if let plan = assignments[currentDayIndex] {
-            statusCard(
-                title: plan.title,
-                message: plannedDayMessage,
-                icon: iconName(for: plan),
-                tint: tint(for: plan),
-                iconFill: surface(for: plan),
-                actionTitle: "Choose again",
-                action: { clearAssignment(at: currentDayIndex) }
-            )
-        } else if let dinner = existingDinner(on: currentDayIndex) {
-            statusCard(
-                title: dinner.title ?? "Dinner",
-                message: "Dinner is already on this day. Pick another day, or leave it as is.",
-                icon: "checkmark.seal.fill",
-                tint: HomeQuiet.ink,
-                iconFill: Color.white,
-                actionTitle: nextOpenIndex(after: currentDayIndex) == nil ? nil : "Next open day",
-                action: jumpToNextOpen
-            )
-        } else {
-            deckStack
-                .padding(.horizontal, 20)
-        }
-    }
-
-    private var deckStack: some View {
-        ZStack {
-            if exitingRecipe == nil, let upcoming = upcomingRecipe {
-                recipeCard(upcoming, showStamp: false)
-                    .scaleEffect(0.95)
-                    .offset(y: 12)
-                    .allowsHitTesting(false)
-            }
-
-            if exitingRecipe == nil, let recipe = currentRecipe {
-                recipeCard(recipe, showStamp: true)
-                    .id(cardLayerID("live", recipe))
-                    .offset(x: dragOffset.width, y: dragOffset.height)
-                    .rotationEffect(.degrees(Double(dragOffset.width / 18)))
-                    .gesture(deckDrag)
-                    .zIndex(1)
-            } else if exitingRecipe == nil {
-                emptyDeckCard
-            }
-
-            if let recipe = exitingRecipe {
-                recipeCard(recipe, showStamp: true)
-                    .id(cardLayerID("exit", recipe))
-                    .offset(x: exitOffset.width, y: exitOffset.height)
-                    .rotationEffect(.degrees(Double(exitOffset.width / 18)))
-                    .allowsHitTesting(false)
-                    .zIndex(2)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// Live and exit layers stay distinct even when the next card is the same recipe.
-    private func cardLayerID(_ layer: String, _ recipe: Recipe) -> String {
-        "\(layer):\(recipe.objectID.uriRepresentation().absoluteString)"
-    }
-
-    private func recipeCard(_ recipe: Recipe, showStamp: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                recipeImage(recipe)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-
-                if showStamp {
-                    stampOverlay
-                        .allowsHitTesting(false)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 176)
-            .clipped()
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    if recipe.isFavorite {
-                        Label("Favorite", systemImage: "heart.fill")
-                            .font(.system(size: 10, weight: .regular))
-                            .foregroundStyle(Color.peach500)
-                    }
-                    Spacer(minLength: 0)
-                    if recipe.prepTime + recipe.cookTime > 0 {
-                        Label("\(recipe.prepTime + recipe.cookTime) min", systemImage: "clock")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(Color.terra600)
-                    }
-                }
-
-                Text(displayName(for: recipe))
-                    .font(.system(size: 22, weight: .regular, design: .serif))
-                    .foregroundStyle(.black)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-
-                Text(swipeHint)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.gray.opacity(0.55))
-            }
-            .padding(16)
-        }
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.black.opacity(0.08), lineWidth: 1)
-        )
-        .boldShadow(Color.terra500, size: 4, radius: 18)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(displayName(for: recipe))
-        .accessibilityHint(swipeHint)
-    }
-
-    private func recipeImage(_ recipe: Recipe, emojiSize: CGFloat = 42) -> some View {
-        Group {
-            if let data = recipe.imageData, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Color(red: 0.98, green: 0.96, blue: 0.94)
-                .overlay(
-                    Image(systemName: "fork.knife")
-                        .font(.system(size: min(emojiSize, 28), weight: .regular))
-                        .foregroundStyle(HomeQuiet.quiet)
-                )
-            }
-        }
-    }
-
-    private var stampOverlay: some View {
-        let width = exitingRecipe == nil ? dragOffset.width : exitOffset.width
-        return ZStack {
-            if width > 16 {
-                stamp("PLAN", color: Color.terra600, rotation: -14)
-                    .opacity(min(1, Double(width / 110)))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(16)
-            }
-            if width < -16 {
-                stamp("SKIP", color: HomeQuiet.ink, rotation: 14)
-                    .opacity(min(1, Double(-width / 110)))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(16)
-            }
-        }
-    }
-
-    private func stamp(_ text: String, color: Color, rotation: Double) -> some View {
-        Text(text)
-            .font(.system(size: 26, weight: .regular, design: .serif))
-            .tracking(1.5)
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(color, lineWidth: 1)
-            )
-            .rotationEffect(.degrees(rotation))
-    }
-
-    private var emptyDeckCard: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "book.closed")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Color.terra500)
-            Text(libraryHasRecipes ? "No mains to swipe" : "No recipes to swipe")
-                .font(.system(size: 18, weight: .regular, design: .serif))
-            Text(libraryHasRecipes
-                 ? "Mark a recipe Main or Full meal, or Dinner without Side, Dessert, Snack, Appetizer, or Drink. Takeout and leftovers still work."
-                 : "Add some in Meals, or mark this day as takeout or leftovers.")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(.gray.opacity(0.65))
-                .multilineTextAlignment(.center)
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.black.opacity(0.08), lineWidth: 1)
-        )
-        .boldShadow(Color.terra400, size: 4, radius: 18)
-    }
-
-    private func statusCard(
-        title: String,
-        message: String,
-        icon: String,
-        tint: Color,
-        iconFill: Color,
-        actionTitle: String?,
-        action: @escaping () -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 22, weight: .bold))
+            Image(systemName: system)
+                .font(.system(size: 16, weight: .regular))
                 .foregroundStyle(tint)
-                .frame(width: 48, height: 48)
-                .background(iconFill)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.14), lineWidth: 1))
-
-            Text(title)
-                .font(.system(size: 26, weight: .regular, design: .serif))
-                .foregroundStyle(.black)
-                .lineLimit(3)
-
-            Text(message)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(.gray.opacity(0.7))
-
-            if let actionTitle {
-                Button(action: action) {
-                    Text(actionTitle.uppercased())
-                        .font(.system(size: 13, weight: .regular))
-                        .tracking(0.5)
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.black.opacity(0.14), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.black.opacity(0.08), lineWidth: 1))
-        .boldShadow(tint, size: 4, radius: 18)
-        .padding(.horizontal, 20)
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
-    // MARK: - Decisions
-
-    private var decisionBar: some View {
-        VStack(spacing: 10) {
-            Text(scopeCaption)
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(.gray.opacity(0.7))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-
-            HStack(spacing: 10) {
-                choiceButton(
-                    title: "SKIP",
-                    icon: "arrow.left",
-                    fill: Color.white,
-                    foreground: .black
-                ) {
-                    fly(accept: false)
-                }
-                .disabled(currentRecipe == nil || isResolvingSwipe)
-                .opacity(currentRecipe == nil ? 0.45 : 1)
-
-                choiceButton(
-                    title: "PLAN",
-                    icon: "arrow.right",
-                    fill: Color.terra500,
-                    foreground: .white
-                ) {
-                    fly(accept: true)
-                }
-                .disabled(currentRecipe == nil || isResolvingSwipe)
-                .opacity(currentRecipe == nil ? 0.45 : 1)
-            }
-
-            HStack(spacing: 10) {
-                specialButton(
-                    title: "TAKEOUT",
-                    subtitle: "Eat out",
-                    icon: "takeoutbag.and.cup.and.straw.fill",
-                    fill: Color.white,
-                    foreground: HomeQuiet.ink
-                ) {
-                    assign(.takeout)
-                }
-
-                specialButton(
-                    title: "LEFTOVERS",
-                    subtitle: "No recipe",
-                    icon: "fork.knife",
-                    fill: Color.white,
-                    foreground: HomeQuiet.ink
-                ) {
-                    assign(.leftovers)
-                }
-            }
-        }
-    }
-
-    private func choiceButton(
-        title: String,
-        icon: String,
+    private func circleButton(
+        _ system: String,
+        label: String,
         fill: Color,
         foreground: Color,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                Text(title)
-                    .font(.system(size: 14, weight: .regular))
-                    .tracking(0.6)
-            }
-            .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(fill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
-            .boldShadowSm(.black, radius: 12)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func specialButton(
-        title: String,
-        subtitle: String,
-        icon: String,
-        fill: Color,
-        foreground: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .bold))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .font(.system(size: 12, weight: .regular))
-                        .tracking(0.4)
-                    Text(subtitle)
-                        .font(.system(size: 10, weight: .regular))
-                        .opacity(0.75)
-                }
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(foreground)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(fill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
-            .boldShadowSm(foreground.opacity(0.45), radius: 12)
-        }
-        .buttonStyle(.plain)
-        .disabled(isResolvingSwipe)
-    }
-
-    private var deckDrag: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                guard !isResolvingSwipe, currentRecipe != nil else { return }
-                dragOffset = CGSize(width: value.translation.width, height: value.translation.height * 0.12)
-            }
-            .onEnded { value in
-                guard !isResolvingSwipe else { return }
-                let dx = value.translation.width
-                let predicted = value.predictedEndTranslation.width
-                if dx > 110 || (dx > 48 && predicted > 240) {
-                    fly(accept: true)
-                } else if dx < -110 || (dx < -48 && predicted < -240) {
-                    fly(accept: false)
-                } else {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
-                        dragOffset = .zero
-                    }
-                }
-            }
-    }
-
-    // MARK: - Review
-
-    private var reviewList: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 10) {
-                ForEach(0..<dayCount, id: \.self) { index in
-                    reviewRow(index)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-        }
-    }
-
-    private func reviewRow(_ index: Int) -> some View {
-        let date = weekDates[index]
-        let plan = assignments[index]
-        let dinner = existingDinner(on: index)
-        let title: String? = {
-            if let plan { return plan.title }
-            if let dinner { return dinner.title }
-            return nil
-        }()
-        let canEdit = dinner == nil
-
-        return HStack(alignment: .center, spacing: 12) {
-            Button {
-                guard canEdit else { return }
-                replacingDay = DayReplacement(index: index)
-            } label: {
-                HStack(alignment: .center, spacing: 14) {
-                    reviewThumbnail(plan: plan, dinner: dinner)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("\(formatted(date, "EEE")) \(formatted(date, "d"))")
-                            .font(.system(size: 12, weight: .regular))
-                            .tracking(0.8)
-                            .foregroundStyle(.black)
-
-                        if let title, !title.isEmpty {
-                            Text(title)
-                                .font(.system(size: 18, weight: .regular, design: .serif))
-                                .foregroundStyle(.black)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.85)
-                                .multilineTextAlignment(.leading)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(title.map { "\(formatted(date, "EEEE")), \($0)" } ?? formatted(date, "EEEE"))
-            .accessibilityHint(canEdit ? "Opens meal search for this day" : "This day already has dinner")
-
-            if canEdit || plan != nil {
-                VStack(spacing: 6) {
-                    if plan != nil {
-                        Button {
-                            clearAssignment(at: index)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.black)
-                                .frame(width: 28, height: 28)
-                                .background(Color.white)
-                                .clipShape(Circle())
-                                .overlay(Circle().stroke(Color.black.opacity(0.14), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(title ?? "dinner")")
-                    }
-
-                    if canEdit {
-                        Button {
-                            replacingDay = DayReplacement(index: index)
-                        } label: {
-                            Text(plan == nil ? "Choose" : "Change")
-                                .font(.system(size: 10, weight: .regular))
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 5)
-                                .background(Color.terra100)
-                                .clipShape(RoundedRectangle(cornerRadius: 7))
-                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.black.opacity(0.14), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(plan == nil ? "Choose dinner" : "Change dinner")
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .background(Color.cardWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
-        .boldShadow(Color.terra300, size: 3, radius: 16)
-    }
-
-    private func reviewThumbnail(plan: WeekSlotPlan?, dinner: MealPlan?) -> some View {
-        Group {
-            if let recipe = reviewRecipe(plan: plan, dinner: dinner) {
-                recipeImage(recipe, emojiSize: 28)
-            } else {
-                reviewIconTile(plan: plan, dinner: dinner)
-            }
-        }
-        .frame(width: 64, height: 64)
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.08), lineWidth: 1))
-    }
-
-    private func reviewRecipe(plan: WeekSlotPlan?, dinner: MealPlan?) -> Recipe? {
-        if case .recipe(let recipe) = plan { return recipe }
-        return dinner?.recipe
-    }
-
-    private func reviewIconTile(plan: WeekSlotPlan?, dinner: MealPlan?) -> some View {
-        let icon: String
-        let fill: Color
-        let foreground: Color
-        if let plan {
-            switch plan {
-            case .recipe, .named:
-                icon = "fork.knife"
-                fill = Color.white
-                foreground = HomeQuiet.ink
-            case .takeout:
-                icon = "takeoutbag.and.cup.and.straw"
-                fill = Color.white
-                foreground = HomeQuiet.ink
-            case .leftovers:
-                icon = "refrigerator"
-                fill = Color.white
-                foreground = HomeQuiet.ink
-            }
-        } else if dinner != nil {
-            icon = "fork.knife"
-            fill = Color.white
-            foreground = HomeQuiet.ink
-        } else {
-            icon = "plus"
-            fill = Color.terra50
-            foreground = WeekPlannerView.reviewInk
-        }
-
-        return ZStack {
-            fill
-            Image(systemName: icon)
-                .font(.system(size: 26, weight: .bold))
+            Image(systemName: system)
+                .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(foreground)
+                .frame(width: 64, height: 64)
+                .background(fill)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(HomeQuiet.cardStroke, lineWidth: 1))
         }
+        .buttonStyle(.plain)
+        .disabled(flying || remaining.isEmpty)
+        .accessibilityLabel(label)
     }
 
-    private var saveBar: some View {
-        HStack(spacing: 10) {
-            Button(action: reshuffleAssignments) {
-                HStack(spacing: 6) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 14, weight: .bold))
-                    Text("Shuffle")
-                        .font(.system(size: 15, weight: .regular))
-                }
-                .foregroundStyle(.black)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
-                .boldShadow(Color.terra200, size: 3, radius: 14)
-            }
-            .buttonStyle(.plain)
-            .disabled(!canReshuffle || isSaving)
-            .opacity(canReshuffle ? 1 : 0.4)
-            .accessibilityLabel("Shuffle days")
-            .accessibilityHint("Reassigns planned recipes across open days. Takeout and leftovers stay put.")
-
-            Button(action: savePlan) {
-                Text(assignments.isEmpty ? "Save" : (assignments.count == 1 ? "Save dinner" : "Save dinners"))
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(assignments.isEmpty ? WeekPlannerView.reviewInk : .white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(assignments.isEmpty ? Color.terra100 : Color.terra500)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.black.opacity(0.08), lineWidth: 1))
-                    .boldShadow(assignments.isEmpty ? Color.terra200 : Color.black, size: 3, radius: 14)
-            }
-            .buttonStyle(.plain)
-            .disabled(assignments.isEmpty || isSaving)
-            .accessibilityLabel(assignments.isEmpty ? "Save" : "Save \(assignments.count) dinners")
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
-        .background(Color.bgBase)
-    }
-
-    // MARK: - Actions
+    // MARK: - Swipe actions
 
     private func load() {
         guard !didLoad else { return }
         didLoad = true
-        existingMeals = dataManager.fetchWeekMealPlans(from: weekStart)
+        let calendar = Calendar.current
+        let dates = weekDays.map { calendar.startOfDay(for: $0) }
+        if let first = dates.first, let last = dates.last {
+            let meals = dataManager.fetchMealPlans(from: first, through: last)
+            planDays = dates.map { date in
+                PlannerDay(date: date, existing: dinners(on: date, from: meals), planned: nil)
+            }
+        }
         let library = dataManager.fetchRecipes(sortBy: .favoritesFirst)
-        libraryHasRecipes = !library.isEmpty
         sourceRecipes = library.filter {
             RecipePlannerMeals.includes(categories: $0.categories, tags: $0.tags)
         }
-        deck = buildDeck(from: sourceRecipes)
-        deckIndex = 0
-        if let first = firstOpenIndex() {
-            currentDayIndex = first
-        } else {
-            showReview = true
+        let favorites = sourceRecipes.filter(\.isFavorite).shuffled()
+        let others = sourceRecipes.filter { !$0.isFavorite }.shuffled()
+        remaining = favorites + others
+    }
+
+    private func fly(keep: Bool) {
+        guard !flying, remaining.first != nil else { return }
+        flying = true
+        impact(keep ? .medium : .light)
+        withAnimation(.easeIn(duration: 0.22)) {
+            drag = CGSize(width: keep ? 720 : -720, height: keep ? -20 : 20)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+            finishFly(keep: keep)
         }
     }
 
-    private func buildDeck(from recipes: [Recipe]) -> [Recipe] {
-        let favorites = recipes.filter { $0.isFavorite }.shuffled()
-        let others = recipes.filter { !$0.isFavorite }.shuffled()
-        return favorites + others
-    }
-
-    private func fly(accept: Bool) {
-        guard !isResolvingSwipe else { return }
-        if accept {
-            guard let recipe = currentRecipe else { return }
-            beginExit(recipe: recipe, accept: true)
-        } else if deck.count < 2 {
-            // One recipe left: spring the same card back. Skip does not advance the day.
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
-                dragOffset = .zero
-            }
-            impact(.light)
-        } else if let recipe = currentRecipe {
-            beginExit(recipe: recipe, accept: false)
-        }
-    }
-
-    /// Pins the recipe on its own layer, then animates that layer off-screen.
-    /// The deck updates only after the layer has left, so the next card is born at rest.
-    private func beginExit(recipe: Recipe, accept: Bool) {
-        swipeTicket += 1
-        let ticket = swipeTicket
-        isResolvingSwipe = true
-
-        var seed = Transaction()
-        seed.disablesAnimations = true
-        seed.animation = nil
-        withTransaction(seed) {
-            exitingRecipe = recipe
-            exitOffset = dragOffset
-            dragOffset = .zero
-        }
-
-        let travel = CGSize(width: accept ? 840 : -840, height: accept ? -28 : 28)
-        // Let the exit layer render at the finger position before it moves.
-        // Animating in this same turn would start from zero and retarget the card.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-            guard swipeTicket == ticket else { return }
-            withAnimation(.easeIn(duration: 0.26)) {
-                exitOffset = travel
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
-                guard swipeTicket == ticket else { return }
-                finishExit(accept: accept)
-            }
-        }
-    }
-
-    private func finishExit(accept: Bool) {
-        var accepted = false
+    private func finishFly(keep: Bool) {
+        var revealNow = false
         var reset = Transaction()
         reset.disablesAnimations = true
-        reset.animation = nil
         withTransaction(reset) {
-            if accept {
-                accepted = commitAccept()
-            } else {
-                commitSkip()
-            }
-            exitingRecipe = nil
-            exitOffset = .zero
-            dragOffset = .zero
-            if accepted {
-                advanceAfterSwipe()
-            }
+            revealNow = keep ? commitKeep() : commitSkip()
+            drag = .zero
+            flying = false
         }
-        isResolvingSwipe = false
-    }
-
-    /// Applies the day change in the same non-animated transaction as the new card.
-    /// A spring here would retarget the incoming card and replay the rebound.
-    private func advanceAfterSwipe() {
-        switch advanceForAssign() {
-        case .stay:
-            impact(.medium)
-        case .day(let next):
-            impact(.medium)
-            currentDayIndex = next
-        case .review(let reason):
-            DispatchQueue.main.async {
-                presentReview(reason)
-            }
+        if revealNow {
+            reveal()
         }
     }
 
-    @discardableResult
-    private func commitAccept() -> Bool {
-        guard isOpen(currentDayIndex) else { return false }
-        let recipe = exitingRecipe ?? currentRecipe
-        guard let recipe else { return false }
-        assignments[currentDayIndex] = .recipe(recipe)
-        deck.removeAll { $0.objectID == recipe.objectID }
-        if deck.isEmpty {
-            deck = buildDeck(from: recipesForRefill())
-        }
-        if deckIndex >= deck.count {
-            deckIndex = 0
-        }
-        return true
+    private func commitKeep() -> Bool {
+        guard let recipe = remaining.first else { return false }
+        remaining.removeFirst()
+        kept.append(recipe)
+        history.append(.keep(recipe.objectID))
+        return shouldReveal
     }
 
-    private func commitSkip() {
-        guard !deck.isEmpty else { return }
-        deckIndex = (deckIndex + 1) % deck.count
+    private func commitSkip() -> Bool {
+        guard let recipe = remaining.first else { return false }
+        remaining.removeFirst()
+        skipped.append(recipe)
+        history.append(.skip(recipe.objectID))
+        if remaining.isEmpty, kept.isEmpty, !skipped.isEmpty {
+            remaining = skipped
+            skipped.removeAll()
+            return false
+        }
+        return shouldReveal
+    }
+
+    private var shouldReveal: Bool {
+        if openCount > 0, kept.count >= openCount { return true }
+        if remaining.isEmpty, !kept.isEmpty { return true }
+        return false
+    }
+
+    private func undo() {
+        guard !flying, let action = history.popLast() else { return }
+        switch action {
+        case .keep(let id):
+            kept.removeAll { $0.objectID == id }
+            if let recipe = recipe(id) {
+                remaining.insert(recipe, at: 0)
+            }
+        case .skip(let id):
+            if let index = skipped.firstIndex(where: { $0.objectID == id }) {
+                let recipe = skipped.remove(at: index)
+                remaining.insert(recipe, at: 0)
+            } else if let recipe = recipe(id) {
+                remaining.removeAll { $0.objectID == id }
+                remaining.insert(recipe, at: 0)
+            }
+        }
         impact(.light)
     }
 
-    private func assign(_ plan: WeekSlotPlan) {
-        guard isOpen(currentDayIndex), !isResolvingSwipe else { return }
-        assignments[currentDayIndex] = plan
-        moveAfterAssign()
-    }
-
-    private func clearAssignment(at index: Int) {
-        guard let plan = assignments[index] else { return }
-        assignments[index] = nil
-        if case .recipe(let recipe) = plan, !deck.contains(where: { $0.objectID == recipe.objectID }) {
-            let insertAt = min(deckIndex, deck.count)
-            deck.insert(recipe, at: insertAt)
-        }
-    }
-
-    private func moveAfterAssign() {
-        switch advanceForAssign() {
-        case .stay:
-            impact(.medium)
-        case .day(let next):
-            impact(.medium)
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
-                currentDayIndex = next
-            }
-        case .review(let reason):
-            presentReview(reason)
-        }
-    }
-
-    private enum AssignAdvance {
-        case stay
-        case day(Int)
-        case review(ReviewReason)
-    }
-
-    /// Randomize picks any other open day. Full week walks forward. This day stays.
-    private func advanceForAssign() -> AssignAdvance {
-        if randomizeDays {
-            if let next = randomOpenIndex() {
-                return .day(next)
-            }
-            return .review(openCount == 0 ? .weekComplete : .endOfWeek)
-        }
-        if planScope == .day {
-            return .stay
-        }
-        let onLastDay = currentDayIndex >= dayCount - 1
-        if !onLastDay, let next = forwardOpenIndex(after: currentDayIndex) {
-            return .day(next)
-        }
-        return .review(openCount == 0 ? .weekComplete : .endOfWeek)
-    }
-
-    private func randomOpenIndex() -> Int? {
-        (0..<dayCount).filter { isOpen($0) }.randomElement()
-    }
-
-    private func setRandomizeDays(_ on: Bool) {
-        randomizeDays = on
-        guard on, let pick = randomOpenIndex() else { return }
-        planScope = .week
-        currentDayIndex = pick
-    }
-
-    private func surpriseMe() {
-        guard !isResolvingSwipe, assignRandomDinners() else { return }
-        presentReview(.randomized)
-    }
-
-    private func presentReview(_ reason: ReviewReason) {
-        reviewReason = reason
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.84)) {
-            showReview = true
+    private func reveal() {
+        guard !showSummary else { return }
+        dealNewKeeps()
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+            showSummary = true
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
-    private func selectDay(_ index: Int) {
-        guard weekDates.indices.contains(index) else { return }
-        currentDayIndex = index
-        planScope = .day
-        randomizeDays = false
-        reviewReason = .browsing
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            showReview = false
-        }
-    }
-
-    /// Fills open days only. Takeout and leftovers stay manual. Nothing is saved here.
-    @discardableResult
-    private func assignRandomDinners() -> Bool {
-        let targets = (0..<dayCount).filter { isOpen($0) }
-        guard !targets.isEmpty, !sourceRecipes.isEmpty else { return false }
-
-        var pool = buildDeck(from: sourceRecipes)
-        var cursor = 0
-        var placed = 0
-        for index in targets {
-            if pool.isEmpty || cursor >= pool.count {
-                pool = buildDeck(from: sourceRecipes)
-                cursor = 0
-            }
-            guard pool.indices.contains(cursor) else { break }
-            assignments[index] = .recipe(pool[cursor])
-            cursor += 1
-            placed += 1
-        }
-
-        deck = buildDeck(from: recipesForRefill())
-        deckIndex = 0
-        return placed > 0
-    }
-
-    private var canReshuffle: Bool {
-        sessionRecipes().count >= 1 && reshuffleSlots().count >= 2
-    }
-
-    /// Moves planned recipes onto a new mix of those days and any still-open days.
-    /// Takeout, leftovers, and dinners already on the calendar stay where they are.
-    private func reshuffleAssignments() {
-        let recipes = sessionRecipes().shuffled()
-        var days = reshuffleSlots().shuffled()
-        guard recipes.count >= 1, days.count >= 2 else { return }
-        if placementUnchanged(recipes: recipes, days: days), days.count > 1 {
-            days = Array(days.dropFirst()) + Array(days.prefix(1))
-        }
-        for index in days where assignments[index] != nil {
-            if case .recipe = assignments[index] {
-                assignments[index] = nil
+    /// Puts kept recipes that do not have a day yet onto open days, in a shuffled order.
+    private func dealNewKeeps() {
+        let keptIDs = Set(kept.map(\.objectID))
+        for index in planDays.indices {
+            if let planned = planDays[index].planned, !keptIDs.contains(planned.objectID) {
+                planDays[index].planned = nil
             }
         }
-        for (recipe, day) in zip(recipes, days) {
-            assignments[day] = .recipe(recipe)
-        }
-        deck = buildDeck(from: recipesForRefill())
-        deckIndex = 0
-        impact(.medium)
-    }
-
-    private func sessionRecipes() -> [Recipe] {
-        (0..<dayCount).compactMap { index in
-            if case .recipe(let recipe) = assignments[index] { return recipe }
-            return nil
+        let placed = Set(planDays.compactMap { $0.planned?.objectID })
+        var incoming = kept.filter { !placed.contains($0.objectID) }
+        incoming.shuffle()
+        var openIndexes = planDays.indices.filter { planDays[$0].existing.isEmpty && planDays[$0].planned == nil }
+        openIndexes.shuffle()
+        for recipe in incoming {
+            guard let slot = openIndexes.first else { break }
+            openIndexes.removeFirst()
+            planDays[slot].planned = recipe
         }
     }
 
     private func reshuffleSlots() -> [Int] {
-        (0..<dayCount).filter { index in
-            if case .recipe = assignments[index] { return true }
-            return isOpen(index)
+        planDays.indices.filter { index in
+            planDays[index].planned != nil || planDays[index].existing.isEmpty
         }
     }
 
-    private func placementUnchanged(recipes: [Recipe], days: [Int]) -> Bool {
-        for (recipe, day) in zip(recipes, days) {
-            if case .recipe(let existing) = assignments[day], existing.objectID == recipe.objectID {
-                continue
-            }
-            return false
+    private func reshuffle() {
+        var recipes = placedRecipes
+        var slots = reshuffleSlots()
+        guard recipes.count >= 2, slots.count >= 2 else { return }
+        let before = recipes.map(\.objectID)
+        recipes.shuffle()
+        slots.shuffle()
+        if recipes.map(\.objectID) == before {
+            recipes = Array(recipes.dropFirst()) + Array(recipes.prefix(1))
         }
-        return true
-    }
-
-    private func applyMealChoice(title: String, recipe: Recipe?, to index: Int) {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        if let recipe {
-            replaceDay(index, with: .recipe(recipe))
-        } else if trimmed == Self.takeoutTitle {
-            replaceDay(index, with: .takeout)
-        } else if trimmed == Self.leftoversTitle {
-            replaceDay(index, with: .leftovers)
-        } else {
-            replaceDay(index, with: .named(trimmed))
+        for index in planDays.indices where planDays[index].planned != nil {
+            planDays[index].planned = nil
         }
-    }
-
-    private func replaceDay(_ index: Int, with plan: WeekSlotPlan) {
-        guard weekDates.indices.contains(index), existingDinner(on: index) == nil else { return }
-        releaseRecipe(at: index)
-        assignments[index] = plan
-        if case .recipe(let recipe) = plan {
-            deck.removeAll { $0.objectID == recipe.objectID }
-            if deck.isEmpty {
-                deck = buildDeck(from: recipesForRefill())
-            }
-            if deckIndex >= deck.count {
-                deckIndex = 0
-            }
+        for (recipe, slot) in zip(recipes, slots) {
+            planDays[slot].planned = recipe
         }
-        replacingDay = nil
-    }
-
-    private func releaseRecipe(at index: Int) {
-        guard case .recipe(let recipe) = assignments[index] else { return }
-        let usedElsewhere = assignments.contains { day, plan in
-            guard day != index, case .recipe(let other) = plan else { return false }
-            return other.objectID == recipe.objectID
-        }
-        if !usedElsewhere, !deck.contains(where: { $0.objectID == recipe.objectID }) {
-            deck.insert(recipe, at: min(deckIndex, deck.count))
-        }
-    }
-
-    private func jumpToNextOpen() {
-        guard let next = nextOpenIndex(after: currentDayIndex) ?? firstOpenIndex() else { return }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
-            currentDayIndex = next
-        }
+        impact(.medium)
     }
 
     private func requestClose() {
-        if assignments.isEmpty {
-            dismiss()
+        if hasDraft {
+            showDiscard = true
         } else {
-            showDiscardAlert = true
+            dismiss()
         }
     }
 
     private func savePlan() {
-        guard !assignments.isEmpty, !isSaving else { return }
+        guard canSave, !isSaving else { return }
         isSaving = true
-
-        for index in assignments.keys.sorted() {
-            guard weekDates.indices.contains(index) else { continue }
-            let date = weekDates[index]
-            switch assignments[index] {
-            case .recipe(let recipe):
-                _ = dataManager.createMealPlan(
-                    title: displayName(for: recipe),
-                    date: date,
-                    mealType: Self.plannedMealType,
-                    notes: nil,
-                    ingredients: ingredientString(for: recipe),
-                    recipe: recipe
-                )
-            case .takeout:
-                _ = dataManager.createMealPlan(
-                    title: Self.takeoutTitle,
-                    date: date,
-                    mealType: Self.plannedMealType
-                )
-            case .leftovers:
-                _ = dataManager.createMealPlan(
-                    title: Self.leftoversTitle,
-                    date: date,
-                    mealType: Self.plannedMealType
-                )
-            case .named(let title):
-                _ = dataManager.createMealPlan(
-                    title: title,
-                    date: date,
-                    mealType: Self.plannedMealType
-                )
-            case .none:
-                break
+        for day in planDays {
+            guard let recipe = day.planned else { continue }
+            if !day.existing.isEmpty {
+                dataManager.deleteMealPlans(day.existing)
             }
+            _ = dataManager.createMealPlan(
+                title: displayName(for: recipe),
+                date: day.date,
+                mealType: Self.plannedMealType,
+                notes: nil,
+                ingredients: ingredientString(for: recipe),
+                recipe: recipe
+            )
         }
-
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
 
-    // MARK: - Day queries
+    // MARK: - Drag
 
-    private func isOpen(_ index: Int) -> Bool {
-        guard weekDates.indices.contains(index) else { return false }
-        if assignments[index] != nil { return false }
-        return existingDinner(on: index) == nil
+    private func dragItem(_ recipe: Recipe) -> NSItemProvider {
+        NSItemProvider(object: recipe.objectID.uriRepresentation().absoluteString as NSString)
     }
 
-    private func existingDinner(on index: Int) -> MealPlan? {
-        guard weekDates.indices.contains(index) else { return nil }
-        let day = weekDates[index]
+    private func dropBinding(for date: Date) -> Binding<Bool> {
+        Binding(
+            get: { dropTarget == date },
+            set: { targeted in
+                if targeted {
+                    dropTarget = date
+                } else if dropTarget == date {
+                    dropTarget = nil
+                }
+            }
+        )
+    }
+
+    private func acceptDrop(_ providers: [NSItemProvider], on index: Int) -> Bool {
+        guard let provider = providers.first else { return false }
+        _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+            let uri: String?
+            if let text = object as? String {
+                uri = text
+            } else if let text = object as? NSString {
+                uri = text as String
+            } else {
+                uri = nil
+            }
+            guard let uri else { return }
+            DispatchQueue.main.async {
+                place(uri: uri, on: index)
+            }
+        }
+        return true
+    }
+
+    /// Moves a kept recipe onto a day. Dropping on a day that already has dinner replaces it.
+    private func place(uri: String, on target: Int) {
+        guard planDays.indices.contains(target), let recipe = recipe(uri: uri) else { return }
+        guard kept.contains(where: { $0.objectID == recipe.objectID }) else { return }
+        let source = planDays.firstIndex { $0.planned?.objectID == recipe.objectID }
+        if source == target { return }
+        let displaced = planDays[target].planned
+        if let source {
+            planDays[source].planned = displaced
+        }
+        planDays[target].planned = recipe
+        impact(.light)
+    }
+
+    // MARK: - Helpers
+
+    private func dinners(on date: Date, from meals: [MealPlan]) -> [MealPlan] {
         let calendar = Calendar.current
-        return existingMeals.first { meal in
-            guard let date = meal.date, calendar.isDate(date, inSameDayAs: day) else { return false }
+        return meals.filter { meal in
+            guard let mealDate = meal.date, calendar.isDate(mealDate, inSameDayAs: date) else { return false }
             return (meal.mealType ?? "dinner").lowercased() == "dinner"
         }
     }
 
-    private func firstOpenIndex() -> Int? {
-        (0..<dayCount).first(where: { isOpen($0) })
+    private func recipe(_ id: NSManagedObjectID) -> Recipe? {
+        sourceRecipes.first { $0.objectID == id }
     }
 
-    private func forwardOpenIndex(after index: Int) -> Int? {
-        ((index + 1)..<dayCount).first(where: { isOpen($0) })
+    private func recipe(uri: String) -> Recipe? {
+        let cleaned = uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        return sourceRecipes.first { $0.objectID.uriRepresentation().absoluteString == cleaned }
     }
 
-    private func nextOpenIndex(after index: Int) -> Int? {
-        let forward = Array((index + 1)..<dayCount)
-        let wrapped = Array(0..<index)
-        return (forward + wrapped).first(where: { isOpen($0) })
-    }
-
-    private func recipesForRefill() -> [Recipe] {
-        var used = Set<NSManagedObjectID>()
-        for plan in assignments.values {
-            if case .recipe(let recipe) = plan {
-                used.insert(recipe.objectID)
-            }
+    private func rowTitle(_ day: PlannerDay) -> String? {
+        if let recipe = day.planned {
+            return displayName(for: recipe)
         }
-        let remaining = sourceRecipes.filter { !used.contains($0.objectID) }
-        return remaining.isEmpty ? sourceRecipes : remaining
+        guard let meal = day.existing.first else { return nil }
+        let title = meal.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? "Dinner" : title
     }
 
-    // MARK: - Formatting
+    private func recipeImage(_ recipe: Recipe) -> UIImage? {
+        guard let data = recipe.imageData else { return nil }
+        return UIImage(data: data)
+    }
 
-    private func formatted(_ date: Date, _ format: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
-        return formatter.string(from: date).uppercased()
+    private func meta(for recipe: Recipe) -> String? {
+        var bits: [String] = []
+        let minutes = Int(recipe.prepTime) + Int(recipe.cookTime)
+        if minutes > 0 {
+            bits.append("\(minutes) min")
+        }
+        if recipe.servings > 0 {
+            bits.append("\(recipe.servings) servings")
+        }
+        return bits.isEmpty ? nil : bits.joined(separator: " · ")
     }
 
     private func displayName(for recipe: Recipe) -> String {
@@ -1586,42 +735,19 @@ struct WeekPlannerView: View {
         return name.isEmpty ? "Recipe" : name
     }
 
-    private func iconName(for plan: WeekSlotPlan) -> String {
-        switch plan {
-        case .recipe, .named: return "fork.knife"
-        case .takeout: return "takeoutbag.and.cup.and.straw.fill"
-        case .leftovers: return "refrigerator.fill"
-        }
-    }
-
-    private func tint(for plan: WeekSlotPlan) -> Color {
-        switch plan {
-        case .recipe, .named: return Color.terra600
-        case .takeout: return HomeQuiet.ink
-        case .leftovers: return HomeQuiet.ink
-        }
-    }
-
-    /// Opaque light fills. Translucent tints were blending to dark brown on Review.
-    private func surface(for plan: WeekSlotPlan) -> Color {
-        switch plan {
-        case .recipe, .named: return Color.white
-        case .takeout: return Color.white
-        case .leftovers: return Color.white
-        }
+    private func formatted(_ date: Date, _ format: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.string(from: date)
     }
 
     /// Same `0|text` lines AddMealSheet writes, so shopping sync can read them.
     private func ingredientString(for recipe: Recipe) -> String? {
-        let recipeIngredients = dataManager.sortedIngredients(for: recipe)
-        let items = recipeIngredients.map { ingredient -> String in
-            let name = ingredient.name ?? ""
-            let amount = ingredient.amount
-            let unit = ingredient.unit ?? ""
+        let items = dataManager.sortedIngredients(for: recipe).map { ingredient -> String in
             let text = CookingAmount.line(
-                amount: amount,
-                unit: unit,
-                name: name,
+                amount: ingredient.amount,
+                unit: ingredient.unit ?? "",
+                name: ingredient.name ?? "",
                 notes: ingredient.notes ?? ""
             )
             return "0|\(text)"
@@ -1632,5 +758,25 @@ struct WeekPlannerView: View {
 
     private func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+}
+
+private struct DayDrop: ViewModifier {
+    let planned: Recipe?
+    let dropTypes: [UTType]
+    let isTargeted: Binding<Bool>
+    let drag: (Recipe) -> NSItemProvider
+    let accept: ([NSItemProvider]) -> Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let planned {
+            content
+                .onDrag { drag(planned) }
+                .onDrop(of: dropTypes, isTargeted: isTargeted, perform: accept)
+        } else {
+            content
+                .onDrop(of: dropTypes, isTargeted: isTargeted, perform: accept)
+        }
     }
 }

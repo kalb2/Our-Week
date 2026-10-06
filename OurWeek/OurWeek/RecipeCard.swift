@@ -102,6 +102,12 @@ struct RecipeCard: View {
                                 .tracking(0.6)
                                 .foregroundStyle(HomeQuiet.quiet)
                         }
+
+                        if recipe.timesCooked > 0 {
+                            Text("Cooked \(recipe.timesCooked)×")
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(HomeQuiet.quiet)
+                        }
                     }
                 }
                 .padding(.horizontal, 12)

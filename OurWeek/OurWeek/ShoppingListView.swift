@@ -40,6 +40,91 @@ extension Notification.Name {
     static let shoppingItemFieldFocused = Notification.Name("shoppingItemFieldFocused")
 }
 
+/// Selection actions for the bar that floats above the tab bar.
+@MainActor
+@Observable
+final class ShoppingSelectChrome {
+    var count = 0
+    var canMove = false
+    var checkOff: () -> Void = {}
+    var move: () -> Void = {}
+    var delete: () -> Void = {}
+
+    func update(
+        count: Int,
+        canMove: Bool,
+        checkOff: @escaping () -> Void,
+        move: @escaping () -> Void,
+        delete: @escaping () -> Void
+    ) {
+        self.count = count
+        self.canMove = canMove
+        self.checkOff = checkOff
+        self.move = move
+        self.delete = delete
+    }
+
+    func clear() {
+        guard count != 0 || canMove else { return }
+        count = 0
+        canMove = false
+        checkOff = {}
+        move = {}
+        delete = {}
+    }
+}
+
+struct ShoppingSelectActionBar: View {
+    var count: Int
+    var canMove: Bool
+    var onCheckOff: () -> Void
+    var onMove: () -> Void
+    var onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("\(count)")
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(Color.terra500)
+                .frame(minWidth: 24)
+            barAction("Check off", "checkmark", onCheckOff)
+            if canMove {
+                barAction("Move", "arrow.right", onMove)
+            }
+            barAction("Delete", "trash", onDelete)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .background(Color.white)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.06), radius: 14, y: 4)
+        .padding(.horizontal, 20)
+    }
+
+    private func barAction(_ title: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .regular))
+                Text(title)
+                    .font(.system(size: 13, weight: .regular))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(title == "Delete" ? Color.terra600 : HomeQuiet.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private func noteShoppingRemovals(_ items: [ShoppingItem]) {
+    WeekGrocerySync.noteUserRemoved(itemIDs: items.compactMap(\.id))
+}
+
 private func shoppingTextInputIsFirstResponder() -> Bool {
     let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
     for window in scenes.flatMap(\.windows) {
@@ -91,32 +176,24 @@ struct ShoppingListBoard: View {
     @State private var undoStack = ShoppingUndoStack()
     @State private var shoppingLists: [ShoppingList] = []
     @State private var isReorderMode = false
+    @State private var isSelectMode = false
+    @State private var selectedIDs: Set<UUID> = []
     @State private var showSyncModal = false
+    @State private var showPantrySheet = false
+    @State private var showAddSectionModal = false
+    @State private var showEditModal = false
+    @State private var showMoveSheet = false
+    @State private var showBulkDeleteConfirm = false
+    @State private var bulkRevision = 0
+
+    @Environment(ShoppingSelectChrome.self) private var shoppingSelectChrome
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if showsSectionLabel {
-                Text("SHOPPING")
-                    .font(.system(size: 11, weight: .regular))
-                    .tracking(1.4)
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 36)
-                    .padding(.bottom, 14)
-            }
-
-            ShoppingToolbar(
-                undoStack: undoStack,
-                isReorderMode: $isReorderMode,
-                showSyncModal: $showSyncModal,
-                shoppingLists: $shoppingLists,
-                onListsChanged: { loadLists() },
-                quiet: quietToolbar
-            )
-            .padding(.horizontal, quietToolbar ? 24 : 0)
-            .padding(.top, showsSectionLabel ? 0 : (quietToolbar ? 22 : 12))
-            .padding(.bottom, quietToolbar ? 2 : 0)
-            .frame(maxWidth: .infinity)
+            shoppingHeader
+                .padding(.horizontal, 24)
+                .padding(.top, showsSectionLabel ? 36 : (quietToolbar ? 8 : 12))
+                .padding(.bottom, 2)
 
             if isReorderMode {
                 if quietToolbar {
@@ -225,6 +302,8 @@ struct ShoppingListBoard: View {
                             quiet: quietToolbar,
                             undoStack: undoStack,
                             isReorderMode: isReorderMode,
+                            isSelectMode: isSelectMode,
+                            selectedIDs: $selectedIDs,
                             isFirst: index == 0,
                             isLast: index == shoppingLists.count - 1,
                             onMoveUp: {
@@ -244,8 +323,11 @@ struct ShoppingListBoard: View {
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             },
                             onDelete: {
+                                let items = (list.items as? Set<ShoppingItem>) ?? []
+                                noteShoppingRemovals(Array(items))
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                     dataManager.deleteShoppingList(list)
+                                    selectedIDs.subtract(items.compactMap(\.id))
                                     loadLists()
                                 }
                             }
@@ -291,14 +373,238 @@ struct ShoppingListBoard: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 24)
             .padding(.top, quietToolbar ? 16 : 24)
-            .padding(.bottom, reservesTabBarSpace ? 120 : 0)
+            .padding(.bottom, (reservesTabBarSpace ? 120 : 0) + (selectionBarVisible ? 72 : 0))
         }
         .onAppear {
             loadLists()
+            publishSelectChrome()
+        }
+        .onDisappear {
+            shoppingSelectChrome.clear()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
             loadLists()
         }
+        .onChange(of: isSelectMode) { _, on in
+            if !on { selectedIDs.removeAll() }
+            publishSelectChrome()
+        }
+        .onChange(of: selectedIDs) { _, _ in
+            publishSelectChrome()
+        }
+        .sheet(isPresented: $showAddSectionModal) {
+            AddSectionModal(onAdd: { loadLists() }, quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showEditModal) {
+            EditListModal(shoppingLists: $shoppingLists, onListsChanged: { loadLists() }, quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSyncModal) {
+            SyncModal(quiet: quietToolbar)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPantrySheet) {
+            PantryStaplesSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+        }
+        .sheet(isPresented: $showMoveSheet) {
+            MoveToSectionSheet(
+                sections: shoppingLists,
+                selectedItems: selectedShoppingItems(),
+                onMove: { list in
+                    moveSelection(to: list)
+                    showMoveSheet = false
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
+        }
+        .sheet(isPresented: $showBulkDeleteConfirm) {
+            QuietDeleteConfirm(
+                count: selectedShoppingItems().count,
+                onCancel: { showBulkDeleteConfirm = false },
+                onDelete: {
+                    deleteSelection()
+                    showBulkDeleteConfirm = false
+                }
+            )
+            .presentationDetents([.height(220)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
+        }
+    }
+
+    private var everyItem: [ShoppingItem] {
+        dataManager.allShoppingItems()
+    }
+
+    private var hasCheckedItems: Bool {
+        _ = bulkRevision
+        return everyItem.contains(where: \.isChecked)
+    }
+
+    private var hasItems: Bool {
+        everyItem.contains { $0.id != nil }
+    }
+
+    private var allItemsSelected: Bool {
+        let ids = Set(everyItem.compactMap(\.id))
+        return !ids.isEmpty && ids.isSubset(of: selectedIDs)
+    }
+
+    private var selectionBarVisible: Bool {
+        isSelectMode && !selectedIDs.isEmpty
+    }
+
+    private var shoppingHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            if isSelectMode {
+                if hasItems {
+                    Button(allItemsSelected ? "Select none" : "Select all") {
+                        if allItemsSelected {
+                            selectNone()
+                        } else {
+                            selectAll()
+                        }
+                    }
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .buttonStyle(.plain)
+                }
+                Spacer(minLength: 8)
+                Button("Done") {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isSelectMode = false
+                    }
+                }
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(Color.terra500)
+                .buttonStyle(.plain)
+            } else {
+                if showsSectionLabel {
+                    Text("SHOPPING")
+                        .font(.system(size: 11, weight: .regular))
+                        .tracking(1.4)
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
+                Spacer(minLength: 8)
+                groceryMenu
+            }
+        }
+    }
+
+    private var groceryMenu: some View {
+        Menu {
+            Button("Select", systemImage: "checkmark.circle") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isSelectMode = true
+                    isReorderMode = false
+                }
+            }
+            Button(isReorderMode ? "Done" : "Reorder", systemImage: "arrow.up.arrow.down") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isReorderMode.toggle()
+                    if isReorderMode { isSelectMode = false }
+                }
+            }
+            Button("Add section", systemImage: "plus") { showAddSectionModal = true }
+            Button("Edit", systemImage: "pencil") { showEditModal = true }
+            Button("Sync", systemImage: "arrow.triangle.2.circlepath") { showSyncModal = true }
+            Button("Pantry staples", systemImage: "cabinet") { showPantrySheet = true }
+            if hasCheckedItems {
+                Button("Clear checked", systemImage: "trash") { clearChecked() }
+                Button("Uncheck all", systemImage: "circle") { uncheckAll() }
+            }
+            if undoStack.canUndo {
+                Button("Undo", systemImage: "arrow.uturn.backward") { undoStack.undo() }
+            }
+            if undoStack.canRedo {
+                Button("Redo", systemImage: "arrow.uturn.forward") { undoStack.redo() }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(HomeQuiet.ink)
+                .frame(width: 44, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func publishSelectChrome() {
+        let items = selectedShoppingItems()
+        guard isSelectMode, !items.isEmpty else {
+            shoppingSelectChrome.clear()
+            return
+        }
+        shoppingSelectChrome.update(
+            count: items.count,
+            canMove: shoppingLists.contains { list in
+                !items.allSatisfy { $0.list?.objectID == list.objectID }
+            },
+            checkOff: { setSelectionChecked(true) },
+            move: { showMoveSheet = true },
+            delete: { showBulkDeleteConfirm = true }
+        )
+    }
+
+    private func selectedShoppingItems() -> [ShoppingItem] {
+        everyItem.filter { item in
+            guard let id = item.id else { return false }
+            return selectedIDs.contains(id)
+        }
+    }
+
+    private func selectAll() {
+        selectedIDs = Set(everyItem.compactMap(\.id))
+    }
+
+    private func selectNone() {
+        selectedIDs.removeAll()
+    }
+
+    private func setSelectionChecked(_ checked: Bool) {
+        dataManager.setShoppingItemsChecked(selectedShoppingItems(), checked: checked)
+        postShoppingChange()
+    }
+
+    private func clearChecked() {
+        let items = everyItem.filter(\.isChecked)
+        noteShoppingRemovals(items)
+        let ids = Set(items.compactMap(\.id))
+        dataManager.deleteShoppingItems(items)
+        selectedIDs.subtract(ids)
+        postShoppingChange()
+    }
+
+    private func uncheckAll() {
+        dataManager.setShoppingItemsChecked(everyItem.filter(\.isChecked), checked: false)
+        postShoppingChange()
+    }
+
+    private func deleteSelection() {
+        let items = selectedShoppingItems()
+        noteShoppingRemovals(items)
+        dataManager.deleteShoppingItems(items)
+        selectedIDs.removeAll()
+        postShoppingChange()
+    }
+
+    private func moveSelection(to list: ShoppingList) {
+        dataManager.moveShoppingItems(selectedShoppingItems(), to: list)
+        postShoppingChange()
+    }
+
+    private func postShoppingChange() {
+        bulkRevision += 1
+        NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
     }
 
     private func loadLists() {
@@ -392,176 +698,6 @@ struct ShoppingListHeader: View {
     }
 }
 
-// MARK: - Toolbar
-struct ShoppingToolbar: View {
-    var undoStack: ShoppingUndoStack
-    @Binding var isReorderMode: Bool
-    @Binding var showSyncModal: Bool
-    @Binding var shoppingLists: [ShoppingList]
-    var onListsChanged: () -> Void
-    var quiet: Bool = false
-    @State private var showAddSectionModal = false
-    @State private var showEditModal = false
-
-    var body: some View {
-        Group {
-            if quiet {
-                quietBar
-            } else {
-                colorPills
-            }
-        }
-        .sheet(isPresented: $showAddSectionModal) {
-            AddSectionModal(onAdd: onListsChanged, quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showEditModal) {
-            EditListModal(shoppingLists: $shoppingLists, onListsChanged: onListsChanged, quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showSyncModal) {
-            SyncModal(quiet: quiet)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-    }
-
-    private var quietBar: some View {
-        VStack(spacing: 10) {
-            quietPair(
-                leading: (isReorderMode ? "Done" : "Reorder", "arrow.up.arrow.down", {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isReorderMode.toggle()
-                    }
-                }),
-                trailing: ("Add section", "plus", { showAddSectionModal = true })
-            )
-
-            quietPair(
-                leading: ("Edit", "pencil", { showEditModal = true }),
-                trailing: ("Sync", "arrow.triangle.2.circlepath", { showSyncModal = true })
-            )
-
-            if undoStack.canUndo || undoStack.canRedo {
-                quietPair(
-                    leading: ("Undo", "arrow.uturn.backward", { undoStack.undo() }),
-                    trailing: ("Redo", "arrow.uturn.forward", { undoStack.redo() })
-                )
-            }
-        }
-    }
-
-    private func quietPair(
-        leading: (String, String, () -> Void),
-        trailing: (String, String, () -> Void)
-    ) -> some View {
-        HStack(spacing: 10) {
-            quietButton(title: leading.0, icon: leading.1, action: leading.2)
-            quietButton(title: trailing.0, icon: trailing.1, action: trailing.2)
-        }
-    }
-
-    private func quietButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .regular))
-                Text(title)
-                    .font(.system(size: 14, weight: .regular))
-            }
-            .foregroundStyle(HomeQuiet.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo))
-        .opacity((title == "Undo" && !undoStack.canUndo) || (title == "Redo" && !undoStack.canRedo) ? 0.35 : 1)
-    }
-
-    private var colorPills: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ActionPill(icon: "arrow.up.arrow.down", label: isReorderMode ? "Done" : "Reorder",
-                           bg: isReorderMode ? Color.sky400 : Color.sky100,
-                           border: isReorderMode ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color.sky200,
-                           foreground: isReorderMode ? .white : Color(red: 0.03, green: 0.45, blue: 0.70),
-                           action: {
-                               withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                   isReorderMode.toggle()
-                               }
-                           })
-
-                ActionPill(icon: "plus.circle", label: "Add Section",
-                           bg: Color.lime100, border: Color(red: 0.85, green: 0.98, blue: 0.62),
-                           foreground: Color(red: 0.26, green: 0.53, blue: 0.09),
-                           action: { showAddSectionModal = true })
-
-                ActionPill(icon: "pencil", label: "Edit",
-                           bg: Color(red: 1.0, green: 0.90, blue: 0.88),
-                           border: Color(red: 1.0, green: 0.82, blue: 0.75),
-                           foreground: Color.terra600,
-                           action: { showEditModal = true })
-
-                ActionPill(icon: "arrow.triangle.2.circlepath", label: "Sync",
-                           bg: Color.lilac100, border: Color.lilac200,
-                           foreground: Color.lilac600,
-                           action: { showSyncModal = true })
-
-                ActionPill(icon: "arrow.uturn.backward", label: "Undo",
-                           bg: undoStack.canUndo ? Color.sky100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: undoStack.canUndo ? Color.sky200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: undoStack.canUndo ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { undoStack.undo() })
-
-                ActionPill(icon: "arrow.uturn.forward", label: "Redo",
-                           bg: undoStack.canRedo ? Color.sky100 : Color(red: 0.95, green: 0.95, blue: 0.95),
-                           border: undoStack.canRedo ? Color.sky200 : Color(red: 0.90, green: 0.90, blue: 0.90),
-                           foreground: undoStack.canRedo ? Color(red: 0.03, green: 0.45, blue: 0.70) : Color(red: 0.40, green: 0.40, blue: 0.40).opacity(0.4),
-                           action: { undoStack.redo() })
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 4)
-        }
-    }
-}
-
-// MARK: - Action Pill Button
-struct ActionPill: View {
-    let icon: String
-    let label: String
-    let bg: Color
-    let border: Color
-    let foreground: Color
-    var action: () -> Void = {}
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(label)
-                    .font(.system(size: 11, weight: .regular))
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            .foregroundStyle(foreground)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(bg)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule().stroke(border, lineWidth: 1)
-            )
-        }
-    }
-}
-
 // MARK: - Shopping Item Model
 struct ShopListEntry: Identifiable, Hashable {
     let id = UUID()
@@ -595,6 +731,8 @@ struct StoreSection: View {
     var quiet: Bool = false
     var undoStack: ShoppingUndoStack
     var isReorderMode: Bool = false
+    var isSelectMode: Bool = false
+    var selectedIDs: Binding<Set<UUID>> = .constant([])
     var isFirst: Bool = false
     var isLast: Bool = false
     var onMoveUp: () -> Void = {}
@@ -634,7 +772,8 @@ struct StoreSection: View {
 
         // Register undo/redo
         undoStack.register(
-            undo: { 
+            undo: {
+                noteShoppingRemovals([newItem])
                 self.dataManager.delete(newItem)
                 withAnimation { self.loadItems() } 
             },
@@ -668,11 +807,37 @@ struct StoreSection: View {
         }
     }
     
+    private func toggleSelection(_ item: ShoppingItem) {
+        guard let id = item.id else { return }
+        if selectedIDs.wrappedValue.contains(id) {
+            selectedIDs.wrappedValue.remove(id)
+        } else {
+            selectedIDs.wrappedValue.insert(id)
+        }
+    }
+
+    private func haveItAction(for item: ShoppingItem) -> (() -> Void)? {
+        guard let id = item.id, WeekGrocerySync.generatedItemIDs().contains(id) else { return nil }
+        return { haveIt(item) }
+    }
+
+    private func haveIt(_ item: ShoppingItem) {
+        let name = item.name ?? ""
+        WeekGrocerySync.addStaple(name)
+        if !item.isDeleted {
+            dataManager.delete(item)
+        }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            loadItems()
+        }
+    }
+
     private func deleteItem(_ item: ShoppingItem) {
         let name = item.name ?? ""
         let qty = item.quantity ?? ""
         let isChecked = item.isChecked
-        
+
+        noteShoppingRemovals([item])
         dataManager.delete(item)
         withAnimation(.easeInOut(duration: 0.2)) {
             loadItems()
@@ -711,6 +876,27 @@ struct StoreSection: View {
     private var itemCountLabel: String {
         let count = allItems.count
         return "\(count) \(count == 1 ? "ITEM" : "ITEMS")"
+    }
+
+    private var sectionIDs: Set<UUID> {
+        Set(allItems.compactMap(\.id))
+    }
+
+    private var sectionFullySelected: Bool {
+        !sectionIDs.isEmpty && sectionIDs.isSubset(of: selectedIDs.wrappedValue)
+    }
+
+    private var sectionSelectToggle: some View {
+        Button(sectionFullySelected ? "Select none" : "Select all") {
+            if sectionFullySelected {
+                selectedIDs.wrappedValue.subtract(sectionIDs)
+            } else {
+                selectedIDs.wrappedValue.formUnion(sectionIDs)
+            }
+        }
+        .font(.system(size: 13, weight: .regular))
+        .foregroundStyle(quiet ? HomeQuiet.ink : headerColor)
+        .buttonStyle(.plain)
     }
 
     private func quietMoveButton(_ systemName: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -823,14 +1009,15 @@ struct StoreSection: View {
                 .padding(.bottom, 4)
                 }
             } else {
-                // Normal mode header — tap to expand/collapse
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isExpanded.toggle()
-                    }
-                }) {
-                    if quiet {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // Normal mode header — tap the name to expand/collapse.
+                // Select controls sit beside it so they are not part of that tap.
+                HStack(alignment: .center, spacing: 8) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isExpanded.toggle()
+                        }
+                    }) {
+                        if quiet {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(storeName)
                                     .font(.system(size: 20, weight: .regular, design: .serif))
@@ -841,56 +1028,57 @@ struct StoreSection: View {
                                     .tracking(1.2)
                                     .foregroundStyle(HomeQuiet.quiet)
                             }
-                            Spacer(minLength: 8)
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundStyle(HomeQuiet.quiet)
-                        }
-                    } else {
-                    HStack {
-                        HStack(spacing: 8) {
-                            Image(systemName: icon)
-                                .font(.system(size: 18, weight: .semibold))
-                            Text(storeName.uppercased())
-                                .font(.system(size: 16, weight: .regular, design: .serif))
-                                .tracking(0.8)
-                        }
-                        .foregroundStyle(headerColor)
-
-                        Spacer()
-
-                        // Item count badge
-                        Text("\(allItems.count) \(allItems.count == 1 ? "Item" : "Items")")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(badgeText)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(badgeBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(badgeText.opacity(0.2), lineWidth: 1)
-                            )
-                            
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 14, weight: .bold))
+                        } else {
+                            HStack(spacing: 8) {
+                                Image(systemName: icon)
+                                    .font(.system(size: 18, weight: .semibold))
+                                Text(storeName.uppercased())
+                                    .font(.system(size: 16, weight: .regular, design: .serif))
+                                    .tracking(0.8)
+                                Text("\(allItems.count) \(allItems.count == 1 ? "Item" : "Items")")
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundStyle(badgeText)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(badgeBg)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(badgeText.opacity(0.2), lineWidth: 1)
+                                    )
+                            }
                             .foregroundStyle(headerColor)
-                            .padding(.leading, 8)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if !isSelectMode {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isExpanded.toggle()
+                            }
+                        }) {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: quiet ? 12 : 14, weight: quiet ? .regular : .bold))
+                                .foregroundStyle(quiet ? HomeQuiet.quiet : headerColor)
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } else if !sectionIDs.isEmpty {
+                        sectionSelectToggle
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                 }
-                .buttonStyle(.plain)
                 .padding(.bottom, isExpanded ? 14 : 0)
             }
 
             if isExpanded && !isReorderMode {
-                // Existing items
+                // Existing items. Select mode skips the swipe row so its clip
+                // cannot cut the circles, and a tap toggles the selection.
                 ForEach(allItems, id: \.objectID) { item in
                     VStack(spacing: 0) {
-                        SwipeToDeleteRow(
-                            onDelete: { deleteItem(item) },
-                            accentColor: accentColor
-                        ) {
+                        if isSelectMode {
                             ShopListEntryRow(
                                 item: item,
                                 isChecked: item.isChecked,
@@ -898,16 +1086,36 @@ struct StoreSection: View {
                                 checkFill: checkFill,
                                 accentColor: accentColor,
                                 quiet: quiet,
-                                onToggle: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                isSelecting: true,
+                                isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
+                                onToggle: { toggleSelection(item) },
+                                onTap: { toggleSelection(item) }
+                            )
+                        } else {
+                            SwipeToDeleteRow(
+                                onDelete: { deleteItem(item) },
+                                onHaveIt: haveItAction(for: item),
+                                accentColor: accentColor
+                            ) {
+                                ShopListEntryRow(
+                                    item: item,
+                                    isChecked: item.isChecked,
+                                    checkBorder: checkBorder,
+                                    checkFill: checkFill,
+                                    accentColor: accentColor,
+                                    quiet: quiet,
+                                    onToggle: {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
                                         dataManager.toggleShoppingItem(item)
                                         loadItems()
+                                        NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+                                        }
+                                    },
+                                    onTap: {
+                                        editingItem = item
                                     }
-                                },
-                                onTap: {
-                                    editingItem = item
-                                }
-                            )
+                                )
+                            }
                         }
 
                         if quiet {
@@ -921,40 +1129,40 @@ struct StoreSection: View {
                         }
                     }
                     // Drag reorder — item follows finger, reorder on drop
-                    .offset(y: draggedItemID == item.objectID ? dragOffset : 0)
-                    .zIndex(draggedItemID == item.objectID ? 100 : 0)
-                    .scaleEffect(draggedItemID == item.objectID ? 1.03 : 1)
+                    .offset(y: !isSelectMode && draggedItemID == item.objectID ? dragOffset : 0)
+                    .zIndex(!isSelectMode && draggedItemID == item.objectID ? 100 : 0)
+                    .scaleEffect(!isSelectMode && draggedItemID == item.objectID ? 1.03 : 1)
                     .shadow(
-                        color: draggedItemID == item.objectID ? .black.opacity(0.1) : .clear,
+                        color: !isSelectMode && draggedItemID == item.objectID ? .black.opacity(0.1) : .clear,
                         radius: 4, y: 2
                     )
-                    .gesture(
-                        LongPressGesture(minimumDuration: 0.35)
-                            .sequenced(before: DragGesture())
-                            .onChanged { value in
-                                switch value {
-                                case .second(true, let drag):
-                                    if let drag = drag {
-                                        if draggedItemID == nil {
-                                            draggedItemID = item.objectID
-                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                        }
-                                        dragOffset = drag.translation.height
+                    .modifier(ShoppingItemDragModifier(
+                        enabled: !isSelectMode,
+                        onChanged: { value in
+                            switch value {
+                            case .second(true, let drag):
+                                if let drag = drag {
+                                    if draggedItemID == nil {
+                                        draggedItemID = item.objectID
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     }
-                                default: break
+                                    dragOffset = drag.translation.height
                                 }
+                            default: break
                             }
-                            .onEnded { _ in
-                                moveItem(item, dragOffset: dragOffset)
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    dragOffset = 0
-                                    draggedItemID = nil
-                                }
+                        },
+                        onEnded: {
+                            moveItem(item, dragOffset: dragOffset)
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                dragOffset = 0
+                                draggedItemID = nil
                             }
-                    )
+                        }
+                    ))
                 }
 
-                // Inline add-item rows
+                // Inline add-item rows stay out of the way while selecting.
+                if !isSelectMode {
                 ForEach(addRowIDs, id: \.self) { rowID in
                     InlineAddItemRow(
                         text: Binding(
@@ -970,6 +1178,7 @@ struct StoreSection: View {
                     )
                     .focused($focusedAddRowID, equals: rowID)
                 }
+                }
             }
         }
         .padding(quiet ? 16 : 20)
@@ -977,6 +1186,12 @@ struct StoreSection: View {
         .onAppear {
             loadItems()
             ensureOneAddRow()
+        }
+        .onChange(of: isSelectMode) { _, on in
+            if on {
+                focusedAddRowID = nil
+                isExpanded = true
+            }
         }
         .onChange(of: focusedAddRowID) { _, new in
             if new != nil {
@@ -1005,8 +1220,12 @@ struct StoreSection: View {
                     dataManager.save()
                     loadItems()
                 },
-                onDelete: { 
+                onDelete: {
+                    noteShoppingRemovals([item])
                     dataManager.delete(item)
+                    if let id = item.id {
+                        selectedIDs.wrappedValue.remove(id)
+                    }
                     loadItems()
                 }
             )
@@ -1022,22 +1241,62 @@ struct StoreSection: View {
     }
 }
 
+private struct ShoppingItemDragModifier: ViewModifier {
+    var enabled: Bool
+    var onChanged: (SequenceGesture<LongPressGesture, DragGesture>.Value) -> Void
+    var onEnded: () -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.gesture(
+                LongPressGesture(minimumDuration: 0.35)
+                    .sequenced(before: DragGesture())
+                    .onChanged(onChanged)
+                    .onEnded { _ in onEnded() }
+            )
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Swipe To Delete Row
 struct SwipeToDeleteRow<Content: View>: View {
     let onDelete: () -> Void
+    var onHaveIt: (() -> Void)? = nil
     let accentColor: Color
     @ViewBuilder let content: () -> Content
 
     @State private var offset: CGFloat = 0
     @State private var showDeleteButton = false
-    private let deleteThreshold: CGFloat = -70
-    private let fullSwipeThreshold: CGFloat = -180
+    private var deleteThreshold: CGFloat { onHaveIt == nil ? -70 : -156 }
+    private var fullSwipeThreshold: CGFloat { onHaveIt == nil ? -180 : -260 }
 
     var body: some View {
         ZStack(alignment: .trailing) {
             // Quiet delete control, revealed by the swipe
-            HStack {
+            HStack(spacing: 8) {
                 Spacer()
+                if let onHaveIt {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            onHaveIt()
+                            offset = 0
+                            showDeleteButton = false
+                        }
+                    }) {
+                        Text("Have it")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         onDelete()
@@ -1377,56 +1636,281 @@ struct ShopListEntryRow: View {
     let checkFill: Color
     let accentColor: Color
     var quiet: Bool = false
+    var isSelecting: Bool = false
+    var isSelected: Bool = false
     let onToggle: () -> Void
     let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onToggle) {
-                ZStack {
-                    Circle()
-                        .stroke(quiet ? (isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28)) : (isChecked ? checkFill : checkBorder), lineWidth: quiet ? 1 : 2)
-                        .frame(width: 18, height: 18)
-                    if isChecked {
-                        Circle()
-                            .fill(quiet ? Color.terra500 : checkFill)
-                            .frame(width: 18, height: 18)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: quiet ? 9 : 12, weight: quiet ? .regular : .bold))
-                            .foregroundStyle(.white)
+        Group {
+            if isSelecting {
+                Button(action: onToggle) {
+                    HStack(spacing: 12) {
+                        markCircle(
+                            filled: isSelected,
+                            ring: quiet ? HomeQuiet.ink.opacity(0.28) : checkBorder,
+                            fill: Color.terra500
+                        )
+                        titleBlock
+                        Spacer(minLength: 0)
                     }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 12) {
+                    Button(action: onToggle) {
+                        markCircle(
+                            filled: isChecked,
+                            ring: quiet ? HomeQuiet.ink.opacity(0.28) : checkBorder,
+                            fill: quiet ? Color.terra500 : checkFill
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .fixedSize()
+                    .layoutPriority(1)
+
+                    Button(action: onTap) {
+                        titleBlock
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer(minLength: 0)
+
+                    Button(action: onTap) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .buttonStyle(.plain)
-
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(CookingAmount.reformatLine(item.name ?? "Unknown"))
-                        .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(quiet ? (isChecked ? HomeQuiet.quiet : HomeQuiet.ink) : (isChecked ? Color.gray.opacity(0.5) : Color.primary))
-                        .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
-                    
-                    if let quantity = item.quantity, !quantity.isEmpty {
-                        Text(CookingAmount.reformatLine(quantity))
-                            .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
-                            .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Button(action: onTap) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
-            }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, quiet ? 8 : 4)
         .frame(minHeight: 32)
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(CookingAmount.reformatLine(item.name ?? "Unknown"))
+                .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(quiet ? (isChecked ? HomeQuiet.quiet : HomeQuiet.ink) : (isChecked ? Color.gray.opacity(0.5) : Color.primary))
+                .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
+                .multilineTextAlignment(.leading)
+
+            if let quantity = item.quantity, !quantity.isEmpty {
+                Text(CookingAmount.reformatLine(quantity))
+                    .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
+                    .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
+            }
+        }
+    }
+
+    /// Stroke sits inside the disk, with a point of padding, so the circle is not clipped.
+    private func markCircle(filled: Bool, ring: Color, fill: Color) -> some View {
+        ZStack {
+            Circle()
+                .strokeBorder(filled ? fill : ring, lineWidth: quiet ? 1 : 2)
+                .background {
+                    Circle().fill(filled ? fill : Color.clear)
+                }
+            if filled {
+                Image(systemName: "checkmark")
+                    .font(.system(size: quiet ? 9 : 12, weight: quiet ? .regular : .bold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .frame(width: 18, height: 18)
+        .padding(1)
+        .fixedSize()
+        .layoutPriority(1)
+    }
+}
+
+// MARK: - Pantry staples
+private struct PantryStaplesSheet: View {
+    @State private var names: [String] = []
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Pantry staples")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .padding(.bottom, 12)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    ForEach(names, id: \.self) { name in
+                        HStack(spacing: 12) {
+                            Text(name)
+                                .font(.system(size: 17, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Button {
+                                WeekGrocerySync.removeStaple(name)
+                                reload()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(name)")
+                        }
+                        .padding(.leading, 24)
+                        .padding(.trailing, 8)
+                        Rectangle()
+                            .fill(HomeQuiet.rule)
+                            .frame(height: 1)
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                TextField("Add", text: $draft)
+                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .submitLabel(.done)
+                    .onSubmit(commitDraft)
+                if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button(action: commitDraft) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(Color.terra500)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 6)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.bgBase)
+        .onAppear(perform: reload)
+    }
+
+    private func reload() {
+        names = WeekGrocerySync.stapleNames()
+    }
+
+    private func commitDraft() {
+        let name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        WeekGrocerySync.addStaple(name)
+        draft = ""
+        reload()
+    }
+}
+
+// MARK: - Move to section
+private struct MoveToSectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let sections: [ShoppingList]
+    let selectedItems: [ShoppingItem]
+    let onMove: (ShoppingList) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Move to section")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .padding(.bottom, 8)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    ForEach(sections.filter { !holdsAll($0) }, id: \.objectID) { list in
+                        Button {
+                            onMove(list)
+                            dismiss()
+                        } label: {
+                            Text(list.name ?? "Section")
+                                .font(.system(size: 17, weight: .regular, design: .serif))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 16)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Rectangle()
+                            .fill(HomeQuiet.rule)
+                            .frame(height: 1)
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.bgBase)
+    }
+
+    private func holdsAll(_ list: ShoppingList) -> Bool {
+        guard !selectedItems.isEmpty else { return false }
+        return selectedItems.allSatisfy { $0.list?.objectID == list.objectID }
+    }
+}
+
+// MARK: - Bulk delete confirm
+private struct QuietDeleteConfirm: View {
+    let count: Int
+    let onCancel: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(spacing: 28) {
+            Text(count == 1 ? "Delete item" : "Delete \(count) items")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+                .multilineTextAlignment(.center)
+                .padding(.top, 36)
+                .padding(.horizontal, 24)
+
+            HStack(spacing: 10) {
+                Button(action: onCancel) {
+                    Text("Cancel")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onDelete) {
+                    Text("Delete")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Color.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.terra500)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.bgBase)
     }
 }
 
@@ -1842,13 +2326,14 @@ struct EditListModal: View {
                     VStack(spacing: 10) {
                         Button(action: {
                             // Delete all checked items across all lists
+                            var checked: [ShoppingItem] = []
                             for list in shoppingLists {
                                 if let items = list.items as? Set<ShoppingItem> {
-                                    for item in items where item.isChecked {
-                                        dataManager.delete(item)
-                                    }
+                                    checked.append(contentsOf: items.filter(\.isChecked))
                                 }
                             }
+                            noteShoppingRemovals(checked)
+                            dataManager.deleteShoppingItems(checked)
                             checkedDeleted = true
                             NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
                             onListsChanged()
@@ -1895,13 +2380,14 @@ struct EditListModal: View {
         .alert("Clear All Sections?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Clear All", role: .destructive) {
+                var doomed: [ShoppingItem] = []
                 for list in shoppingLists {
                     if let items = list.items as? Set<ShoppingItem> {
-                        for item in items {
-                            dataManager.delete(item)
-                        }
+                        doomed.append(contentsOf: items)
                     }
                 }
+                noteShoppingRemovals(doomed)
+                dataManager.deleteShoppingItems(doomed)
                 NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
                 onListsChanged()
                 dismiss()
@@ -2087,12 +2573,9 @@ struct EditSectionCard: View {
         .alert("Clear Section?", isPresented: $showClearConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) {
-                if let items = list.items as? Set<ShoppingItem> {
-                    for item in items {
-                        dataManager.delete(item)
-                    }
-                }
-                dataManager.save()
+                let doomed = Array((list.items as? Set<ShoppingItem>) ?? [])
+                noteShoppingRemovals(doomed)
+                dataManager.deleteShoppingItems(doomed)
                 NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
                 onListsChanged()
             }
@@ -2160,8 +2643,8 @@ struct EditItemRow: View {
             Spacer()
             
             Button(action: {
+                noteShoppingRemovals([item])
                 dataManager.delete(item)
-                dataManager.save()
                 NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
             }) {
                 Image(systemName: "xmark.circle.fill")

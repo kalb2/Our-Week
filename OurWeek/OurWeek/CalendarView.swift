@@ -177,6 +177,7 @@ struct CalendarView: View {
     private func toggleTodo(_ todo: TodoTask) {
         var updated = todo
         updated.isChecked.toggle()
+        HomeWidgetStore.discardWidgetToggle(id: updated.id)
         replaceTodo(updated)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
@@ -447,19 +448,22 @@ struct CalendarTodoItem: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
-                        .frame(width: 16, height: 16)
-                        .background(
+                        .strokeBorder(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                        .background {
                             Circle().fill(todo.isChecked ? Color.terra500 : Color.clear)
-                        )
+                        }
                     if todo.isChecked {
                         Image(systemName: "checkmark")
                             .font(.system(size: 8, weight: .regular))
                             .foregroundStyle(.white)
                     }
                 }
+                .frame(width: 16, height: 16)
+                .padding(1)
             }
             .buttonStyle(.plain)
+            .fixedSize()
+            .layoutPriority(1)
             .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
 
             Button(action: onOpen) {

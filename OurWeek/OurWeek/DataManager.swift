@@ -444,6 +444,52 @@ class DataManager {
         }
     }
 
+    /// Meals on each day from `startDate` through `endDate`, inclusive.
+    func fetchMealPlans(from startDate: Date, through endDate: Date, in household: Household? = nil) -> [MealPlan] {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: startDate)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) else { return [] }
+        return fetchMealPlans(starting: start, endingBefore: end, in: household)
+    }
+
+    /// Meals whose day has already ended. `date` is the start of today.
+    func fetchMealPlans(before date: Date, in household: Household? = nil) -> [MealPlan] {
+        let request: NSFetchRequest<MealPlan> = MealPlan.fetchRequest()
+        var predicates: [NSPredicate] = [
+            NSPredicate(format: "date < %@", date as NSDate)
+        ]
+        if let household = household ?? currentHousehold {
+            predicates.append(NSPredicate(format: "household == %@", household))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \MealPlan.date, ascending: true)]
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            print("Error fetching meal plans: \(error)")
+            return []
+        }
+    }
+
+    private func fetchMealPlans(starting start: Date, endingBefore end: Date, in household: Household? = nil) -> [MealPlan] {
+        let request: NSFetchRequest<MealPlan> = MealPlan.fetchRequest()
+        var predicates: [NSPredicate] = [
+            NSPredicate(format: "date >= %@ AND date < %@", start as NSDate, end as NSDate)
+        ]
+        if let household = household ?? currentHousehold {
+            predicates.append(NSPredicate(format: "household == %@", household))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \MealPlan.date, ascending: true)]
+
+        do {
+            return try viewContext.fetch(request)
+        } catch {
+            print("Error fetching meal plans: \(error)")
+            return []
+        }
+    }
+
     func updateMealPlan(
         _ meal: MealPlan,
         title: String,
@@ -486,6 +532,7 @@ class DataManager {
         case recentlyAdded = "Recently Added"
         case alphabetical = "A → Z"
         case favoritesFirst = "Favorites First"
+        case mostCooked = "Most cooked"
     }
 
     struct IngredientInput {
@@ -748,10 +795,84 @@ class DataManager {
     }
 
     func incrementTimesCooked(_ recipe: Recipe) {
-        recipe.timesCooked += 1
-        recipe.lastCookedDate = Date()
+        adjustTimesCooked(recipe, by: 1)
+    }
+
+    /// Manual +/- from the recipe menu. Does not touch the planned-day ledger,
+    /// so a later backfill cannot put the same day back.
+    func adjustTimesCooked(_ recipe: Recipe, by delta: Int) {
+        let current = Int(recipe.timesCooked)
+        let next = min(Int(Int16.max), max(0, current + delta))
+        guard next != current else { return }
+        recipe.timesCooked = Int16(next)
+        if delta > 0 {
+            recipe.lastCookedDate = Date()
+        } else if next == 0 {
+            recipe.lastCookedDate = nil
+        }
         recipe.updatedAt = Date()
         save()
+    }
+
+    private static let cookedLedgerKey = "recipeCookedLedger.v1"
+    private static let cookedSealedDaysKey = "recipeCookedSealedDays.v1"
+    private static let cookedDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    /// Counts each recipe once per planned day after that day ends.
+    /// A day is sealed the first time it is seen, so later edits do not count again.
+    /// Past days already on the calendar are included the first time this runs.
+    func recordPassedCookedMeals() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let meals = fetchMealPlans(before: today)
+        let formatter = Self.cookedDayFormatter
+        var ledger = Set(UserDefaults.standard.stringArray(forKey: Self.cookedLedgerKey) ?? [])
+        var sealed = Set(UserDefaults.standard.stringArray(forKey: Self.cookedSealedDaysKey) ?? [])
+
+        var byDay: [String: [MealPlan]] = [:]
+        for meal in meals {
+            guard let date = meal.date else { continue }
+            let key = formatter.string(from: calendar.startOfDay(for: date))
+            byDay[key, default: []].append(meal)
+        }
+
+        var changedRecipe = false
+        var changedStore = false
+        for (day, dayMeals) in byDay where !sealed.contains(day) {
+            let cookedOn = formatter.date(from: day) ?? today
+            var seen = Set<UUID>()
+            for meal in dayMeals {
+                guard let recipe = meal.recipe, let id = recipe.id else { continue }
+                guard seen.insert(id).inserted else { continue }
+                let token = "\(id.uuidString)|\(day)"
+                guard ledger.insert(token).inserted else { continue }
+                if recipe.timesCooked < Int16.max {
+                    recipe.timesCooked += 1
+                }
+                let existingDay = recipe.lastCookedDate.map { calendar.startOfDay(for: $0) }
+                if existingDay == nil || cookedOn > (existingDay ?? .distantPast) {
+                    recipe.lastCookedDate = cookedOn
+                }
+                recipe.updatedAt = Date()
+                changedRecipe = true
+            }
+            sealed.insert(day)
+            changedStore = true
+        }
+
+        guard changedStore else { return }
+        UserDefaults.standard.set(Array(ledger).sorted(), forKey: Self.cookedLedgerKey)
+        UserDefaults.standard.set(Array(sealed).sorted(), forKey: Self.cookedSealedDaysKey)
+        if changedRecipe {
+            save()
+        }
     }
 
     func fetchRecipes(
@@ -794,6 +915,11 @@ class DataManager {
             request.sortDescriptors = [
                 NSSortDescriptor(keyPath: \Recipe.isFavorite, ascending: false),
                 NSSortDescriptor(keyPath: \Recipe.createdAt, ascending: false)
+            ]
+        case .mostCooked:
+            request.sortDescriptors = [
+                NSSortDescriptor(keyPath: \Recipe.timesCooked, ascending: false),
+                NSSortDescriptor(keyPath: \Recipe.name, ascending: true)
             ]
         }
 
@@ -900,6 +1026,48 @@ class DataManager {
         save()
     }
 
+    func shoppingItem(id: UUID) -> ShoppingItem? {
+        let request = ShoppingItem.fetchRequest()
+        request.fetchLimit = 1
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        return try? viewContext.fetch(request).first
+    }
+
+    func allShoppingItems() -> [ShoppingItem] {
+        (try? viewContext.fetch(ShoppingItem.fetchRequest())) ?? []
+    }
+
+    func setShoppingQuantity(_ item: ShoppingItem, quantity: String) {
+        item.quantity = quantity
+        save()
+    }
+
+    func deleteShoppingItems(_ items: [ShoppingItem]) {
+        guard !items.isEmpty else { return }
+        for item in items {
+            viewContext.delete(item)
+        }
+        save()
+    }
+
+    func setShoppingItemsChecked(_ items: [ShoppingItem], checked: Bool) {
+        var didChange = false
+        for item in items where item.isChecked != checked {
+            item.isChecked = checked
+            didChange = true
+        }
+        if didChange { save() }
+    }
+
+    func moveShoppingItems(_ items: [ShoppingItem], to list: ShoppingList) {
+        var didChange = false
+        for item in items where item.list?.objectID != list.objectID {
+            item.list = list
+            didChange = true
+        }
+        if didChange { save() }
+    }
+
     // MARK: - Sync Meal Plan
     
     func syncMealPlanToShoppingList(syncRecipes: Bool) {
@@ -976,13 +1144,26 @@ class DataManager {
         save()
     }
 
+    private var widgetRefreshQueued = false
+
     func save() {
         guard viewContext.hasChanges else { return }
         do {
             try viewContext.save()
+            queueWidgetRefresh()
         } catch {
             let nsError = error as NSError
             print("Error saving context: \(nsError), \(nsError.userInfo)")
+        }
+    }
+
+    /// One notification per turn, so a grocery reconcile does not publish once per row.
+    private func queueWidgetRefresh() {
+        guard !widgetRefreshQueued else { return }
+        widgetRefreshQueued = true
+        DispatchQueue.main.async {
+            self.widgetRefreshQueued = false
+            NotificationCenter.default.post(name: HomeWidgetStore.needsRefresh, object: nil)
         }
     }
 }

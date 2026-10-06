@@ -25,6 +25,10 @@
 	<string>OurWeek uses your calendar to show and sync events across your household.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>OurWeek uses your calendar to show and sync events across your household.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Our Week adds your to-dos to Apple Reminders and brings changes back when you turn Reminders on.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Our Week adds your to-dos to Apple Reminders and brings changes back when you turn Reminders on.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

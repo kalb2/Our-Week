@@ -15,6 +15,7 @@ struct OurWeekApp: App {
 
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var calendarSyncManager = CalendarSyncManager()
+    @State private var remindersSync = RemindersSync()
 
     var body: some Scene {
         WindowGroup {
@@ -23,6 +24,7 @@ struct OurWeekApp: App {
                 .environment(SharingManager(persistenceController: persistenceController))
                 .environment(DataManager(persistenceController: persistenceController))
                 .environment(calendarSyncManager)
+                .environment(remindersSync)
         }
     }
 }
@@ -64,7 +66,12 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
     private static func route(_ url: URL) {
         if url.scheme?.lowercased() == "ourweek" {
-            NotificationCenter.default.post(name: ShareImportStore.didArrive, object: nil)
+            let host = url.host?.lowercased()
+            if host == "home" || host == "todo" {
+                NotificationCenter.default.post(name: .ourWeekOpenHome, object: nil)
+            } else {
+                NotificationCenter.default.post(name: ShareImportStore.didArrive, object: nil)
+            }
             return
         }
         RecipePackOpenHandler.handle(url: url)

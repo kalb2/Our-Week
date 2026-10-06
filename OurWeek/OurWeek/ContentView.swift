@@ -77,7 +77,11 @@ struct ContentView: View {
     @State private var showAddEventSheet = false
     @State private var triggerAddTodo = false
     @State private var isKeyboardVisible = false
+    @State private var shoppingSelectChrome = ShoppingSelectChrome()
     @Environment(DataManager.self) private var dataManager
+    @Environment(RemindersSync.self) private var remindersSync
+    @Environment(CalendarSyncManager.self) private var calendarSyncManager
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -91,12 +95,25 @@ struct ContentView: View {
                 }
             }
             if !isKeyboardVisible {
-                MainTabBar(selectedTab: $selectedTab, onAddTapped: {
-                    showAddSheet = true
-                })
-                .transition(.opacity)
+                VStack(spacing: 8) {
+                    if shoppingSelectChrome.count > 0 {
+                        ShoppingSelectActionBar(
+                            count: shoppingSelectChrome.count,
+                            canMove: shoppingSelectChrome.canMove,
+                            onCheckOff: shoppingSelectChrome.checkOff,
+                            onMove: shoppingSelectChrome.move,
+                            onDelete: shoppingSelectChrome.delete
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    MainTabBar(selectedTab: $selectedTab, onAddTapped: {
+                        showAddSheet = true
+                    })
+                }
+                .animation(.spring(response: 0.32, dampingFraction: 0.86), value: shoppingSelectChrome.count)
             }
         }
+        .environment(shoppingSelectChrome)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) {
                 isKeyboardVisible = true
@@ -156,9 +173,53 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
         }
         .preferredColorScheme(.light)
-        .onAppear { openSharedImportIfNeeded() }
+        .onAppear {
+            openSharedImportIfNeeded()
+            HomeWidgetStore.startObservingWidgetToggles()
+            HomeWidgetStore.applyWidgetTodoEdits()
+            HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+        }
+        .task {
+            // Let the first frame finish. Reminders work is not part of scene creation.
+            await Task.yield()
+            dataManager.recordPassedCookedMeals()
+            await remindersSync.resumeIfEnabled()
+        }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
             openSharedImportIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenHome)) { _ in
+            selectedTab = .home
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            // To-do edits only. A full publish here loops: the snapshot write posts this notification.
+            HomeWidgetStore.noteTodosChanged()
+            remindersSync.noteLocalTodosChanged()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+            Task { await remindersSync.pull() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: HomeWidgetStore.needsRefresh)) { _ in
+            HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                HomeWidgetStore.startObservingWidgetToggles()
+                HomeWidgetStore.applyWidgetTodoEdits()
+                Task {
+                    await Task.yield()
+                    dataManager.recordPassedCookedMeals()
+                    await remindersSync.resumeIfEnabled()
+                }
+                HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+            case .background:
+                HomeWidgetStore.flush()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
         }
     }
 
@@ -191,128 +252,6 @@ private enum WeekMealLine: AlignmentID {
 extension VerticalAlignment {
     /// Shared baseline for the weekday name and the meal title on a week row.
     static let weekMeal = VerticalAlignment(WeekMealLine.self)
-}
-
-/// A 16pt completion dot whose hit area is 44pt, without growing the row.
-private struct WeekCheckHitArea: UIViewRepresentable {
-    var action: () -> Void
-
-    func makeUIView(context: Context) -> WeekCheckHitView {
-        let view = WeekCheckHitView()
-        view.backgroundColor = .clear
-        view.isAccessibilityElement = false
-        return view
-    }
-
-    func updateUIView(_ uiView: WeekCheckHitView, context: Context) {
-        uiView.onTap = action
-    }
-}
-
-private final class WeekCheckHitView: UIView, UIGestureRecognizerDelegate {
-    static let hitSide: CGFloat = 44
-    var onTap: () -> Void = {}
-    private var recognizer: UITapGestureRecognizer?
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        detach()
-        guard window != nil else { return }
-        WeekCheckRegistry.shared.add(self)
-        installIfReady()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        installIfReady()
-    }
-
-    private func installIfReady() {
-        guard recognizer == nil, window != nil, bounds.width > 1 else { return }
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))
-        tap.cancelsTouchesInView = true
-        tap.delegate = self
-        enclosingHost().addGestureRecognizer(tap)
-        recognizer = tap
-    }
-
-    private func detach() {
-        if let recognizer {
-            recognizer.view?.removeGestureRecognizer(recognizer)
-            self.recognizer = nil
-        }
-        WeekCheckRegistry.shared.remove(self)
-    }
-
-    @objc private func handleTap() {
-        onTap()
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        WeekCheckRegistry.shared.nearest(to: touch) === self
-    }
-
-    private func enclosingHost() -> UIView {
-        let needed = expandedFrame(in: self)
-        var current: UIView? = superview
-        var fallback: UIView = self
-        var hops = 0
-        while let view = current, hops < 14 {
-            fallback = view
-            if view.bounds.contains(convert(needed, to: view)) {
-                return view
-            }
-            current = view.superview
-            hops += 1
-        }
-        return fallback
-    }
-
-    func expandedFrame(in view: UIView) -> CGRect {
-        let local = CGRect(
-            x: bounds.midX - Self.hitSide / 2,
-            y: bounds.midY - Self.hitSide / 2,
-            width: Self.hitSide,
-            height: Self.hitSide
-        )
-        return convert(local, to: view)
-    }
-}
-
-private final class WeekCheckRegistry {
-    static let shared = WeekCheckRegistry()
-    private var views: [ObjectIdentifier: WeakHit] = [:]
-
-    private struct WeakHit {
-        weak var view: WeekCheckHitView?
-    }
-
-    func add(_ view: WeekCheckHitView) {
-        views[ObjectIdentifier(view)] = WeakHit(view: view)
-    }
-
-    func remove(_ view: WeekCheckHitView) {
-        views[ObjectIdentifier(view)] = nil
-    }
-
-    func nearest(to touch: UITouch) -> WeekCheckHitView? {
-        views = views.filter { $0.value.view != nil }
-        guard let window = touch.window else { return nil }
-        let point = touch.location(in: window)
-        var best: WeekCheckHitView?
-        var bestDistance = CGFloat.greatestFiniteMagnitude
-        for entry in views.values {
-            guard let view = entry.view, let window = view.window else { continue }
-            let frame = view.expandedFrame(in: window)
-            guard frame.contains(point) else { continue }
-            let distance = hypot(point.x - frame.midX, point.y - frame.midY)
-            if distance < bestDistance {
-                bestDistance = distance
-                best = view
-            }
-        }
-        return best
-    }
 }
 
 private struct WeekMealGuide: ViewModifier {
@@ -951,6 +890,10 @@ private struct HomeDisplaySheet: View {
                     .fill(HomeQuiet.rule)
                     .frame(height: 1)
                 displayToggle("Shopping list", isOn: $showShoppingList)
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                remindersRow
             }
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -984,6 +927,65 @@ private struct HomeDisplaySheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : AccessibilityTraits())
+    }
+
+    @Environment(RemindersSync.self) private var remindersSync
+
+    private var remindersRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Text("Apple Reminders")
+                    .font(.system(size: 17, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Spacer(minLength: 8)
+                Toggle("Apple Reminders", isOn: Binding(
+                    get: { remindersSync.isEnabled },
+                    set: { on in
+                        Task { await remindersSync.setEnabled(on) }
+                    }
+                ))
+                .labelsHidden()
+                .tint(Color.terra500)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            if remindersSync.isEnabled, !remindersSync.lists.isEmpty {
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+                Menu {
+                    ForEach(remindersSync.lists) { list in
+                        Button(list.title) {
+                            remindersSync.selectList(id: list.id)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("Reminders list")
+                            .font(.system(size: 17, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
+                        Spacer(minLength: 8)
+                        Text(remindersSync.listTitle)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+            }
+
+            if let note = remindersSync.statusNote {
+                Text(note)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+            }
+        }
     }
 
     private func displayToggle(_ title: String, isOn: Binding<Bool>) -> some View {
@@ -1275,7 +1277,7 @@ struct WeeklyCalendarCard: View {
             loadData()
             refreshAppleEvents()
         }) {
-            WeekPlannerView(weekStart: weekDates.first ?? Date())
+            WeekPlannerView(weekDays: listedWeekDates)
         }
         .fullScreenCover(isPresented: $showClearWeek) {
             clearWeekPrompt
@@ -2183,35 +2185,45 @@ struct WeeklyCalendarCard: View {
     private func toggleTodo(_ todo: TodoTask) {
         var updated = todo
         updated.isChecked.toggle()
+        HomeWidgetStore.discardWidgetToggle(id: updated.id)
         replaceTodo(updated)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
+    /// 16pt circle, 44pt tap, without growing the row. The stroke sits inside the disk so a clip cannot shave it.
     private func todoCheck(_ todo: TodoTask, diameter: CGFloat) -> some View {
+        let hit: CGFloat = 44
+        let outset = (hit - diameter) / 2
+        return Button {
+            toggleTodo(todo)
+        } label: {
+            completionCircle(done: todo.isChecked, diameter: diameter, ink: Self.weekInk)
+                .frame(width: hit, height: hit)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, -outset)
+        .padding(.vertical, -outset)
+        .layoutPriority(1)
+        .zIndex(1)
+        .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
+    }
+
+    private func completionCircle(done: Bool, diameter: CGFloat, ink: Color) -> some View {
         ZStack {
             Circle()
-                .stroke(todo.isChecked ? Color.terra500 : Self.weekInk.opacity(0.28), lineWidth: 1)
-                .frame(width: diameter, height: diameter)
-                .background(
-                    Circle()
-                        .fill(todo.isChecked ? Color.terra500 : Color.clear)
-                )
-            if todo.isChecked {
+                .strokeBorder(done ? Color.terra500 : ink.opacity(0.28), lineWidth: 1)
+                .background {
+                    Circle().fill(done ? Color.terra500 : Color.clear)
+                }
+            if done {
                 Image(systemName: "checkmark")
                     .font(.system(size: diameter * 0.5, weight: .regular))
                     .foregroundStyle(.white)
             }
         }
         .frame(width: diameter, height: diameter)
-        .background {
-            WeekCheckHitArea {
-                toggleTodo(todo)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
-        .accessibilityAction { toggleTodo(todo) }
+        .padding(1)
     }
 
     private func uiColor(fromHex token: String?) -> UIColor? {
@@ -2574,6 +2586,13 @@ struct WeeklyCalendarCard: View {
         weekMeals = dataManager.fetchWeekMealPlans(from: start)
         weekEvents = dataManager.fetchWeekEvents(from: start)
         syncLines()
+        let mealsForGroceries = weekMeals
+        let daysForGroceries = listedWeekDates
+        let groceries = dataManager
+        Task { @MainActor in
+            WeekGrocerySync.reconcile(meals: mealsForGroceries, visibleDays: daysForGroceries, dataManager: groceries)
+        }
+        publishHomeWidget()
     }
 
     /// Reload Apple events after the saved EventKit grant and calendar
@@ -2582,8 +2601,14 @@ struct WeeklyCalendarCard: View {
         Task {
             await calendarSyncManager.prepareForReading()
             guard let start = loadedWeekStart else { return }
-            appleEvents = calendarSyncManager.fetchWeekEvents(from: start)
+            appleEvents = await calendarSyncManager.loadWeekEvents(from: start)
+            publishHomeWidget()
         }
+    }
+
+    /// Today and tomorrow for the Home Screen widget, from data already in memory.
+    private func publishHomeWidget() {
+        HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: appleEvents)
     }
 
     private func reloadMeals() {
@@ -2594,6 +2619,8 @@ struct WeeklyCalendarCard: View {
         if focusedField != focus {
             focusedField = focus
         }
+        WeekGrocerySync.reconcile(meals: weekMeals, visibleDays: listedWeekDates, dataManager: dataManager)
+        publishHomeWidget()
     }
 
     private func syncLines(keeping focus: DinnerField? = nil) {
@@ -3243,27 +3270,34 @@ struct TodoItem: View {
 
             // Foreground content
             HStack(spacing: 12) {
-                // Circular checkbox
-                ZStack {
-                    Circle()
-                        .stroke(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
-                        .frame(width: 18, height: 18)
-                        .background(
-                            Circle()
-                                .fill(todo.isChecked ? Color.terra500 : Color.clear)
-                        )
-
-                    if todo.isChecked {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .regular))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .onTapGesture {
+                Button {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
+                    HomeWidgetStore.discardWidgetToggle(id: todo.id)
                     todo.isChecked.toggle()
+                } label: {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(todo.isChecked ? Color.terra500 : HomeQuiet.ink.opacity(0.28), lineWidth: 1)
+                            .background {
+                                Circle().fill(todo.isChecked ? Color.terra500 : Color.clear)
+                            }
+                        if todo.isChecked {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .regular))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .frame(width: 18, height: 18)
+                    .padding(1)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .padding(-13)
+                .layoutPriority(1)
+                .zIndex(1)
+                .accessibilityLabel(todo.isChecked ? "Mark not done, \(todo.title)" : "Mark done, \(todo.title)")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(todo.title)

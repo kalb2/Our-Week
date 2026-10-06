@@ -156,7 +156,10 @@ struct RecipeLibraryView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.bgBase)
-        .onAppear { loadRecipes() }
+        .onAppear {
+            dataManager.recordPassedCookedMeals()
+            loadRecipes()
+        }
         .sheet(isPresented: $showAddEntry, onDismiss: {
             guard let route = addRoute else { return }
             addRoute = nil
