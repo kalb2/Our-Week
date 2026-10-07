@@ -1532,13 +1532,33 @@ private struct NotesLineStyle: Equatable {
     var placeholder: String
 }
 
-private final class NotesUITextField: UITextField, UIContextMenuInteractionDelegate {
+/// Details only. Kept off the text field so UIControl's own context-menu method
+/// can still present the system edit menu and the caret loupe.
+private final class NotesDetailsMenu: NSObject, UIContextMenuInteractionDelegate {
+    var onDetails: (() -> Void)?
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation location: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let onDetails else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let details = UIAction(title: "Details", image: UIImage(systemName: "ellipsis.circle")) { _ in
+                onDetails()
+            }
+            return UIMenu(children: [details])
+        }
+    }
+}
+
+private final class NotesUITextField: UITextField {
     var onEmptyBackspace: () -> Void = {}
     var onDetails: (() -> Void)?
     var suppressChange = false
     var blockRefocus = false
     var editGeneration = 0
     var appliedStyle: NotesLineStyle?
+    private let detailsDelegate = NotesDetailsMenu()
     private var detailsMenu: UIContextMenuInteraction?
 
     override init(frame: CGRect) {
@@ -1562,28 +1582,18 @@ private final class NotesUITextField: UITextField, UIContextMenuInteractionDeleg
         super.deleteBackward()
     }
 
+    /// Attached only while the row is not editing, so a long-press can open Details
+    /// without replacing the field's select, copy, paste, or caret menu.
     func setDetailsMenu(enabled: Bool) {
-        if enabled {
+        detailsDelegate.onDetails = onDetails
+        if enabled, onDetails != nil {
             guard detailsMenu == nil else { return }
-            let menu = UIContextMenuInteraction(delegate: self)
+            let menu = UIContextMenuInteraction(delegate: detailsDelegate)
             detailsMenu = menu
             addInteraction(menu)
         } else if let menu = detailsMenu {
             removeInteraction(menu)
             detailsMenu = nil
-        }
-    }
-
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        configurationForMenuAtLocation location: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard !isFirstResponder, onDetails != nil else { return nil }
-        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
-            let details = UIAction(title: "Details", image: UIImage(systemName: "ellipsis.circle")) { _ in
-                self?.onDetails?()
-            }
-            return UIMenu(children: [details])
         }
     }
 
