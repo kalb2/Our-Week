@@ -375,6 +375,7 @@ struct ShoppingListBoard: View {
             .padding(.top, quietToolbar ? 16 : 24)
             .padding(.bottom, (reservesTabBarSpace ? 120 : 0) + (selectionBarVisible ? 72 : 0))
         }
+        .background(ParentScrollDirectionLock())
         .onAppear {
             loadLists()
             publishSelectChrome()
@@ -744,12 +745,18 @@ struct StoreSection: View {
     @State private var isExpanded: Bool = true
     @State private var newItemTexts: [UUID: String] = [:]
     @State private var addRowIDs: [UUID] = []
-    @FocusState private var focusedAddRowID: UUID?
+    /// Which row owns the keyboard. A tap focuses that field; a drag is left to the list.
+    @State private var focusedLine: ShoppingLine?
+    /// Set only for a programmatic move, so a finger tap can keep the caret where it landed.
+    @State private var focusCursorAtEnd = false
     @State private var editingItem: ShoppingItem?
 
-    // Drag reorder state
-    @State private var draggedItemID: NSManagedObjectID?
-    @State private var dragOffset: CGFloat = 0
+    private enum ShoppingLine: Hashable {
+        case item(NSManagedObjectID)
+        case add(UUID)
+    }
+    /// Height of the non-scrolling item list, so the page scroll view can move.
+    @State private var itemsHeight: CGFloat = 0
 
     private func ensureOneAddRow() {
         if addRowIDs.isEmpty {
@@ -760,11 +767,12 @@ struct StoreSection: View {
     }
 
     private func commitRow(_ id: UUID) {
-        let text = (newItemTexts[id] ?? "").trimmingCharacters(in: .whitespaces)
+        let text = (newItemTexts[id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
         // Core Data creation
-        let newItem = dataManager.addShoppingItem(name: text, quantity: "", to: list)
+        let formatted = CookingAmount.reformatLine(text)
+        let newItem = dataManager.addShoppingItem(name: formatted, quantity: "", to: list)
         
         withAnimation(.easeInOut(duration: 0.2)) {
             allItems.append(newItem)
@@ -775,11 +783,11 @@ struct StoreSection: View {
             undo: {
                 noteShoppingRemovals([newItem])
                 self.dataManager.delete(newItem)
-                withAnimation { self.loadItems() } 
+                withAnimation { self.loadItems() }
             },
-            redo: { 
-                _ = self.dataManager.addShoppingItem(name: text, quantity: "", to: self.list)
-                withAnimation { self.loadItems() } 
+            redo: {
+                _ = self.dataManager.addShoppingItem(name: formatted, quantity: "", to: self.list)
+                withAnimation { self.loadItems() }
             }
         )
 
@@ -792,9 +800,7 @@ struct StoreSection: View {
         addRowIDs.append(newID)
         newItemTexts[newID] = ""
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            focusedAddRowID = newID
-        }
+        focusAddRowAtEnd(newID)
     }
     
     private func loadItems() {
@@ -832,14 +838,18 @@ struct StoreSection: View {
         }
     }
 
-    private func deleteItem(_ item: ShoppingItem) {
+    private func deleteItem(_ item: ShoppingItem, animated: Bool = true) {
         let name = item.name ?? ""
         let qty = item.quantity ?? ""
         let isChecked = item.isChecked
 
         noteShoppingRemovals([item])
         dataManager.delete(item)
-        withAnimation(.easeInOut(duration: 0.2)) {
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                loadItems()
+            }
+        } else {
             loadItems()
         }
         
@@ -855,19 +865,127 @@ struct StoreSection: View {
             }
         )
     }
-    
-    private func moveItem(_ item: ShoppingItem, dragOffset: CGFloat) {
-        guard let fromIndex = allItems.firstIndex(where: { $0.objectID == item.objectID }) else { return }
-        let rowHeight: CGFloat = 50
-        let moveBy = Int(round(dragOffset / rowHeight))
-        let toIndex = max(0, min(allItems.count - 1, fromIndex + moveBy))
 
-        if toIndex != fromIndex {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                let moved = allItems.remove(at: fromIndex)
-                allItems.insert(moved, at: toIndex)
+    private func toggleChecked(_ item: ShoppingItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            dataManager.toggleShoppingItem(item)
+            loadItems()
+            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+        }
+    }
+
+    private func nameBinding(_ item: ShoppingItem) -> Binding<String> {
+        Binding(
+            get: {
+                let raw = item.name ?? ""
+                // While the caret is in the row, show exactly what is stored so the cursor does not jump.
+                if focusedLine == .item(item.objectID) { return raw }
+                return CookingAmount.reformatLine(raw)
+            },
+            set: { newValue in
+                guard !item.isDeleted, item.name != newValue else { return }
+                item.name = newValue
+                dataManager.save()
             }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        )
+    }
+
+    private func beginLine(_ line: ShoppingLine) {
+        focusedLine = line
+        focusCursorAtEnd = false
+    }
+
+    private func itemAbove(_ item: ShoppingItem) -> ShoppingItem? {
+        guard let index = allItems.firstIndex(where: { $0.objectID == item.objectID }), index > 0 else {
+            return nil
+        }
+        return allItems[index - 1]
+    }
+
+    private func focusItemAtEnd(_ item: ShoppingItem) {
+        focusCursorAtEnd = true
+        focusedLine = .item(item.objectID)
+    }
+
+    private func focusAddRowAtEnd(_ id: UUID) {
+        focusCursorAtEnd = true
+        focusedLine = .add(id)
+    }
+
+    /// Saves the line. An empty name removes the item, the way a blank Notes line disappears.
+    private func finishItem(_ item: ShoppingItem) {
+        guard !item.isDeleted, item.managedObjectContext != nil else { return }
+        let raw = item.name ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            if focusedLine == .item(item.objectID) {
+                focusedLine = nil
+            }
+            deleteItem(item, animated: false)
+            return
+        }
+        let formatted = CookingAmount.reformatLine(trimmed)
+        if formatted != raw {
+            item.name = formatted
+            dataManager.save()
+        }
+        if focusedLine == .item(item.objectID) {
+            focusedLine = nil
+        }
+        // Names are alphabetical. Refresh once the caret has left this row.
+        loadItems()
+    }
+
+    /// Return keeps the name and moves to the empty add line.
+    /// Items have no stored order (the list sorts by name), so a blank row inserted
+    /// under this one would jump. The add line at the bottom is the new line.
+    private func submitItem(_ item: ShoppingItem) {
+        ensureOneAddRow()
+        if let addID = addRowIDs.last {
+            focusAddRowAtEnd(addID)
+        }
+        guard !item.isDeleted else { return }
+        let raw = item.name ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            deleteItem(item, animated: false)
+            return
+        }
+        let formatted = CookingAmount.reformatLine(trimmed)
+        if formatted != raw {
+            item.name = formatted
+            dataManager.save()
+            loadItems()
+        }
+    }
+
+    private func backspaceItem(_ item: ShoppingItem) {
+        if let above = itemAbove(item) {
+            focusItemAtEnd(above)
+        } else {
+            focusedLine = nil
+        }
+        deleteItem(item, animated: false)
+    }
+
+    private func backspaceAddRow(_ id: UUID) {
+        if let index = addRowIDs.firstIndex(of: id), index > 0 {
+            focusAddRowAtEnd(addRowIDs[index - 1])
+            return
+        }
+        if let last = allItems.last {
+            focusItemAtEnd(last)
+        }
+    }
+
+    private func openDetails(_ item: ShoppingItem) {
+        focusedLine = nil
+        editingItem = item
+    }
+
+    private func endAddRow(_ id: UUID) {
+        if focusedLine == .add(id) {
+            focusedLine = nil
         }
     }
 
@@ -911,6 +1029,128 @@ struct StoreSection: View {
         }
         .disabled(!enabled)
         .buttonStyle(.plain)
+    }
+
+    private var itemListHeight: CGFloat {
+        if itemsHeight > 1 { return itemsHeight }
+        let extras = isSelectMode ? 0 : max(addRowIDs.count, 1)
+        return CGFloat(max(allItems.count + extras, 1)) * 64
+    }
+
+    /// Native rows. The list does not scroll; the Home page (or Shop page) does.
+    private var itemList: some View {
+        List {
+            ForEach(allItems, id: \.objectID) { item in
+                if isSelectMode {
+                    shoppingEntry(item)
+                        .shoppingPlainRow()
+                } else {
+                    shoppingEntry(item)
+                        .shoppingPlainRow()
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteItem(item)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            if let haveIt = haveItAction(for: item) {
+                                Button(action: haveIt) {
+                                    Label("Have it", systemImage: "cabinet")
+                                }
+                                .tint(Color.terra500)
+                            }
+                        }
+                }
+            }
+            if !isSelectMode {
+                ForEach(addRowIDs, id: \.self) { rowID in
+                    addField(rowID)
+                        .shoppingPlainRow()
+                }
+            }
+        }
+        .listStyle(.plain)
+        .listRowSpacing(0)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+        .scrollIndicators(.hidden)
+        .contentMargins(.vertical, 0, for: .scrollContent)
+        .environment(\.defaultMinListRowHeight, 1)
+        .frame(height: itemListHeight)
+        .background {
+            StoreListHeightReader { newValue in
+                guard newValue > 1, abs(newValue - itemsHeight) > 0.5 else { return }
+                itemsHeight = newValue
+            }
+        }
+    }
+
+    private func shoppingEntry(_ item: ShoppingItem) -> some View {
+        VStack(spacing: 0) {
+            if isSelectMode {
+                ShopListEntryRow(
+                    item: item,
+                    isChecked: item.isChecked,
+                    checkBorder: checkBorder,
+                    checkFill: checkFill,
+                    accentColor: accentColor,
+                    quiet: quiet,
+                    isSelecting: true,
+                    isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
+                    onToggle: { toggleSelection(item) }
+                )
+            } else {
+                editRow(item)
+            }
+            if quiet {
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+            } else {
+                Divider()
+                    .background(dividerColor)
+                    .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func editRow(_ item: ShoppingItem) -> some View {
+        let line = ShoppingLine.item(item.objectID)
+        return ShopListEntryRow(
+            item: item,
+            isChecked: item.isChecked,
+            checkBorder: checkBorder,
+            checkFill: checkFill,
+            accentColor: accentColor,
+            quiet: quiet,
+            onToggle: { toggleChecked(item) },
+            name: nameBinding(item),
+            isLineFocused: focusedLine == line,
+            cursorAtEnd: focusCursorAtEnd && focusedLine == line,
+            onLineFocus: { beginLine(line) },
+            onLineCommit: { finishItem(item) },
+            onLineSubmit: { submitItem(item) },
+            onLineBackspace: { backspaceItem(item) },
+            onDetails: { openDetails(item) }
+        )
+    }
+
+    private func addField(_ rowID: UUID) -> some View {
+        InlineAddItemRow(
+            text: Binding(
+                get: { newItemTexts[rowID] ?? "" },
+                set: { newItemTexts[rowID] = $0 }
+            ),
+            checkBorder: checkBorder,
+            accentColor: accentColor,
+            quiet: quiet,
+            isFocused: focusedLine == .add(rowID),
+            cursorAtEnd: focusCursorAtEnd && focusedLine == .add(rowID),
+            onFocus: { beginLine(.add(rowID)) },
+            onCommit: { endAddRow(rowID) },
+            onSubmit: { commitRow(rowID) },
+            onEmptyBackspace: { backspaceAddRow(rowID) }
+        )
     }
 
     var body: some View {
@@ -1074,111 +1314,7 @@ struct StoreSection: View {
             }
 
             if isExpanded && !isReorderMode {
-                // Existing items. Select mode skips the swipe row so its clip
-                // cannot cut the circles, and a tap toggles the selection.
-                ForEach(allItems, id: \.objectID) { item in
-                    VStack(spacing: 0) {
-                        if isSelectMode {
-                            ShopListEntryRow(
-                                item: item,
-                                isChecked: item.isChecked,
-                                checkBorder: checkBorder,
-                                checkFill: checkFill,
-                                accentColor: accentColor,
-                                quiet: quiet,
-                                isSelecting: true,
-                                isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
-                                onToggle: { toggleSelection(item) },
-                                onTap: { toggleSelection(item) }
-                            )
-                        } else {
-                            SwipeToDeleteRow(
-                                onDelete: { deleteItem(item) },
-                                onHaveIt: haveItAction(for: item),
-                                accentColor: accentColor
-                            ) {
-                                ShopListEntryRow(
-                                    item: item,
-                                    isChecked: item.isChecked,
-                                    checkBorder: checkBorder,
-                                    checkFill: checkFill,
-                                    accentColor: accentColor,
-                                    quiet: quiet,
-                                    onToggle: {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                        dataManager.toggleShoppingItem(item)
-                                        loadItems()
-                                        NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
-                                        }
-                                    },
-                                    onTap: {
-                                        editingItem = item
-                                    }
-                                )
-                            }
-                        }
-
-                        if quiet {
-                            Rectangle()
-                                .fill(HomeQuiet.rule)
-                                .frame(height: 1)
-                        } else {
-                            Divider()
-                                .background(dividerColor)
-                                .padding(.vertical, 2)
-                        }
-                    }
-                    // Drag reorder — item follows finger, reorder on drop
-                    .offset(y: !isSelectMode && draggedItemID == item.objectID ? dragOffset : 0)
-                    .zIndex(!isSelectMode && draggedItemID == item.objectID ? 100 : 0)
-                    .scaleEffect(!isSelectMode && draggedItemID == item.objectID ? 1.03 : 1)
-                    .shadow(
-                        color: !isSelectMode && draggedItemID == item.objectID ? .black.opacity(0.1) : .clear,
-                        radius: 4, y: 2
-                    )
-                    .modifier(ShoppingItemDragModifier(
-                        enabled: !isSelectMode,
-                        onChanged: { value in
-                            switch value {
-                            case .second(true, let drag):
-                                if let drag = drag {
-                                    if draggedItemID == nil {
-                                        draggedItemID = item.objectID
-                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    }
-                                    dragOffset = drag.translation.height
-                                }
-                            default: break
-                            }
-                        },
-                        onEnded: {
-                            moveItem(item, dragOffset: dragOffset)
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                dragOffset = 0
-                                draggedItemID = nil
-                            }
-                        }
-                    ))
-                }
-
-                // Inline add-item rows stay out of the way while selecting.
-                if !isSelectMode {
-                ForEach(addRowIDs, id: \.self) { rowID in
-                    InlineAddItemRow(
-                        text: Binding(
-                            get: { newItemTexts[rowID] ?? "" },
-                            set: { newItemTexts[rowID] = $0 }
-                        ),
-                        checkBorder: checkBorder,
-                        accentColor: accentColor,
-                        quiet: quiet,
-                        isFocused: focusedAddRowID == rowID,
-                        onFocus: { focusedAddRowID = rowID },
-                        onSubmit: { commitRow(rowID) }
-                    )
-                    .focused($focusedAddRowID, equals: rowID)
-                }
-                }
+                itemList
             }
         }
         .padding(quiet ? 16 : 20)
@@ -1189,20 +1325,20 @@ struct StoreSection: View {
         }
         .onChange(of: isSelectMode) { _, on in
             if on {
-                focusedAddRowID = nil
+                focusedLine = nil
                 isExpanded = true
             }
         }
-        .onChange(of: focusedAddRowID) { _, new in
+        .onChange(of: focusedLine) { _, new in
             if new != nil {
                 NotificationCenter.default.post(name: .shoppingItemFieldFocused, object: nil)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
-            let row = focusedAddRowID
+            let line = focusedLine
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                guard focusedAddRowID == row, row != nil, !shoppingTextInputIsFirstResponder() else { return }
-                focusedAddRowID = nil
+                guard focusedLine == line, line != nil, !shoppingTextInputIsFirstResponder() else { return }
+                focusedLine = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
@@ -1241,180 +1377,403 @@ struct StoreSection: View {
     }
 }
 
-private struct ShoppingItemDragModifier: ViewModifier {
-    var enabled: Bool
-    var onChanged: (SequenceGesture<LongPressGesture, DragGesture>.Value) -> Void
-    var onEnded: () -> Void
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if enabled {
-            content.gesture(
-                LongPressGesture(minimumDuration: 0.35)
-                    .sequenced(before: DragGesture())
-                    .onChanged(onChanged)
-                    .onEnded { _ in onEnded() }
-            )
-        } else {
-            content
-        }
+/// SwiftUI `List` is a collection view on iOS 16, and a table view on older systems.
+/// The page around it is a plain scroll view.
+private enum ShoppingScrollSplit {
+    static func isListBacking(_ view: UIView) -> Bool {
+        view is UICollectionView || view is UITableView
     }
-}
 
-// MARK: - Swipe To Delete Row
-struct SwipeToDeleteRow<Content: View>: View {
-    let onDelete: () -> Void
-    var onHaveIt: (() -> Void)? = nil
-    let accentColor: Color
-    @ViewBuilder let content: () -> Content
-
-    @State private var offset: CGFloat = 0
-    @State private var showDeleteButton = false
-    private var deleteThreshold: CGFloat { onHaveIt == nil ? -70 : -156 }
-    private var fullSwipeThreshold: CGFloat { onHaveIt == nil ? -180 : -260 }
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            // Quiet delete control, revealed by the swipe
-            HStack(spacing: 8) {
-                Spacer()
-                if let onHaveIt {
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3)) {
-                            onHaveIt()
-                            offset = 0
-                            showDeleteButton = false
-                        }
-                    }) {
-                        Text("Have it")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundStyle(HomeQuiet.ink)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.white)
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        onDelete()
-                        offset = 0
-                        showDeleteButton = false
-                    }
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundStyle(Color.terra600)
-                        .frame(width: 44, height: 44)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
+    static func nearestListScroll(from view: UIView) -> UIScrollView? {
+        var node: UIView? = view
+        for _ in 0..<10 {
+            guard let current = node else { return nil }
+            if let scroll = firstListScroll(in: current, depth: 8) {
+                return scroll
             }
-            .opacity(offset < -10 ? 1 : 0)
-
-            // Content
-            content()
-                .background(Color.cardWhite)
-                .offset(x: offset)
-                .gesture(
-                    HorizontalSwipeGesture(
-                        onChanged: { translation in
-                            if translation < 0 {
-                                offset = translation * 0.7
-                            } else if showDeleteButton {
-                                offset = deleteThreshold + translation * 0.3
-                            } else {
-                                offset = translation * 0.1
-                            }
-                        },
-                        onEnded: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                if offset < fullSwipeThreshold {
-                                    offset = -500
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                        onDelete()
-                                        offset = 0
-                                        showDeleteButton = false
-                                    }
-                                } else if offset < deleteThreshold {
-                                    offset = deleteThreshold
-                                    showDeleteButton = true
-                                } else {
-                                    offset = 0
-                                    showDeleteButton = false
-                                }
-                            }
-                        }
-                    )
-                )
-                .onTapGesture {
-                    if showDeleteButton {
-                        withAnimation(.spring(response: 0.3)) {
-                            offset = 0
-                            showDeleteButton = false
-                        }
-                    }
-                }
+            node = current.superview
         }
-        .clipped()
+        return nil
+    }
+
+    static func pageScroll(from view: UIView) -> UIScrollView? {
+        var node: UIView? = view.superview
+        while let current = node {
+            if let scroll = current as? UIScrollView, !isListBacking(current) {
+                return scroll
+            }
+            node = current.superview
+        }
+        return nil
+    }
+
+    private static func firstListScroll(in view: UIView, depth: Int) -> UIScrollView? {
+        if isListBacking(view), let scroll = view as? UIScrollView {
+            return scroll
+        }
+        guard depth > 0 else { return nil }
+        for subview in view.subviews {
+            if let scroll = firstListScroll(in: subview, depth: depth - 1) {
+                return scroll
+            }
+        }
+        return nil
     }
 }
 
-/// Claims a row drag only when the finger is clearly moving sideways.
-/// A vertical move fails this recognizer so the shopping list can scroll.
-private struct HorizontalSwipeGesture: UIGestureRecognizerRepresentable {
-    var onChanged: (CGFloat) -> Void
-    var onEnded: () -> Void
+/// Reads the store list's own scroll view so the surrounding page can scroll.
+private struct StoreListHeightReader: UIViewRepresentable {
+    var onChange: (CGFloat) -> Void
 
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator(onChanged: onChanged, onEnded: onEnded)
+    func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
     }
 
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer()
-        pan.delegate = context.coordinator
-        pan.cancelsTouchesInView = true
-        return pan
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onChange = onChange
+        context.coordinator.scheduleSearch(from: uiView)
     }
 
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        recognizer.delegate = context.coordinator
-        context.coordinator.onChanged = onChanged
-        context.coordinator.onEnded = onEnded
+    final class Coordinator: NSObject {
+        var onChange: (CGFloat) -> Void
+        private weak var observed: UIScrollView?
+        private var observation: NSKeyValueObservation?
+        private var waiting = false
+
+        init(onChange: @escaping (CGFloat) -> Void) {
+            self.onChange = onChange
+        }
+
+        func scheduleSearch(from view: UIView) {
+            guard !waiting else { return }
+            waiting = true
+            search(from: view, attempt: 0)
+        }
+
+        func search(from view: UIView, attempt: Int) {
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                if let view, let scroll = ShoppingScrollSplit.nearestListScroll(from: view) {
+                    self.waiting = false
+                    self.attach(scroll)
+                    return
+                }
+                guard attempt < 6, let view else {
+                    self.waiting = false
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.search(from: view, attempt: attempt + 1)
+                }
+            }
+        }
+
+        func attach(_ scroll: UIScrollView) {
+            scroll.layoutIfNeeded()
+            scroll.isScrollEnabled = false
+            if observed === scroll {
+                report(scroll)
+                return
+            }
+            observed = scroll
+            observation = scroll.observe(\.contentSize, options: [.initial, .new]) { [weak self] scroll, _ in
+                DispatchQueue.main.async {
+                    self?.report(scroll)
+                }
+            }
+        }
+
+        func report(_ scroll: UIScrollView) {
+            scroll.isScrollEnabled = false
+            let height = scroll.contentSize.height
+            guard height > 1 else { return }
+            onChange(height)
+        }
+    }
+}
+
+/// Lets the page scroll view keep vertical drags and leave sideways swipes to the list.
+private struct ParentScrollDirectionLock: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
     }
 
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        let travel = recognizer.translation(in: recognizer.view).x
-        switch recognizer.state {
-        case .changed:
-            context.coordinator.onChanged(travel)
-        case .ended, .cancelled:
-            context.coordinator.onEnded()
-        default:
-            break
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            ShoppingScrollSplit.pageScroll(from: uiView)?.isDirectionalLockEnabled = true
+        }
+    }
+}
+
+private extension View {
+    func shoppingPlainRow() -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+}
+
+// MARK: - Notes line field
+/// One visible line, like a row in Notes. A drag is not claimed here, so the page scroll
+/// view keeps vertical movement and the list keeps swipe-to-delete. Only a tap focuses.
+private struct NotesLineStyle: Equatable {
+    var quiet: Bool
+    var prominent: Bool
+    var isChecked: Bool
+    var placeholder: String
+}
+
+/// Details only. Kept off the text field so UIControl's own context-menu method
+/// can still present the system edit menu and the caret loupe.
+private final class NotesDetailsMenu: NSObject, UIContextMenuInteractionDelegate {
+    var onDetails: (() -> Void)?
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation location: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let onDetails else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            let details = UIAction(title: "Details", image: UIImage(systemName: "ellipsis.circle")) { _ in
+                onDetails()
+            }
+            return UIMenu(children: [details])
+        }
+    }
+}
+
+private final class NotesUITextField: UITextField {
+    var onEmptyBackspace: () -> Void = {}
+    var onDetails: (() -> Void)?
+    var suppressChange = false
+    var blockRefocus = false
+    var editGeneration = 0
+    var appliedStyle: NotesLineStyle?
+    private let detailsDelegate = NotesDetailsMenu()
+    private var detailsMenu: UIContextMenuInteraction?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: 22)
+    }
+
+    override func deleteBackward() {
+        let current = text ?? ""
+        if current.isEmpty, markedTextRange == nil {
+            onEmptyBackspace()
+            return
+        }
+        super.deleteBackward()
+    }
+
+    /// Attached only while the row is not editing, so a long-press can open Details
+    /// without replacing the field's select, copy, paste, or caret menu.
+    func setDetailsMenu(enabled: Bool) {
+        detailsDelegate.onDetails = onDetails
+        if enabled, onDetails != nil {
+            guard detailsMenu == nil else { return }
+            let menu = UIContextMenuInteraction(delegate: detailsDelegate)
+            detailsMenu = menu
+            addInteraction(menu)
+        } else if let menu = detailsMenu {
+            removeInteraction(menu)
+            detailsMenu = nil
         }
     }
 
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        var onChanged: (CGFloat) -> Void
-        var onEnded: () -> Void
+    func apply(_ style: NotesLineStyle) {
+        guard appliedStyle != style else { return }
+        appliedStyle = style
+        suppressChange = true
+        defer { suppressChange = false }
 
-        init(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping () -> Void) {
-            self.onChanged = onChanged
-            self.onEnded = onEnded
+        let size: CGFloat = style.quiet ? 16 : 14
+        let weight: UIFont.Weight = style.quiet ? .regular : (style.prominent ? .bold : .medium)
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let design: UIFontDescriptor.SystemDesign = style.quiet ? .serif : .rounded
+        let font = base.fontDescriptor.withDesign(design).map { UIFont(descriptor: $0, size: size) } ?? base
+        let color: UIColor
+        if style.quiet {
+            color = UIColor(red: 0.12, green: 0.11, blue: 0.10, alpha: style.isChecked ? 0.45 : 1)
+        } else {
+            color = style.isChecked ? .secondaryLabel : .label
+        }
+        var attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color
+        ]
+        if style.isChecked {
+            attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+            attributes[.strikethroughColor] = color
+        }
+        let selection = selectedTextRange
+        let current = text
+        defaultTextAttributes = attributes
+        self.font = font
+        textColor = color
+        tintColor = UIColor(red: 0.878, green: 0.478, blue: 0.373, alpha: 1)
+        typingAttributes = attributes
+        text = current
+        if style.placeholder.isEmpty {
+            attributedPlaceholder = nil
+        } else {
+            attributedPlaceholder = NSAttributedString(
+                string: style.placeholder,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: color.withAlphaComponent(0.45)
+                ]
+            )
+        }
+        if let selection {
+            selectedTextRange = selection
+        }
+    }
+}
+
+private struct NotesLineField: UIViewRepresentable {
+    @Binding var text: String
+    var placeholder: String
+    var quiet: Bool
+    var prominent: Bool
+    var isChecked: Bool
+    var isFocused: Bool
+    var focusCursorAtEnd: Bool
+    var onFocus: () -> Void
+    var onCommit: () -> Void
+    var onSubmit: () -> Void
+    var onEmptyBackspace: () -> Void
+    var showsDetails: Bool
+    var onDetails: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> NotesUITextField {
+        let field = NotesUITextField(frame: .zero)
+        field.delegate = context.coordinator
+        field.borderStyle = .none
+        field.backgroundColor = .clear
+        field.returnKeyType = .default
+        field.autocorrectionType = .yes
+        field.autocapitalizationType = .sentences
+        field.clearButtonMode = .never
+        field.tintColor = UIColor(red: 0.878, green: 0.478, blue: 0.373, alpha: 1)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateUIView(_ field: NotesUITextField, context: Context) {
+        context.coordinator.parent = self
+        field.onEmptyBackspace = { [weak coordinator = context.coordinator] in
+            coordinator?.parent.onEmptyBackspace()
+        }
+        if showsDetails {
+            field.onDetails = onDetails
+        } else {
+            field.onDetails = nil
+        }
+        field.apply(NotesLineStyle(
+            quiet: quiet,
+            prominent: prominent,
+            isChecked: isChecked,
+            placeholder: placeholder
+        ))
+        if !field.isFirstResponder, (field.text ?? "") != text {
+            field.suppressChange = true
+            field.text = text
+            field.suppressChange = false
+        }
+        let placeAtEnd = focusCursorAtEnd
+        if isFocused, !field.isFirstResponder, !field.blockRefocus {
+            if field.becomeFirstResponder() {
+                if placeAtEnd {
+                    let end = field.endOfDocument
+                    field.selectedTextRange = field.textRange(from: end, to: end)
+                }
+            } else {
+                context.coordinator.retryFocus(field)
+            }
+        } else if !isFocused, field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+        field.setDetailsMenu(enabled: showsDetails && !field.isFirstResponder)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: NotesUITextField, context: Context) -> CGSize? {
+        let proposed = proposal.width ?? 0
+        let width = proposed > 1 ? proposed : 280
+        let measured = uiView.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(22, measured.height))
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: NotesLineField
+
+        init(_ parent: NotesLineField) {
+            self.parent = parent
         }
 
-        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
-            let travel = pan.translation(in: pan.view)
-            let speed = pan.velocity(in: pan.view)
-            let horizontal = abs(travel.x) > 1 ? travel.x : speed.x
-            let vertical = abs(travel.y) > 1 ? travel.y : speed.y
-            return abs(horizontal) > abs(vertical) * 1.5
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField else { return }
+            field.editGeneration += 1
+            field.blockRefocus = false
+            parent.onFocus()
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField else { return }
+            let generation = field.editGeneration
+            field.blockRefocus = true
+            let commit = parent.onCommit
+            DispatchQueue.main.async { [weak field] in
+                if let field, field.editGeneration != generation { return }
+                commit()
+                if field?.editGeneration == generation {
+                    field?.blockRefocus = false
+                }
+            }
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            parent.onSubmit()
+            return false
+        }
+
+        func textFieldDidChangeSelection(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField, field.isFirstResponder, !field.suppressChange else { return }
+            let value = field.text ?? ""
+            guard parent.text != value else { return }
+            parent.text = value
+        }
+
+        func retryFocus(_ field: NotesUITextField) {
+            DispatchQueue.main.async { [weak self, weak field] in
+                guard let self, let field, self.parent.isFocused, !field.isFirstResponder, !field.blockRefocus else { return }
+                let placeAtEnd = self.parent.focusCursorAtEnd
+                if field.becomeFirstResponder(), placeAtEnd {
+                    let end = field.endOfDocument
+                    field.selectedTextRange = field.textRange(from: end, to: end)
+                }
+            }
         }
     }
 }
@@ -1426,8 +1785,11 @@ struct InlineAddItemRow: View {
     let accentColor: Color
     var quiet: Bool = false
     let isFocused: Bool
+    var cursorAtEnd: Bool = false
     let onFocus: () -> Void
+    var onCommit: () -> Void = {}
     let onSubmit: () -> Void
+    var onEmptyBackspace: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1440,12 +1802,22 @@ struct InlineAddItemRow: View {
                         .foregroundStyle(quiet ? HomeQuiet.quiet : checkBorder.opacity(0.5))
                 )
 
-            TextField("Add item...", text: $text)
-                .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(quiet ? HomeQuiet.ink : .primary)
-                .submitLabel(.return)
-                .onSubmit(onSubmit)
-                .onTapGesture { onFocus() }
+            NotesLineField(
+                text: $text,
+                placeholder: "Add item...",
+                quiet: quiet,
+                prominent: false,
+                isChecked: false,
+                isFocused: isFocused,
+                focusCursorAtEnd: cursorAtEnd,
+                onFocus: onFocus,
+                onCommit: onCommit,
+                onSubmit: onSubmit,
+                onEmptyBackspace: onEmptyBackspace,
+                showsDetails: false,
+                onDetails: {}
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
         .frame(minHeight: 32)
@@ -1690,7 +2062,14 @@ struct ShopListEntryRow: View {
     var isSelecting: Bool = false
     var isSelected: Bool = false
     let onToggle: () -> Void
-    let onTap: () -> Void
+    var name: Binding<String> = .constant("")
+    var isLineFocused: Bool = false
+    var cursorAtEnd: Bool = false
+    var onLineFocus: () -> Void = {}
+    var onLineCommit: () -> Void = {}
+    var onLineSubmit: () -> Void = {}
+    var onLineBackspace: () -> Void = {}
+    var onDetails: () -> Void = {}
 
     var body: some View {
         Group {
@@ -1709,7 +2088,7 @@ struct ShopListEntryRow: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     Button(action: onToggle) {
                         markCircle(
                             filled: isChecked,
@@ -1721,19 +2100,25 @@ struct ShopListEntryRow: View {
                     .fixedSize()
                     .layoutPriority(1)
 
-                    Button(action: onTap) {
-                        titleBlock
+                    VStack(alignment: .leading, spacing: 2) {
+                        NotesLineField(
+                            text: name,
+                            placeholder: "",
+                            quiet: quiet,
+                            prominent: !quiet,
+                            isChecked: isChecked,
+                            isFocused: isLineFocused,
+                            focusCursorAtEnd: cursorAtEnd,
+                            onFocus: onLineFocus,
+                            onCommit: onLineCommit,
+                            onSubmit: onLineSubmit,
+                            onEmptyBackspace: onLineBackspace,
+                            showsDetails: true,
+                            onDetails: onDetails
+                        )
+                        quantityLine
                     }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-
-                    Button(action: onTap) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
-                    }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -1749,12 +2134,27 @@ struct ShopListEntryRow: View {
                 .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 .multilineTextAlignment(.leading)
 
-            if let quantity = item.quantity, !quantity.isEmpty {
-                Text(CookingAmount.reformatLine(quantity))
-                    .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
-                    .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
-            }
+            quantityText
+        }
+    }
+
+    @ViewBuilder
+    private var quantityLine: some View {
+        if item.quantity?.isEmpty == false {
+            quantityText
+                .contextMenu {
+                    Button("Details", systemImage: "ellipsis.circle", action: onDetails)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var quantityText: some View {
+        if let quantity = item.quantity, !quantity.isEmpty {
+            Text(CookingAmount.reformatLine(quantity))
+                .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
+                .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
         }
     }
 
