@@ -1236,7 +1236,51 @@ struct StoreSection: View {
     }
 }
 
-/// Reads the store list's table height so the surrounding page can scroll.
+/// SwiftUI `List` is a collection view on iOS 16, and a table view on older systems.
+/// The page around it is a plain scroll view.
+private enum ShoppingScrollSplit {
+    static func isListBacking(_ view: UIView) -> Bool {
+        view is UICollectionView || view is UITableView
+    }
+
+    static func nearestListScroll(from view: UIView) -> UIScrollView? {
+        var node: UIView? = view
+        for _ in 0..<10 {
+            guard let current = node else { return nil }
+            if let scroll = firstListScroll(in: current, depth: 8) {
+                return scroll
+            }
+            node = current.superview
+        }
+        return nil
+    }
+
+    static func pageScroll(from view: UIView) -> UIScrollView? {
+        var node: UIView? = view.superview
+        while let current = node {
+            if let scroll = current as? UIScrollView, !isListBacking(current) {
+                return scroll
+            }
+            node = current.superview
+        }
+        return nil
+    }
+
+    private static func firstListScroll(in view: UIView, depth: Int) -> UIScrollView? {
+        if isListBacking(view), let scroll = view as? UIScrollView {
+            return scroll
+        }
+        guard depth > 0 else { return nil }
+        for subview in view.subviews {
+            if let scroll = firstListScroll(in: subview, depth: depth - 1) {
+                return scroll
+            }
+        }
+        return nil
+    }
+}
+
+/// Reads the store list's own scroll view so the surrounding page can scroll.
 private struct StoreListHeightReader: UIViewRepresentable {
     var onChange: (CGFloat) -> Void
 
@@ -1256,7 +1300,7 @@ private struct StoreListHeightReader: UIViewRepresentable {
 
     final class Coordinator: NSObject {
         var onChange: (CGFloat) -> Void
-        private weak var observed: UITableView?
+        private weak var observed: UIScrollView?
         private var observation: NSKeyValueObservation?
         private var waiting = false
 
@@ -1273,9 +1317,9 @@ private struct StoreListHeightReader: UIViewRepresentable {
         func search(from view: UIView, attempt: Int) {
             DispatchQueue.main.async { [weak self, weak view] in
                 guard let self else { return }
-                if let view, let table = Self.nearestTable(from: view) {
+                if let view, let scroll = ShoppingScrollSplit.nearestListScroll(from: view) {
                     self.waiting = false
-                    self.attach(table)
+                    self.attach(scroll)
                     return
                 }
                 guard attempt < 6, let view else {
@@ -1289,47 +1333,26 @@ private struct StoreListHeightReader: UIViewRepresentable {
             }
         }
 
-        func attach(_ table: UITableView) {
-            table.isScrollEnabled = false
-            if observed === table {
-                report(table)
+        func attach(_ scroll: UIScrollView) {
+            scroll.layoutIfNeeded()
+            scroll.isScrollEnabled = false
+            if observed === scroll {
+                report(scroll)
                 return
             }
-            observed = table
-            observation = table.observe(\.contentSize, options: [.initial, .new]) { [weak self] table, _ in
+            observed = scroll
+            observation = scroll.observe(\.contentSize, options: [.initial, .new]) { [weak self] scroll, _ in
                 DispatchQueue.main.async {
-                    self?.report(table)
+                    self?.report(scroll)
                 }
             }
         }
 
-        func report(_ table: UITableView) {
-            let height = table.contentSize.height
+        func report(_ scroll: UIScrollView) {
+            scroll.isScrollEnabled = false
+            let height = scroll.contentSize.height
             guard height > 1 else { return }
             onChange(height)
-        }
-
-        static func nearestTable(from view: UIView) -> UITableView? {
-            var node: UIView? = view
-            for _ in 0..<8 {
-                guard let current = node else { return nil }
-                if let table = firstTable(in: current, depth: 8) {
-                    return table
-                }
-                node = current.superview
-            }
-            return nil
-        }
-
-        static func firstTable(in view: UIView, depth: Int) -> UITableView? {
-            if let table = view as? UITableView { return table }
-            guard depth > 0 else { return nil }
-            for subview in view.subviews {
-                if let table = firstTable(in: subview, depth: depth - 1) {
-                    return table
-                }
-            }
-            return nil
         }
     }
 }
@@ -1345,14 +1368,7 @@ private struct ParentScrollDirectionLock: UIViewRepresentable {
 
     func updateUIView(_ uiView: UIView, context: Context) {
         DispatchQueue.main.async {
-            var node: UIView? = uiView.superview
-            while let current = node {
-                if let scroll = current as? UIScrollView, !(current is UITableView) {
-                    scroll.isDirectionalLockEnabled = true
-                    break
-                }
-                node = current.superview
-            }
+            ShoppingScrollSplit.pageScroll(from: uiView)?.isDirectionalLockEnabled = true
         }
     }
 }
