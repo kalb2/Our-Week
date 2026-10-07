@@ -1740,6 +1740,7 @@ struct WeeklyCalendarCard: View {
         }()
         let dayName = isToday ? "Today" : weekday
         let showEvents = showWeekEvents && !dayFocused && !(dayEvents.isEmpty && dayApple.isEmpty)
+        let showTodayColumns = isToday && !dayFocused && (showDayTodos || showEvents)
 
         let mealSharesTheDayLine = !(isToday && !otherMealGroups(on: date).isEmpty)
         return HStack(alignment: .weekMeal, spacing: 8) {
@@ -1773,17 +1774,14 @@ struct WeeklyCalendarCard: View {
                 }
                 VStack(alignment: .leading, spacing: isToday && !dayFocused ? 12 : 6) {
                     dinnerBlock(lines, on: key, dayName: dayName, alignsWithDay: mealSharesTheDayLine)
-                    if isToday, !dayFocused {
+                    if showTodayColumns {
                         Rectangle()
                             .fill(Self.weekRule)
                             .frame(height: 1)
                     }
                 }
-                if isToday, !dayFocused {
-                    if showEvents {
-                        eventLines(on: date, wraps: true)
-                            .transition(.opacity)
-                    }
+                if showTodayColumns {
+                    todayPlanColumns(on: date)
                 } else if !dayFocused, showEvents {
                     eventLines(on: date)
                         .transition(.opacity)
@@ -2127,7 +2125,7 @@ struct WeeklyCalendarCard: View {
 
     private static let todayTodoScrollID = "today-todo-draft"
 
-    /// Day page: to-dos on the left, that day's events on the right. The meal stays above.
+    /// Today's week row and the day page: to-dos on the left, that day's events on the right.
     private func todayPlanColumns(on date: Date) -> some View {
         let eventItems = homeEventLines(on: date).filter { !$0.sideText.isEmpty }
         let showEventColumn = showWeekEvents && !eventItems.isEmpty
