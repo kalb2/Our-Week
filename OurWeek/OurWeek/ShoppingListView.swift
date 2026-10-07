@@ -745,8 +745,16 @@ struct StoreSection: View {
     @State private var isExpanded: Bool = true
     @State private var newItemTexts: [UUID: String] = [:]
     @State private var addRowIDs: [UUID] = []
-    @FocusState private var focusedAddRowID: UUID?
+    /// Which row owns the keyboard. A tap focuses that field; a drag is left to the list.
+    @State private var focusedLine: ShoppingLine?
+    /// Set only for a programmatic move, so a finger tap can keep the caret where it landed.
+    @State private var focusCursorAtEnd = false
     @State private var editingItem: ShoppingItem?
+
+    private enum ShoppingLine: Hashable {
+        case item(NSManagedObjectID)
+        case add(UUID)
+    }
     /// Height of the non-scrolling item list, so the page scroll view can move.
     @State private var itemsHeight: CGFloat = 0
 
@@ -759,11 +767,12 @@ struct StoreSection: View {
     }
 
     private func commitRow(_ id: UUID) {
-        let text = (newItemTexts[id] ?? "").trimmingCharacters(in: .whitespaces)
+        let text = (newItemTexts[id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
         // Core Data creation
-        let newItem = dataManager.addShoppingItem(name: text, quantity: "", to: list)
+        let formatted = CookingAmount.reformatLine(text)
+        let newItem = dataManager.addShoppingItem(name: formatted, quantity: "", to: list)
         
         withAnimation(.easeInOut(duration: 0.2)) {
             allItems.append(newItem)
@@ -774,11 +783,11 @@ struct StoreSection: View {
             undo: {
                 noteShoppingRemovals([newItem])
                 self.dataManager.delete(newItem)
-                withAnimation { self.loadItems() } 
+                withAnimation { self.loadItems() }
             },
-            redo: { 
-                _ = self.dataManager.addShoppingItem(name: text, quantity: "", to: self.list)
-                withAnimation { self.loadItems() } 
+            redo: {
+                _ = self.dataManager.addShoppingItem(name: formatted, quantity: "", to: self.list)
+                withAnimation { self.loadItems() }
             }
         )
 
@@ -791,9 +800,7 @@ struct StoreSection: View {
         addRowIDs.append(newID)
         newItemTexts[newID] = ""
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            focusedAddRowID = newID
-        }
+        focusAddRowAtEnd(newID)
     }
     
     private func loadItems() {
@@ -831,14 +838,18 @@ struct StoreSection: View {
         }
     }
 
-    private func deleteItem(_ item: ShoppingItem) {
+    private func deleteItem(_ item: ShoppingItem, animated: Bool = true) {
         let name = item.name ?? ""
         let qty = item.quantity ?? ""
         let isChecked = item.isChecked
 
         noteShoppingRemovals([item])
         dataManager.delete(item)
-        withAnimation(.easeInOut(duration: 0.2)) {
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                loadItems()
+            }
+        } else {
             loadItems()
         }
         
@@ -854,7 +865,130 @@ struct StoreSection: View {
             }
         )
     }
-    
+
+    private func toggleChecked(_ item: ShoppingItem) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            dataManager.toggleShoppingItem(item)
+            loadItems()
+            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+        }
+    }
+
+    private func nameBinding(_ item: ShoppingItem) -> Binding<String> {
+        Binding(
+            get: {
+                let raw = item.name ?? ""
+                // While the caret is in the row, show exactly what is stored so the cursor does not jump.
+                if focusedLine == .item(item.objectID) { return raw }
+                return CookingAmount.reformatLine(raw)
+            },
+            set: { newValue in
+                guard !item.isDeleted, item.name != newValue else { return }
+                item.name = newValue
+                dataManager.save()
+            }
+        )
+    }
+
+    private func beginLine(_ line: ShoppingLine) {
+        focusedLine = line
+        focusCursorAtEnd = false
+    }
+
+    private func itemAbove(_ item: ShoppingItem) -> ShoppingItem? {
+        guard let index = allItems.firstIndex(where: { $0.objectID == item.objectID }), index > 0 else {
+            return nil
+        }
+        return allItems[index - 1]
+    }
+
+    private func focusItemAtEnd(_ item: ShoppingItem) {
+        focusCursorAtEnd = true
+        focusedLine = .item(item.objectID)
+    }
+
+    private func focusAddRowAtEnd(_ id: UUID) {
+        focusCursorAtEnd = true
+        focusedLine = .add(id)
+    }
+
+    /// Saves the line. An empty name removes the item, the way a blank Notes line disappears.
+    private func finishItem(_ item: ShoppingItem) {
+        guard !item.isDeleted, item.managedObjectContext != nil else { return }
+        let raw = item.name ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            if focusedLine == .item(item.objectID) {
+                focusedLine = nil
+            }
+            deleteItem(item, animated: false)
+            return
+        }
+        let formatted = CookingAmount.reformatLine(trimmed)
+        if formatted != raw {
+            item.name = formatted
+            dataManager.save()
+        }
+        if focusedLine == .item(item.objectID) {
+            focusedLine = nil
+        }
+        // Names are alphabetical. Refresh once the caret has left this row.
+        loadItems()
+    }
+
+    /// Return keeps the name and moves to the empty add line.
+    /// Items have no stored order (the list sorts by name), so a blank row inserted
+    /// under this one would jump. The add line at the bottom is the new line.
+    private func submitItem(_ item: ShoppingItem) {
+        ensureOneAddRow()
+        if let addID = addRowIDs.last {
+            focusAddRowAtEnd(addID)
+        }
+        guard !item.isDeleted else { return }
+        let raw = item.name ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            deleteItem(item, animated: false)
+            return
+        }
+        let formatted = CookingAmount.reformatLine(trimmed)
+        if formatted != raw {
+            item.name = formatted
+            dataManager.save()
+            loadItems()
+        }
+    }
+
+    private func backspaceItem(_ item: ShoppingItem) {
+        if let above = itemAbove(item) {
+            focusItemAtEnd(above)
+        } else {
+            focusedLine = nil
+        }
+        deleteItem(item, animated: false)
+    }
+
+    private func backspaceAddRow(_ id: UUID) {
+        if let index = addRowIDs.firstIndex(of: id), index > 0 {
+            focusAddRowAtEnd(addRowIDs[index - 1])
+            return
+        }
+        if let last = allItems.last {
+            focusItemAtEnd(last)
+        }
+    }
+
+    private func openDetails(_ item: ShoppingItem) {
+        focusedLine = nil
+        editingItem = item
+    }
+
+    private func endAddRow(_ id: UUID) {
+        if focusedLine == .add(id) {
+            focusedLine = nil
+        }
+    }
+
     @State private var showDeleteSectionConfirm = false
 
     private var itemCountLabel: String {
@@ -963,26 +1097,10 @@ struct StoreSection: View {
                     quiet: quiet,
                     isSelecting: true,
                     isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
-                    onToggle: { toggleSelection(item) },
-                    onTap: { toggleSelection(item) }
+                    onToggle: { toggleSelection(item) }
                 )
             } else {
-                ShopListEntryRow(
-                    item: item,
-                    isChecked: item.isChecked,
-                    checkBorder: checkBorder,
-                    checkFill: checkFill,
-                    accentColor: accentColor,
-                    quiet: quiet,
-                    onToggle: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            dataManager.toggleShoppingItem(item)
-                            loadItems()
-                            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
-                        }
-                    },
-                    onTap: { editingItem = item }
-                )
+                editRow(item)
             }
             if quiet {
                 Rectangle()
@@ -996,6 +1114,27 @@ struct StoreSection: View {
         }
     }
 
+    private func editRow(_ item: ShoppingItem) -> some View {
+        let line = ShoppingLine.item(item.objectID)
+        return ShopListEntryRow(
+            item: item,
+            isChecked: item.isChecked,
+            checkBorder: checkBorder,
+            checkFill: checkFill,
+            accentColor: accentColor,
+            quiet: quiet,
+            onToggle: { toggleChecked(item) },
+            name: nameBinding(item),
+            isLineFocused: focusedLine == line,
+            cursorAtEnd: focusCursorAtEnd && focusedLine == line,
+            onLineFocus: { beginLine(line) },
+            onLineCommit: { finishItem(item) },
+            onLineSubmit: { submitItem(item) },
+            onLineBackspace: { backspaceItem(item) },
+            onDetails: { openDetails(item) }
+        )
+    }
+
     private func addField(_ rowID: UUID) -> some View {
         InlineAddItemRow(
             text: Binding(
@@ -1005,11 +1144,13 @@ struct StoreSection: View {
             checkBorder: checkBorder,
             accentColor: accentColor,
             quiet: quiet,
-            isFocused: focusedAddRowID == rowID,
-            onFocus: { focusedAddRowID = rowID },
-            onSubmit: { commitRow(rowID) }
+            isFocused: focusedLine == .add(rowID),
+            cursorAtEnd: focusCursorAtEnd && focusedLine == .add(rowID),
+            onFocus: { beginLine(.add(rowID)) },
+            onCommit: { endAddRow(rowID) },
+            onSubmit: { commitRow(rowID) },
+            onEmptyBackspace: { backspaceAddRow(rowID) }
         )
-        .focused($focusedAddRowID, equals: rowID)
     }
 
     var body: some View {
@@ -1184,20 +1325,20 @@ struct StoreSection: View {
         }
         .onChange(of: isSelectMode) { _, on in
             if on {
-                focusedAddRowID = nil
+                focusedLine = nil
                 isExpanded = true
             }
         }
-        .onChange(of: focusedAddRowID) { _, new in
+        .onChange(of: focusedLine) { _, new in
             if new != nil {
                 NotificationCenter.default.post(name: .shoppingItemFieldFocused, object: nil)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
-            let row = focusedAddRowID
+            let line = focusedLine
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                guard focusedAddRowID == row, row != nil, !shoppingTextInputIsFirstResponder() else { return }
-                focusedAddRowID = nil
+                guard focusedLine == line, line != nil, !shoppingTextInputIsFirstResponder() else { return }
+                focusedLine = nil
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CloudKitDataDidChange"))) { _ in
@@ -1381,6 +1522,252 @@ private extension View {
     }
 }
 
+// MARK: - Notes line field
+/// One visible line, like a row in Notes. A drag is not claimed here, so the page scroll
+/// view keeps vertical movement and the list keeps swipe-to-delete. Only a tap focuses.
+private struct NotesLineStyle: Equatable {
+    var quiet: Bool
+    var prominent: Bool
+    var isChecked: Bool
+    var placeholder: String
+}
+
+private final class NotesUITextField: UITextField, UIContextMenuInteractionDelegate {
+    var onEmptyBackspace: () -> Void = {}
+    var onDetails: (() -> Void)?
+    var suppressChange = false
+    var blockRefocus = false
+    var editGeneration = 0
+    var appliedStyle: NotesLineStyle?
+    private var detailsMenu: UIContextMenuInteraction?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    override var intrinsicContentSize: CGSize {
+        CGSize(width: UIView.noIntrinsicMetric, height: 22)
+    }
+
+    override func deleteBackward() {
+        let current = text ?? ""
+        if current.isEmpty, markedTextRange == nil {
+            onEmptyBackspace()
+            return
+        }
+        super.deleteBackward()
+    }
+
+    func setDetailsMenu(enabled: Bool) {
+        if enabled {
+            guard detailsMenu == nil else { return }
+            let menu = UIContextMenuInteraction(delegate: self)
+            detailsMenu = menu
+            addInteraction(menu)
+        } else if let menu = detailsMenu {
+            removeInteraction(menu)
+            detailsMenu = nil
+        }
+    }
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation location: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard !isFirstResponder, onDetails != nil else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            let details = UIAction(title: "Details", image: UIImage(systemName: "ellipsis.circle")) { _ in
+                self?.onDetails?()
+            }
+            return UIMenu(children: [details])
+        }
+    }
+
+    func apply(_ style: NotesLineStyle) {
+        guard appliedStyle != style else { return }
+        appliedStyle = style
+        suppressChange = true
+        defer { suppressChange = false }
+
+        let size: CGFloat = style.quiet ? 16 : 14
+        let weight: UIFont.Weight = style.quiet ? .regular : (style.prominent ? .bold : .medium)
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let design: UIFontDescriptor.SystemDesign = style.quiet ? .serif : .rounded
+        let font = base.fontDescriptor.withDesign(design).map { UIFont(descriptor: $0, size: size) } ?? base
+        let color: UIColor
+        if style.quiet {
+            color = UIColor(red: 0.12, green: 0.11, blue: 0.10, alpha: style.isChecked ? 0.45 : 1)
+        } else {
+            color = style.isChecked ? .secondaryLabel : .label
+        }
+        var attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color
+        ]
+        if style.isChecked {
+            attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+            attributes[.strikethroughColor] = color
+        }
+        let selection = selectedTextRange
+        let current = text
+        defaultTextAttributes = attributes
+        self.font = font
+        textColor = color
+        tintColor = UIColor(red: 0.878, green: 0.478, blue: 0.373, alpha: 1)
+        typingAttributes = attributes
+        text = current
+        if style.placeholder.isEmpty {
+            attributedPlaceholder = nil
+        } else {
+            attributedPlaceholder = NSAttributedString(
+                string: style.placeholder,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: color.withAlphaComponent(0.45)
+                ]
+            )
+        }
+        if let selection {
+            selectedTextRange = selection
+        }
+    }
+}
+
+private struct NotesLineField: UIViewRepresentable {
+    @Binding var text: String
+    var placeholder: String
+    var quiet: Bool
+    var prominent: Bool
+    var isChecked: Bool
+    var isFocused: Bool
+    var focusCursorAtEnd: Bool
+    var onFocus: () -> Void
+    var onCommit: () -> Void
+    var onSubmit: () -> Void
+    var onEmptyBackspace: () -> Void
+    var showsDetails: Bool
+    var onDetails: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> NotesUITextField {
+        let field = NotesUITextField(frame: .zero)
+        field.delegate = context.coordinator
+        field.borderStyle = .none
+        field.backgroundColor = .clear
+        field.returnKeyType = .default
+        field.autocorrectionType = .yes
+        field.autocapitalizationType = .sentences
+        field.clearButtonMode = .never
+        field.tintColor = UIColor(red: 0.878, green: 0.478, blue: 0.373, alpha: 1)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateUIView(_ field: NotesUITextField, context: Context) {
+        context.coordinator.parent = self
+        field.onEmptyBackspace = { [weak coordinator = context.coordinator] in
+            coordinator?.parent.onEmptyBackspace()
+        }
+        if showsDetails {
+            field.onDetails = onDetails
+        } else {
+            field.onDetails = nil
+        }
+        field.apply(NotesLineStyle(
+            quiet: quiet,
+            prominent: prominent,
+            isChecked: isChecked,
+            placeholder: placeholder
+        ))
+        if !field.isFirstResponder, (field.text ?? "") != text {
+            field.suppressChange = true
+            field.text = text
+            field.suppressChange = false
+        }
+        let placeAtEnd = focusCursorAtEnd
+        if isFocused, !field.isFirstResponder, !field.blockRefocus {
+            if field.becomeFirstResponder() {
+                if placeAtEnd {
+                    let end = field.endOfDocument
+                    field.selectedTextRange = field.textRange(from: end, to: end)
+                }
+            } else {
+                context.coordinator.retryFocus(field)
+            }
+        } else if !isFocused, field.isFirstResponder {
+            field.resignFirstResponder()
+        }
+        field.setDetailsMenu(enabled: showsDetails && !field.isFirstResponder)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: NotesUITextField, context: Context) -> CGSize? {
+        let proposed = proposal.width ?? 0
+        let width = proposed > 1 ? proposed : 280
+        let measured = uiView.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude))
+        return CGSize(width: width, height: max(22, measured.height))
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: NotesLineField
+
+        init(_ parent: NotesLineField) {
+            self.parent = parent
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField else { return }
+            field.editGeneration += 1
+            field.blockRefocus = false
+            parent.onFocus()
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField else { return }
+            let generation = field.editGeneration
+            field.blockRefocus = true
+            let commit = parent.onCommit
+            DispatchQueue.main.async { [weak field] in
+                if let field, field.editGeneration != generation { return }
+                commit()
+                if field?.editGeneration == generation {
+                    field?.blockRefocus = false
+                }
+            }
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            parent.onSubmit()
+            return false
+        }
+
+        func textFieldDidChangeSelection(_ textField: UITextField) {
+            guard let field = textField as? NotesUITextField, field.isFirstResponder, !field.suppressChange else { return }
+            let value = field.text ?? ""
+            guard parent.text != value else { return }
+            parent.text = value
+        }
+
+        func retryFocus(_ field: NotesUITextField) {
+            DispatchQueue.main.async { [weak self, weak field] in
+                guard let self, let field, self.parent.isFocused, !field.isFirstResponder, !field.blockRefocus else { return }
+                let placeAtEnd = self.parent.focusCursorAtEnd
+                if field.becomeFirstResponder(), placeAtEnd {
+                    let end = field.endOfDocument
+                    field.selectedTextRange = field.textRange(from: end, to: end)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Inline Add Item Row
 struct InlineAddItemRow: View {
     @Binding var text: String
@@ -1388,8 +1775,11 @@ struct InlineAddItemRow: View {
     let accentColor: Color
     var quiet: Bool = false
     let isFocused: Bool
+    var cursorAtEnd: Bool = false
     let onFocus: () -> Void
+    var onCommit: () -> Void = {}
     let onSubmit: () -> Void
+    var onEmptyBackspace: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1402,12 +1792,22 @@ struct InlineAddItemRow: View {
                         .foregroundStyle(quiet ? HomeQuiet.quiet : checkBorder.opacity(0.5))
                 )
 
-            TextField("Add item...", text: $text)
-                .font(quiet ? .system(size: 16, weight: .regular, design: .serif) : .system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(quiet ? HomeQuiet.ink : .primary)
-                .submitLabel(.return)
-                .onSubmit(onSubmit)
-                .onTapGesture { onFocus() }
+            NotesLineField(
+                text: $text,
+                placeholder: "Add item...",
+                quiet: quiet,
+                prominent: false,
+                isChecked: false,
+                isFocused: isFocused,
+                focusCursorAtEnd: cursorAtEnd,
+                onFocus: onFocus,
+                onCommit: onCommit,
+                onSubmit: onSubmit,
+                onEmptyBackspace: onEmptyBackspace,
+                showsDetails: false,
+                onDetails: {}
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
         .frame(minHeight: 32)
@@ -1652,7 +2052,14 @@ struct ShopListEntryRow: View {
     var isSelecting: Bool = false
     var isSelected: Bool = false
     let onToggle: () -> Void
-    let onTap: () -> Void
+    var name: Binding<String> = .constant("")
+    var isLineFocused: Bool = false
+    var cursorAtEnd: Bool = false
+    var onLineFocus: () -> Void = {}
+    var onLineCommit: () -> Void = {}
+    var onLineSubmit: () -> Void = {}
+    var onLineBackspace: () -> Void = {}
+    var onDetails: () -> Void = {}
 
     var body: some View {
         Group {
@@ -1671,7 +2078,7 @@ struct ShopListEntryRow: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     Button(action: onToggle) {
                         markCircle(
                             filled: isChecked,
@@ -1683,19 +2090,25 @@ struct ShopListEntryRow: View {
                     .fixedSize()
                     .layoutPriority(1)
 
-                    Button(action: onTap) {
-                        titleBlock
+                    VStack(alignment: .leading, spacing: 2) {
+                        NotesLineField(
+                            text: name,
+                            placeholder: "",
+                            quiet: quiet,
+                            prominent: !quiet,
+                            isChecked: isChecked,
+                            isFocused: isLineFocused,
+                            focusCursorAtEnd: cursorAtEnd,
+                            onFocus: onLineFocus,
+                            onCommit: onLineCommit,
+                            onSubmit: onLineSubmit,
+                            onEmptyBackspace: onLineBackspace,
+                            showsDetails: true,
+                            onDetails: onDetails
+                        )
+                        quantityLine
                     }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-
-                    Button(action: onTap) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(quiet ? HomeQuiet.quiet : Color.gray.opacity(0.25))
-                    }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -1711,12 +2124,27 @@ struct ShopListEntryRow: View {
                 .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.5))
                 .multilineTextAlignment(.leading)
 
-            if let quantity = item.quantity, !quantity.isEmpty {
-                Text(CookingAmount.reformatLine(quantity))
-                    .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
-                    .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
-            }
+            quantityText
+        }
+    }
+
+    @ViewBuilder
+    private var quantityLine: some View {
+        if item.quantity?.isEmpty == false {
+            quantityText
+                .contextMenu {
+                    Button("Details", systemImage: "ellipsis.circle", action: onDetails)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var quantityText: some View {
+        if let quantity = item.quantity, !quantity.isEmpty {
+            Text(CookingAmount.reformatLine(quantity))
+                .font(quiet ? .system(size: 12, weight: .regular) : .system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(quiet ? HomeQuiet.quiet : (isChecked ? Color.gray.opacity(0.3) : Color.gray))
+                .strikethrough(isChecked, color: quiet ? HomeQuiet.quiet : Color.gray.opacity(0.3))
         }
     }
 
