@@ -1321,22 +1321,19 @@ struct SwipeToDeleteRow<Content: View>: View {
                 .background(Color.cardWhite)
                 .offset(x: offset)
                 .gesture(
-                    DragGesture(minimumDistance: 20)
-                        .onChanged { value in
-                            let translation = value.translation.width
-                            // Only allow left swipe
+                    HorizontalSwipeGesture(
+                        onChanged: { translation in
                             if translation < 0 {
-                                offset = translation * 0.7  // dampened
+                                offset = translation * 0.7
                             } else if showDeleteButton {
                                 offset = deleteThreshold + translation * 0.3
                             } else {
                                 offset = translation * 0.1
                             }
-                        }
-                        .onEnded { value in
+                        },
+                        onEnded: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 if offset < fullSwipeThreshold {
-                                    // Full swipe — delete immediately
                                     offset = -500
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                                         onDelete()
@@ -1344,16 +1341,15 @@ struct SwipeToDeleteRow<Content: View>: View {
                                         showDeleteButton = false
                                     }
                                 } else if offset < deleteThreshold {
-                                    // Partial swipe — reveal button
                                     offset = deleteThreshold
                                     showDeleteButton = true
                                 } else {
-                                    // Not enough — snap back
                                     offset = 0
                                     showDeleteButton = false
                                 }
                             }
                         }
+                    )
                 )
                 .onTapGesture {
                     if showDeleteButton {
@@ -1365,6 +1361,61 @@ struct SwipeToDeleteRow<Content: View>: View {
                 }
         }
         .clipped()
+    }
+}
+
+/// Claims a row drag only when the finger is clearly moving sideways.
+/// A vertical move fails this recognizer so the shopping list can scroll.
+private struct HorizontalSwipeGesture: UIGestureRecognizerRepresentable {
+    var onChanged: (CGFloat) -> Void
+    var onEnded: () -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator(onChanged: onChanged, onEnded: onEnded)
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        pan.cancelsTouchesInView = true
+        return pan
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.delegate = context.coordinator
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        let travel = recognizer.translation(in: recognizer.view).x
+        switch recognizer.state {
+        case .changed:
+            context.coordinator.onChanged(travel)
+        case .ended, .cancelled:
+            context.coordinator.onEnded()
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onChanged: (CGFloat) -> Void
+        var onEnded: () -> Void
+
+        init(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping () -> Void) {
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+            let travel = pan.translation(in: pan.view)
+            let speed = pan.velocity(in: pan.view)
+            let horizontal = abs(travel.x) > 1 ? travel.x : speed.x
+            let vertical = abs(travel.y) > 1 ? travel.y : speed.y
+            return abs(horizontal) > abs(vertical) * 1.5
+        }
     }
 }
 
