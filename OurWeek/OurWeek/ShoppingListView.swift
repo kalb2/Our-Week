@@ -375,6 +375,7 @@ struct ShoppingListBoard: View {
             .padding(.top, quietToolbar ? 16 : 24)
             .padding(.bottom, (reservesTabBarSpace ? 120 : 0) + (selectionBarVisible ? 72 : 0))
         }
+        .background(ParentScrollDirectionLock())
         .onAppear {
             loadLists()
             publishSelectChrome()
@@ -746,10 +747,8 @@ struct StoreSection: View {
     @State private var addRowIDs: [UUID] = []
     @FocusState private var focusedAddRowID: UUID?
     @State private var editingItem: ShoppingItem?
-
-    // Drag reorder state
-    @State private var draggedItemID: NSManagedObjectID?
-    @State private var dragOffset: CGFloat = 0
+    /// Height of the non-scrolling item list, so the page scroll view can move.
+    @State private var itemsHeight: CGFloat = 0
 
     private func ensureOneAddRow() {
         if addRowIDs.isEmpty {
@@ -856,21 +855,6 @@ struct StoreSection: View {
         )
     }
     
-    private func moveItem(_ item: ShoppingItem, dragOffset: CGFloat) {
-        guard let fromIndex = allItems.firstIndex(where: { $0.objectID == item.objectID }) else { return }
-        let rowHeight: CGFloat = 50
-        let moveBy = Int(round(dragOffset / rowHeight))
-        let toIndex = max(0, min(allItems.count - 1, fromIndex + moveBy))
-
-        if toIndex != fromIndex {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                let moved = allItems.remove(at: fromIndex)
-                allItems.insert(moved, at: toIndex)
-            }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-    }
-
     @State private var showDeleteSectionConfirm = false
 
     private var itemCountLabel: String {
@@ -911,6 +895,121 @@ struct StoreSection: View {
         }
         .disabled(!enabled)
         .buttonStyle(.plain)
+    }
+
+    private var itemListHeight: CGFloat {
+        if itemsHeight > 1 { return itemsHeight }
+        let extras = isSelectMode ? 0 : max(addRowIDs.count, 1)
+        return CGFloat(max(allItems.count + extras, 1)) * 64
+    }
+
+    /// Native rows. The list does not scroll; the Home page (or Shop page) does.
+    private var itemList: some View {
+        List {
+            ForEach(allItems, id: \.objectID) { item in
+                if isSelectMode {
+                    shoppingEntry(item)
+                        .shoppingPlainRow()
+                } else {
+                    shoppingEntry(item)
+                        .shoppingPlainRow()
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteItem(item)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            if let haveIt = haveItAction(for: item) {
+                                Button(action: haveIt) {
+                                    Label("Have it", systemImage: "cabinet")
+                                }
+                                .tint(Color.terra500)
+                            }
+                        }
+                }
+            }
+            if !isSelectMode {
+                ForEach(addRowIDs, id: \.self) { rowID in
+                    addField(rowID)
+                        .shoppingPlainRow()
+                }
+            }
+        }
+        .listStyle(.plain)
+        .listRowSpacing(0)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+        .scrollIndicators(.hidden)
+        .contentMargins(.vertical, 0, for: .scrollContent)
+        .environment(\.defaultMinListRowHeight, 1)
+        .frame(height: itemListHeight)
+        .background {
+            StoreListHeightReader { newValue in
+                guard newValue > 1, abs(newValue - itemsHeight) > 0.5 else { return }
+                itemsHeight = newValue
+            }
+        }
+    }
+
+    private func shoppingEntry(_ item: ShoppingItem) -> some View {
+        VStack(spacing: 0) {
+            if isSelectMode {
+                ShopListEntryRow(
+                    item: item,
+                    isChecked: item.isChecked,
+                    checkBorder: checkBorder,
+                    checkFill: checkFill,
+                    accentColor: accentColor,
+                    quiet: quiet,
+                    isSelecting: true,
+                    isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
+                    onToggle: { toggleSelection(item) },
+                    onTap: { toggleSelection(item) }
+                )
+            } else {
+                ShopListEntryRow(
+                    item: item,
+                    isChecked: item.isChecked,
+                    checkBorder: checkBorder,
+                    checkFill: checkFill,
+                    accentColor: accentColor,
+                    quiet: quiet,
+                    onToggle: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            dataManager.toggleShoppingItem(item)
+                            loadItems()
+                            NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
+                        }
+                    },
+                    onTap: { editingItem = item }
+                )
+            }
+            if quiet {
+                Rectangle()
+                    .fill(HomeQuiet.rule)
+                    .frame(height: 1)
+            } else {
+                Divider()
+                    .background(dividerColor)
+                    .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func addField(_ rowID: UUID) -> some View {
+        InlineAddItemRow(
+            text: Binding(
+                get: { newItemTexts[rowID] ?? "" },
+                set: { newItemTexts[rowID] = $0 }
+            ),
+            checkBorder: checkBorder,
+            accentColor: accentColor,
+            quiet: quiet,
+            isFocused: focusedAddRowID == rowID,
+            onFocus: { focusedAddRowID = rowID },
+            onSubmit: { commitRow(rowID) }
+        )
+        .focused($focusedAddRowID, equals: rowID)
     }
 
     var body: some View {
@@ -1074,111 +1173,7 @@ struct StoreSection: View {
             }
 
             if isExpanded && !isReorderMode {
-                // Existing items. Select mode skips the swipe row so its clip
-                // cannot cut the circles, and a tap toggles the selection.
-                ForEach(allItems, id: \.objectID) { item in
-                    VStack(spacing: 0) {
-                        if isSelectMode {
-                            ShopListEntryRow(
-                                item: item,
-                                isChecked: item.isChecked,
-                                checkBorder: checkBorder,
-                                checkFill: checkFill,
-                                accentColor: accentColor,
-                                quiet: quiet,
-                                isSelecting: true,
-                                isSelected: item.id.map { selectedIDs.wrappedValue.contains($0) } ?? false,
-                                onToggle: { toggleSelection(item) },
-                                onTap: { toggleSelection(item) }
-                            )
-                        } else {
-                            SwipeToDeleteRow(
-                                onDelete: { deleteItem(item) },
-                                onHaveIt: haveItAction(for: item),
-                                accentColor: accentColor
-                            ) {
-                                ShopListEntryRow(
-                                    item: item,
-                                    isChecked: item.isChecked,
-                                    checkBorder: checkBorder,
-                                    checkFill: checkFill,
-                                    accentColor: accentColor,
-                                    quiet: quiet,
-                                    onToggle: {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                        dataManager.toggleShoppingItem(item)
-                                        loadItems()
-                                        NotificationCenter.default.post(name: NSNotification.Name("CloudKitDataDidChange"), object: nil)
-                                        }
-                                    },
-                                    onTap: {
-                                        editingItem = item
-                                    }
-                                )
-                            }
-                        }
-
-                        if quiet {
-                            Rectangle()
-                                .fill(HomeQuiet.rule)
-                                .frame(height: 1)
-                        } else {
-                            Divider()
-                                .background(dividerColor)
-                                .padding(.vertical, 2)
-                        }
-                    }
-                    // Drag reorder — item follows finger, reorder on drop
-                    .offset(y: !isSelectMode && draggedItemID == item.objectID ? dragOffset : 0)
-                    .zIndex(!isSelectMode && draggedItemID == item.objectID ? 100 : 0)
-                    .scaleEffect(!isSelectMode && draggedItemID == item.objectID ? 1.03 : 1)
-                    .shadow(
-                        color: !isSelectMode && draggedItemID == item.objectID ? .black.opacity(0.1) : .clear,
-                        radius: 4, y: 2
-                    )
-                    .modifier(ShoppingItemDragModifier(
-                        enabled: !isSelectMode,
-                        onChanged: { value in
-                            switch value {
-                            case .second(true, let drag):
-                                if let drag = drag {
-                                    if draggedItemID == nil {
-                                        draggedItemID = item.objectID
-                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    }
-                                    dragOffset = drag.translation.height
-                                }
-                            default: break
-                            }
-                        },
-                        onEnded: {
-                            moveItem(item, dragOffset: dragOffset)
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                dragOffset = 0
-                                draggedItemID = nil
-                            }
-                        }
-                    ))
-                }
-
-                // Inline add-item rows stay out of the way while selecting.
-                if !isSelectMode {
-                ForEach(addRowIDs, id: \.self) { rowID in
-                    InlineAddItemRow(
-                        text: Binding(
-                            get: { newItemTexts[rowID] ?? "" },
-                            set: { newItemTexts[rowID] = $0 }
-                        ),
-                        checkBorder: checkBorder,
-                        accentColor: accentColor,
-                        quiet: quiet,
-                        isFocused: focusedAddRowID == rowID,
-                        onFocus: { focusedAddRowID = rowID },
-                        onSubmit: { commitRow(rowID) }
-                    )
-                    .focused($focusedAddRowID, equals: rowID)
-                }
-                }
+                itemList
             }
         }
         .padding(quiet ? 16 : 20)
@@ -1241,181 +1236,132 @@ struct StoreSection: View {
     }
 }
 
-private struct ShoppingItemDragModifier: ViewModifier {
-    var enabled: Bool
-    var onChanged: (SequenceGesture<LongPressGesture, DragGesture>.Value) -> Void
-    var onEnded: () -> Void
+/// Reads the store list's table height so the surrounding page can scroll.
+private struct StoreListHeightReader: UIViewRepresentable {
+    var onChange: (CGFloat) -> Void
 
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if enabled {
-            content.gesture(
-                LongPressGesture(minimumDuration: 0.35)
-                    .sequenced(before: DragGesture())
-                    .onChanged(onChanged)
-                    .onEnded { _ in onEnded() }
-            )
-        } else {
-            content
-        }
+    func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
     }
-}
 
-// MARK: - Swipe To Delete Row
-struct SwipeToDeleteRow<Content: View>: View {
-    let onDelete: () -> Void
-    var onHaveIt: (() -> Void)? = nil
-    let accentColor: Color
-    @ViewBuilder let content: () -> Content
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onChange = onChange
+        context.coordinator.scheduleSearch(from: uiView)
+    }
 
-    @State private var offset: CGFloat = 0
-    @State private var showDeleteButton = false
-    private var deleteThreshold: CGFloat { onHaveIt == nil ? -70 : -156 }
-    private var fullSwipeThreshold: CGFloat { onHaveIt == nil ? -180 : -260 }
+    final class Coordinator: NSObject {
+        var onChange: (CGFloat) -> Void
+        private weak var observed: UITableView?
+        private var observation: NSKeyValueObservation?
+        private var waiting = false
 
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            // Quiet delete control, revealed by the swipe
-            HStack(spacing: 8) {
-                Spacer()
-                if let onHaveIt {
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3)) {
-                            onHaveIt()
-                            offset = 0
-                            showDeleteButton = false
-                        }
-                    }) {
-                        Text("Have it")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundStyle(HomeQuiet.ink)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.white)
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
+        init(onChange: @escaping (CGFloat) -> Void) {
+            self.onChange = onChange
+        }
+
+        func scheduleSearch(from view: UIView) {
+            guard !waiting else { return }
+            waiting = true
+            search(from: view, attempt: 0)
+        }
+
+        func search(from view: UIView, attempt: Int) {
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self else { return }
+                if let view, let table = Self.nearestTable(from: view) {
+                    self.waiting = false
+                    self.attach(table)
+                    return
                 }
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) {
-                        onDelete()
-                        offset = 0
-                        showDeleteButton = false
-                    }
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundStyle(Color.terra600)
-                        .frame(width: 44, height: 44)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
+                guard attempt < 6, let view else {
+                    self.waiting = false
+                    return
                 }
-                .buttonStyle(.plain)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.search(from: view, attempt: attempt + 1)
+                }
             }
-            .opacity(offset < -10 ? 1 : 0)
-
-            // Content
-            content()
-                .background(Color.cardWhite)
-                .offset(x: offset)
-                .gesture(
-                    HorizontalSwipeGesture(
-                        onChanged: { translation in
-                            if translation < 0 {
-                                offset = translation * 0.7
-                            } else if showDeleteButton {
-                                offset = deleteThreshold + translation * 0.3
-                            } else {
-                                offset = translation * 0.1
-                            }
-                        },
-                        onEnded: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                if offset < fullSwipeThreshold {
-                                    offset = -500
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                        onDelete()
-                                        offset = 0
-                                        showDeleteButton = false
-                                    }
-                                } else if offset < deleteThreshold {
-                                    offset = deleteThreshold
-                                    showDeleteButton = true
-                                } else {
-                                    offset = 0
-                                    showDeleteButton = false
-                                }
-                            }
-                        }
-                    )
-                )
-                .onTapGesture {
-                    if showDeleteButton {
-                        withAnimation(.spring(response: 0.3)) {
-                            offset = 0
-                            showDeleteButton = false
-                        }
-                    }
-                }
         }
-        .clipped()
+
+        func attach(_ table: UITableView) {
+            table.isScrollEnabled = false
+            if observed === table {
+                report(table)
+                return
+            }
+            observed = table
+            observation = table.observe(\.contentSize, options: [.initial, .new]) { [weak self] table, _ in
+                DispatchQueue.main.async {
+                    self?.report(table)
+                }
+            }
+        }
+
+        func report(_ table: UITableView) {
+            let height = table.contentSize.height
+            guard height > 1 else { return }
+            onChange(height)
+        }
+
+        static func nearestTable(from view: UIView) -> UITableView? {
+            var node: UIView? = view
+            for _ in 0..<8 {
+                guard let current = node else { return nil }
+                if let table = firstTable(in: current, depth: 8) {
+                    return table
+                }
+                node = current.superview
+            }
+            return nil
+        }
+
+        static func firstTable(in view: UIView, depth: Int) -> UITableView? {
+            if let table = view as? UITableView { return table }
+            guard depth > 0 else { return nil }
+            for subview in view.subviews {
+                if let table = firstTable(in: subview, depth: depth - 1) {
+                    return table
+                }
+            }
+            return nil
+        }
     }
 }
 
-/// Claims a row drag only when the finger is clearly moving sideways.
-/// A vertical move fails this recognizer so the shopping list can scroll.
-private struct HorizontalSwipeGesture: UIGestureRecognizerRepresentable {
-    var onChanged: (CGFloat) -> Void
-    var onEnded: () -> Void
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator(onChanged: onChanged, onEnded: onEnded)
+/// Lets the page scroll view keep vertical drags and leave sideways swipes to the list.
+private struct ParentScrollDirectionLock: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
     }
 
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer()
-        pan.delegate = context.coordinator
-        pan.cancelsTouchesInView = true
-        return pan
-    }
-
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        recognizer.delegate = context.coordinator
-        context.coordinator.onChanged = onChanged
-        context.coordinator.onEnded = onEnded
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        let travel = recognizer.translation(in: recognizer.view).x
-        switch recognizer.state {
-        case .changed:
-            context.coordinator.onChanged(travel)
-        case .ended, .cancelled:
-            context.coordinator.onEnded()
-        default:
-            break
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var node: UIView? = uiView.superview
+            while let current = node {
+                if let scroll = current as? UIScrollView, !(current is UITableView) {
+                    scroll.isDirectionalLockEnabled = true
+                    break
+                }
+                node = current.superview
+            }
         }
     }
+}
 
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        var onChanged: (CGFloat) -> Void
-        var onEnded: () -> Void
-
-        init(onChanged: @escaping (CGFloat) -> Void, onEnded: @escaping () -> Void) {
-            self.onChanged = onChanged
-            self.onEnded = onEnded
-        }
-
-        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
-            let travel = pan.translation(in: pan.view)
-            let speed = pan.velocity(in: pan.view)
-            let horizontal = abs(travel.x) > 1 ? travel.x : speed.x
-            let vertical = abs(travel.y) > 1 ? travel.y : speed.y
-            return abs(horizontal) > abs(vertical) * 1.5
-        }
+private extension View {
+    func shoppingPlainRow() -> some View {
+        listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 
