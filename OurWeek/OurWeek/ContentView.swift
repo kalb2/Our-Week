@@ -144,8 +144,7 @@ struct ContentView: View {
                 onAddTodo: {
                     showAddSheet = false
                     selectedTab = .home
-                    UserDefaults.standard.set(true, forKey: "homeShowDayTodos")
-                    UserDefaults.standard.set(TodoTask.dayKey(for: Date()), forKey: "homeFocusDay")
+                    UserDefaults.standard.set("", forKey: "homeFocusDay")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         triggerAddTodo = true
                     }
@@ -332,6 +331,9 @@ struct HomeView: View {
                             ShoppingListBoard(quietToolbar: true, showsSectionLabel: true)
                                 .padding(.bottom, 24)
                         }
+                        TodoSection(triggerAdd: $triggerAddTodo)
+                            .id("home-todo-list")
+                            .padding(.bottom, 24)
                     } else if let focusDate, showDayGoals {
                         TodayGoalsSection(day: focusDate)
                             .padding(.bottom, 24)
@@ -344,6 +346,10 @@ struct HomeView: View {
             .onAppear(perform: migrateSavedSurface)
             .onChange(of: homeFocusDay) { _, _ in
                 KeyboardDismiss.resign()
+            }
+            .onChange(of: triggerAddTodo) { _, shouldAdd in
+                guard shouldAdd, focusDate == nil else { return }
+                reveal("home-todo-list", proxy: proxy)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
                 let overlap = keyboardOverlapHeight(from: note)
@@ -1384,9 +1390,8 @@ struct WeeklyCalendarCard: View {
                 ensureFocusMeals()
             }
             .onChange(of: triggerAddTodo.wrappedValue) { _, armed in
-                guard armed else { return }
+                guard armed, focusDate != nil, showDayTodos else { return }
                 triggerAddTodo.wrappedValue = false
-                guard focusDate != nil, showDayTodos else { return }
                 focusedField = .todayTodo
             }
             .onDisappear {
@@ -3484,11 +3489,13 @@ struct TodoItem: View {
                     state = true
                 }
                 .onChanged { value in
+                    let travel = value.translation
+                    guard abs(travel.width) > abs(travel.height) * 1.5 else { return }
                     if onDelete != nil {
-                        if value.translation.width < 0 {
-                            offset = max(value.translation.width, -100)
+                        if travel.width < 0 {
+                            offset = max(travel.width, -100)
                         } else if offset < 0 {
-                            offset = min(0, offset + value.translation.width)
+                            offset = min(0, offset + travel.width)
                         }
                     }
                 }
