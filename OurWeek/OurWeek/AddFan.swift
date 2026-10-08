@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreData
 import EventKit
 import EventKitUI
 import UniformTypeIdentifiers
