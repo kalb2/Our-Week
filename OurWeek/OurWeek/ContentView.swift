@@ -72,9 +72,14 @@ extension View {
 struct ContentView: View {
     @State private var selectedTab: Tab = .home
     @State private var showSharingSettings = false
-    @State private var showAddSheet = false
+    @State private var addFanOpen = false
     @State private var showAddMealSheet = false
+    @State private var mealAddDate = Date()
     @State private var showAddEventSheet = false
+    @State private var showQuickTodo = false
+    @State private var showQuickShopping = false
+    @State private var showRecipeAdd = false
+    @State private var eventEditor: EventEditorRequest?
     @State private var triggerAddTodo = false
     @State private var isKeyboardVisible = false
     @State private var shoppingSelectChrome = ShoppingSelectChrome()
@@ -82,6 +87,7 @@ struct ContentView: View {
     @Environment(RemindersSync.self) private var remindersSync
     @Environment(CalendarSyncManager.self) private var calendarSyncManager
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -94,8 +100,25 @@ struct ContentView: View {
                 case .goals:   GoalsView()
                 }
             }
+            if addFanOpen {
+                Color.black.opacity(0.32)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture { setFan(false) }
+                    .accessibilityElement()
+                    .accessibilityLabel("Close add menu")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { setFan(false) }
+                    .accessibilityAction(.escape) { setFan(false) }
+            }
             if !isKeyboardVisible {
                 VStack(spacing: 8) {
+                    if addFanOpen {
+                        AddFanChips { action in
+                            performAdd(action)
+                        }
+                        .transition(.opacity)
+                    }
                     if shoppingSelectChrome.count > 0 {
                         ShoppingSelectActionBar(
                             count: shoppingSelectChrome.count,
@@ -106,9 +129,12 @@ struct ContentView: View {
                         )
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    MainTabBar(selectedTab: $selectedTab, onAddTapped: {
-                        showAddSheet = true
-                    })
+                    MainTabBar(
+                        selectedTab: $selectedTab,
+                        isAddOpen: addFanOpen,
+                        onAddTapped: { setFan(!addFanOpen) },
+                        onTabTapped: { setFan(false) }
+                    )
                 }
                 .animation(.spring(response: 0.32, dampingFraction: 0.86), value: shoppingSelectChrome.count)
             }
@@ -117,7 +143,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) {
                 isKeyboardVisible = true
+                addFanOpen = false
             }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            if addFanOpen { setFan(false) }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) {
@@ -127,51 +157,49 @@ struct ContentView: View {
         .sheet(isPresented: $showSharingSettings) {
             SharingSettingsView()
         }
-        .sheet(isPresented: $showAddSheet) {
-            AddActionSheet(
-                onAddEvent: {
-                    showAddSheet = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showAddEventSheet = true
-                    }
-                },
-                onAddMeal: {
-                    showAddSheet = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showAddMealSheet = true
-                    }
-                },
-                onAddTodo: {
-                    showAddSheet = false
-                    selectedTab = .home
-                    UserDefaults.standard.set("", forKey: "homeFocusDay")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        triggerAddTodo = true
-                    }
-                },
-                onAddShopping: {
-                    showAddSheet = false
-                    selectedTab = .home
-                }
-            )
-                .presentationDetents([.medium])
+        .sheet(isPresented: $showRecipeAdd) {
+            QuickRecipeAddHost()
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
         }
-        .sheet(isPresented: $showAddMealSheet) {
+        .sheet(isPresented: $showAddMealSheet, onDismiss: {
+            NotificationCenter.default.post(name: .ourWeekPlansChanged, object: nil)
+        }) {
             AddMealSheet(
-                date: Date(),
+                date: mealAddDate,
                 dataManager: dataManager
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showAddEventSheet) {
+        .sheet(isPresented: $showQuickTodo) {
+            QuickTodoAddSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+        }
+        .sheet(isPresented: $showQuickShopping) {
+            QuickShoppingAddSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
+        }
+        .sheet(isPresented: $showAddEventSheet, onDismiss: {
+            NotificationCenter.default.post(name: .ourWeekPlansChanged, object: nil)
+        }) {
             AddEventSheet(
                 date: Date(),
                 dataManager: dataManager
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(item: $eventEditor) { request in
+            SystemEventEditor(request: request) {
+                eventEditor = nil
+            }
+            .ignoresSafeArea()
         }
         .preferredColorScheme(.light)
         .onAppear {
@@ -243,6 +271,44 @@ struct ContentView: View {
     private func openSharedImportIfNeeded() {
         if ShareImportStore.hasPending {
             selectedTab = .meals
+        }
+    }
+
+    private func setFan(_ open: Bool) {
+        guard addFanOpen != open else { return }
+        if open {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+        let animation: Animation = reduceMotion
+            ? .easeOut(duration: 0.15)
+            : .spring(response: 0.42, dampingFraction: 0.78)
+        withAnimation(animation) {
+            addFanOpen = open
+        }
+    }
+
+    private func performAdd(_ action: AddFanAction) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        setFan(false)
+        switch action {
+        case .recipe:
+            showRecipeAdd = true
+        case .meal:
+            mealAddDate = nextOpenDinnerDay(using: dataManager)
+            showAddMealSheet = true
+        case .todo:
+            showQuickTodo = true
+        case .shopping:
+            showQuickShopping = true
+        case .event:
+            Task {
+                let granted = await calendarSyncManager.requestAccess()
+                if granted {
+                    eventEditor = await AddFanEventPrep.makeRequest(sync: calendarSyncManager)
+                } else {
+                    showAddEventSheet = true
+                }
+            }
         }
     }
 }
@@ -1347,6 +1413,10 @@ struct WeeklyCalendarCard: View {
                 refreshAppleEvents()
             }
             .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                refreshAppleEvents()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .ourWeekPlansChanged)) { _ in
+                loadData()
                 refreshAppleEvents()
             }
             .sheet(isPresented: $showCalendarSettings, onDismiss: { refreshAppleEvents() }) {
@@ -4552,19 +4622,28 @@ enum Tab: String, CaseIterable {
 
 struct MainTabBar: View {
     @Binding var selectedTab: Tab
+    var isAddOpen: Bool = false
     var onAddTapped: () -> Void = {}
+    var onTabTapped: () -> Void = {}
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
             // Home
             TabItem(icon: "house.fill", label: "Home",
                     isSelected: selectedTab == .home)
-                .onTapGesture { selectedTab = .home }
+                .onTapGesture {
+                    selectedTab = .home
+                    onTabTapped()
+                }
 
             // Calendar
             TabItem(icon: "calendar", label: "Calendar",
                     isSelected: selectedTab == .calendar)
-                .onTapGesture { selectedTab = .calendar }
+                .onTapGesture {
+                    selectedTab = .calendar
+                    onTabTapped()
+                }
 
             // Center FAB
             Button(action: { onAddTapped() }) {
@@ -4576,19 +4655,28 @@ struct MainTabBar: View {
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(.white)
+                        .rotationEffect(.degrees(isAddOpen && !reduceMotion ? 45 : 0))
+                        .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.74), value: isAddOpen)
                 }
             }
             .offset(y: -10)
             .frame(maxWidth: .infinity)
+            .accessibilityLabel(isAddOpen ? "Close" : "Add")
 
             // Meals
             TabItem(icon: "fork.knife", label: "Meals",
                     isSelected: selectedTab == .meals)
-                .onTapGesture { selectedTab = .meals }
+                .onTapGesture {
+                    selectedTab = .meals
+                    onTabTapped()
+                }
 
             TabItem(icon: "target", label: "Goals",
                     isSelected: selectedTab == .goals)
-                .onTapGesture { selectedTab = .goals }
+                .onTapGesture {
+                    selectedTab = .goals
+                    onTabTapped()
+                }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
@@ -4625,113 +4713,6 @@ struct TabItem: View {
                 .foregroundStyle(isSelected ? Color.terra600 : HomeQuiet.quiet)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Add Action Sheet
-struct AddActionSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    var onAddEvent: () -> Void = {}
-    var onAddMeal: () -> Void = {}
-    var onAddTodo: () -> Void = {}
-    var onAddShopping: () -> Void = {}
-
-    var body: some View {
-        VStack(spacing: 24) {
-            // Title
-            Text("QUICK ADD")
-                .font(.system(size: 11, weight: .regular))
-                .tracking(1.5)
-                .foregroundStyle(Color.terra500)
-                .padding(.top, 8)
-
-            Text("What would you like to add?")
-                .font(.system(size: 22, weight: .regular, design: .serif))
-
-            // 2×2 Grid of options
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 16),
-                GridItem(.flexible(), spacing: 16)
-            ], spacing: 16) {
-                AddOptionButton(
-                    icon: "calendar.badge.plus",
-                    label: "Event",
-                    subtitle: "Add to calendar"
-                ) {
-                    dismiss()
-                    onAddEvent()
-                }
-
-                AddOptionButton(
-                    icon: "fork.knife",
-                    label: "Meal",
-                    subtitle: "Plan a meal"
-                ) {
-                    dismiss()
-                    onAddMeal()
-                }
-
-                AddOptionButton(
-                    icon: "checkmark.circle",
-                    label: "To-Do",
-                    subtitle: "Add a task"
-                ) {
-                    dismiss()
-                    onAddTodo()
-                }
-
-                AddOptionButton(
-                    icon: "cart",
-                    label: "Shopping",
-                    subtitle: "Add to list"
-                ) {
-                    dismiss()
-                    onAddShopping()
-                }
-            }
-            .padding(.horizontal, 8)
-
-            // Cancel
-            Button(action: { dismiss() }) {
-                Text("Cancel")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(HomeQuiet.quiet)
-            }
-            .padding(.bottom, 8)
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 16)
-    }
-}
-
-struct AddOptionButton: View {
-    let icon: String
-    let label: String
-    let subtitle: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .regular))
-                    .foregroundStyle(HomeQuiet.ink)
-                    .frame(width: 36, height: 36)
-
-                Text(label)
-                    .font(.system(size: 18, weight: .regular, design: .serif))
-                    .foregroundStyle(HomeQuiet.ink)
-
-                Text(subtitle.uppercased())
-                    .font(.system(size: 10, weight: .regular))
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .tracking(0.8)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .homeQuietCard()
-        }
-        .buttonStyle(.plain)
     }
 }
 

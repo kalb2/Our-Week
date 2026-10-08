@@ -519,17 +519,6 @@ struct RecipeLibraryView: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-            } else {
-                Button(action: { showAddEntry = true }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(HomeQuiet.ink)
-                        .frame(width: 44, height: 44)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
             }
 
             // Profile avatar

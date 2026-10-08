@@ -9,7 +9,6 @@ struct CalendarView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     @State private var monthOffset: Int = 0
-    @State private var showAddEventSheet = false
     
     @State private var events: [CalendarEvent] = []
     @State private var meals: [MealPlan] = []
@@ -138,13 +137,10 @@ struct CalendarView: View {
                 refreshAppleEvents()
                 loadMonthDots()
             }
-            .sheet(isPresented: $showAddEventSheet, onDismiss: {
+            .onReceive(NotificationCenter.default.publisher(for: .ourWeekPlansChanged)) { _ in
                 loadData()
+                refreshAppleEvents()
                 loadMonthDots()
-            }) {
-                AddEventSheet(date: selectedDate, dataManager: dataManager)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingTodo) { todo in
                 EditTodoSheet(
@@ -202,19 +198,6 @@ struct CalendarView: View {
                     .background(Color.white)
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            
-            Button {
-                showAddEventSheet = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(HomeQuiet.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
