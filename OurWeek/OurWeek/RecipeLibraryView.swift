@@ -171,8 +171,9 @@ struct RecipeLibraryView: View {
                 addRoute = route
                 showAddEntry = false
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
         }
         .sheet(isPresented: $showAddRecipe, onDismiss: {
             manualSeedName = ""
@@ -400,9 +401,9 @@ struct RecipeLibraryView: View {
 
     private func openAddRoute(_ route: AddRecipeRoute) {
         switch route {
-        case .link:
+        case .link(let url):
             urlFailure = nil
-            urlImportSeed = ""
+            urlImportSeed = url
             urlImportToken = UUID()
             showURLImport = true
         case .paste:

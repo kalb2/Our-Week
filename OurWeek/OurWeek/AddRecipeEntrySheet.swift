@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 enum AddRecipeRoute {
-    case link
+    /// `url` is a clipboard link to drop into the existing importer. Empty opens it blank.
+    case link(url: String)
     case paste
     case photo
     case manual
@@ -12,49 +14,195 @@ enum AddRecipeRoute {
 struct AddRecipeEntrySheet: View {
     var onSelect: (AddRecipeRoute) -> Void
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var copiedLink: URL?
+    @State private var showPack = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Add a recipe")
-                .font(.system(size: 22, weight: .regular, design: .serif))
-                .foregroundStyle(HomeQuiet.ink)
-                .frame(maxWidth: .infinity)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Add a recipe")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(maxWidth: .infinity)
 
-            LazyVGrid(columns: columns, spacing: 12) {
-                tile("Link", icon: "link", route: .link)
-                tile("Paste text", icon: "doc.on.clipboard", route: .paste)
-                tile("Photo", icon: "camera", route: .photo)
-                tile("Manual", icon: "square.and.pencil", route: .manual)
-                tile("Pack", icon: "square.stack.3d.up", route: .pack)
+                linkHero
+
+                if let copiedLink {
+                    copiedLinkRow(copiedLink)
+                }
+
+                VStack(spacing: 0) {
+                    option(
+                        "Snap a photo",
+                        subtitle: "A cookbook page or recipe card, read with AI.",
+                        icon: "camera",
+                        route: .photo
+                    )
+                    rowDivider
+                    option(
+                        "Paste recipe text",
+                        subtitle: "From a note, a message, or a web page.",
+                        icon: "doc.plaintext",
+                        route: .paste
+                    )
+                    rowDivider
+                    option(
+                        "Write it yourself",
+                        subtitle: "Type the title, ingredients, and steps.",
+                        icon: "square.and.pencil",
+                        route: .manual
+                    )
+                }
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+
+                if showPack {
+                    option(
+                        "Import a recipe pack",
+                        subtitle: "A JSON file of recipes saved for Our Week.",
+                        icon: "doc",
+                        route: .pack
+                    )
+                    .padding(.horizontal, 4)
+                } else {
+                    Button {
+                        if reduceMotion {
+                            showPack = true
+                        } else {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showPack = true
+                            }
+                        }
+                    } label: {
+                        Text("More")
+                            .font(.system(size: 14, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("More ways to add a recipe")
+                }
             }
+            .padding(20)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.bgBase)
+        .task { await loadCopiedLink() }
     }
 
-    private func tile(_ title: String, icon: String, route: AddRecipeRoute) -> some View {
+    private var linkHero: some View {
+        Button {
+            onSelect(.link(url: ""))
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: "link")
+                    .font(.system(size: 18, weight: .regular))
+                Text("Import from a link")
+                    .font(.system(size: 22, weight: .regular, design: .serif))
+                Text("Paste a TikTok, Instagram, YouTube, or recipe site link and we'll build the recipe.")
+                    .font(.system(size: 14, weight: .regular, design: .serif))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(.white)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.terra500)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Import from a link")
+        .accessibilityHint("Paste a TikTok, Instagram, YouTube, or recipe site link and we'll build the recipe.")
+    }
+
+    private func copiedLinkRow(_ url: URL) -> some View {
+        let domain = displayDomain(for: url)
+        return Button {
+            onSelect(.link(url: url.absoluteString))
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "link")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(Color.terra500)
+                    .frame(width: 28, height: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Use copied link")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Text(domain)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Use copied link, \(domain)")
+    }
+
+    private var rowDivider: some View {
+        Rectangle()
+            .fill(HomeQuiet.rule)
+            .frame(height: 1)
+            .padding(.leading, 54)
+    }
+
+    private func option(_ title: String, subtitle: String, icon: String, route: AddRecipeRoute) -> some View {
         Button {
             onSelect(route)
         } label: {
-            VStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .regular))
-                Text(title)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(Color.terra500)
+                    .frame(width: 28, height: 22)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Text(subtitle)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
             }
-            .foregroundStyle(.black)
-            .frame(maxWidth: .infinity)
-            .frame(height: 92)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.08), lineWidth: 1))
-            .boldShadow(Color.terra300, size: 3, radius: 16)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title). \(subtitle)")
+    }
+
+    private func loadCopiedLink() async {
+        let patterns = try? await UIPasteboard.general.detectedPatterns(for: [.probableWebURL])
+        guard let patterns, patterns.contains(.probableWebURL) else { return }
+        let raw = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let url = URL(string: raw),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = url.host,
+              !host.isEmpty else { return }
+        copiedLink = url
+    }
+
+    private func displayDomain(for url: URL) -> String {
+        var host = (url.host ?? "").lowercased()
+        if host.hasPrefix("www.") {
+            host.removeFirst(4)
+        }
+        return host
     }
 }
