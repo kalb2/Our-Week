@@ -582,9 +582,9 @@ struct QuickRecipeAddHost: View {
 
     private func open(_ route: AddRecipeRoute) {
         switch route {
-        case .link:
+        case .link(let url):
             urlFailure = nil
-            urlImportSeed = ""
+            urlImportSeed = url
             urlImportToken = UUID()
             showURLImport = true
         case .paste:
