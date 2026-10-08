@@ -187,8 +187,8 @@ struct AddRecipeEntrySheet: View {
 
     /// Pattern detection does not show the paste prompt. The string is read on tap.
     private func loadCopiedLink() async {
-        let patterns = try? await UIPasteboard.general.detectedPatterns(for: [.probableWebURL])
-        hasCopiedLink = patterns?.contains(.probableWebURL) == true
+        let patterns = try? await UIPasteboard.general.detectedPatterns(for: [\UIPasteboard.DetectedValues.probableWebURL])
+        hasCopiedLink = patterns?.contains(\UIPasteboard.DetectedValues.probableWebURL) == true
     }
 
     private func copiedLinkURL() -> String {
