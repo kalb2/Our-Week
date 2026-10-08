@@ -101,15 +101,19 @@ struct ContentView: View {
                 }
             }
             if addFanOpen {
-                Color.black.opacity(0.32)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture { setFan(false) }
-                    .accessibilityElement()
-                    .accessibilityLabel("Close add menu")
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityAction { setFan(false) }
-                    .accessibilityAction(.escape) { setFan(false) }
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                    Color.bgBase.opacity(0.74)
+                }
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { setFan(false) }
+                .accessibilityElement()
+                .accessibilityLabel("Close add menu")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { setFan(false) }
+                .accessibilityAction(.escape) { setFan(false) }
             }
             if !isKeyboardVisible {
                 VStack(spacing: 8) {
