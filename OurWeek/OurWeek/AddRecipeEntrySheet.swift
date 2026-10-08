@@ -15,7 +15,7 @@ struct AddRecipeEntrySheet: View {
     var onSelect: (AddRecipeRoute) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var copiedLink: URL?
+    @State private var hasCopiedLink = false
     @State private var showPack = false
 
     var body: some View {
@@ -28,8 +28,8 @@ struct AddRecipeEntrySheet: View {
 
                 linkHero
 
-                if let copiedLink {
-                    copiedLinkRow(copiedLink)
+                if hasCopiedLink {
+                    copiedLinkRow
                 }
 
                 VStack(spacing: 0) {
@@ -119,10 +119,9 @@ struct AddRecipeEntrySheet: View {
         .accessibilityHint("Paste a TikTok, Instagram, YouTube, or recipe site link and we'll build the recipe.")
     }
 
-    private func copiedLinkRow(_ url: URL) -> some View {
-        let domain = displayDomain(for: url)
-        return Button {
-            onSelect(.link(url: url.absoluteString))
+    private var copiedLinkRow: some View {
+        Button {
+            onSelect(.link(url: copiedLinkURL()))
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "link")
@@ -133,7 +132,7 @@ struct AddRecipeEntrySheet: View {
                     Text("Use copied link")
                         .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
-                    Text(domain)
+                    Text("Import the link you just copied")
                         .font(.system(size: 13, weight: .regular))
                         .foregroundStyle(HomeQuiet.quiet)
                         .lineLimit(1)
@@ -147,7 +146,7 @@ struct AddRecipeEntrySheet: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(HomeQuiet.buttonStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Use copied link, \(domain)")
+        .accessibilityLabel("Use copied link. Import the link you just copied.")
     }
 
     private var rowDivider: some View {
@@ -186,23 +185,21 @@ struct AddRecipeEntrySheet: View {
         .accessibilityLabel("\(title). \(subtitle)")
     }
 
+    /// Pattern detection does not show the paste prompt. The string is read on tap.
     private func loadCopiedLink() async {
         let patterns = try? await UIPasteboard.general.detectedPatterns(for: [.probableWebURL])
-        guard let patterns, patterns.contains(.probableWebURL) else { return }
+        hasCopiedLink = patterns?.contains(.probableWebURL) == true
+    }
+
+    private func copiedLinkURL() -> String {
         let raw = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard let url = URL(string: raw),
               let scheme = url.scheme?.lowercased(),
               scheme == "http" || scheme == "https",
               let host = url.host,
-              !host.isEmpty else { return }
-        copiedLink = url
-    }
-
-    private func displayDomain(for url: URL) -> String {
-        var host = (url.host ?? "").lowercased()
-        if host.hasPrefix("www.") {
-            host.removeFirst(4)
+              !host.isEmpty else {
+            return ""
         }
-        return host
+        return raw
     }
 }
