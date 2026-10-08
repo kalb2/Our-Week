@@ -78,7 +78,7 @@ struct AddFanChips: View {
 
     var body: some View {
         GeometryReader { geo in
-            let radius = min(150, geo.size.width * 0.38)
+            let radius = fanRadius(width: geo.size.width)
             ZStack {
                 ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
                     let point = arcPoint(index: index, count: actions.count, radius: radius)
@@ -89,7 +89,7 @@ struct AddFanChips: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
-        .frame(height: 236)
+        .frame(height: 250)
         .padding(.bottom, -8)
         .allowsHitTesting(reduceMotion || shown)
         .onAppear {
@@ -108,8 +108,15 @@ struct AddFanChips: View {
         return value * 0.2
     }
 
+    /// Wide enough that a capsule under one icon clears the next icon.
+    private func fanRadius(width: CGFloat) -> CGFloat {
+        let side = CGFloat(sin((132.0 * .pi / 180) / 2))
+        let fitted = (width / 2 - 42) / side
+        return min(164, max(148, fitted))
+    }
+
     private func arcPoint(index: Int, count: Int, radius: CGFloat) -> CGPoint {
-        let spread = 124.0 * Double.pi / 180
+        let spread = 132.0 * Double.pi / 180
         let step = count > 1 ? spread / Double(count - 1) : 0
         let theta = -spread / 2 + step * Double(index)
         return CGPoint(
@@ -122,7 +129,7 @@ struct AddFanChips: View {
         Button {
             onSelect(action)
         } label: {
-            VStack(spacing: 6) {
+            ZStack {
                 Image(systemName: action.symbol)
                     .font(.system(size: 16, weight: .regular))
                     .foregroundStyle(Color.terra500)
@@ -130,13 +137,22 @@ struct AddFanChips: View {
                     .background(Color.white)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.06), radius: 8, y: 3)
+                    .shadow(color: Color.black.opacity(0.08), radius: 8, y: 3)
                 Text(action.title)
                     .font(.system(size: 12, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
                     .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.14), radius: 5, y: 2)
+                    )
+                    .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                    .offset(y: 40)
             }
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(action.accessibilityTitle)
