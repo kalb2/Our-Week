@@ -743,68 +743,6 @@
         "detail": "Eggs, soy, and leftover rice.",
         "emoji": "⏱️"
       }
-    ],
-    "leftovers": [
-      {
-        "title": "Leftover night",
-        "detail": "Eat what you already cooked.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Takeout",
-        "detail": "Order in and call it dinner.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Eat out",
-        "detail": "Leave the kitchen alone.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Fridge bowls",
-        "detail": "Rice, a vegetable, and what's left.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Sandwich night",
-        "detail": "Whatever will fit in bread.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Freezer soup",
-        "detail": "A container you forgot about.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Pizza out",
-        "detail": "A slice, not a project.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Picnic leftovers",
-        "detail": "The good parts of yesterday.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Deli night",
-        "detail": "Rotisserie chicken and a salad.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Breakfast for the leftovers",
-        "detail": "Eggs over whatever remains.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Snack dinner",
-        "detail": "Cheese, fruit, and crackers.",
-        "emoji": "🥡"
-      },
-      {
-        "title": "Second-day pasta",
-        "detail": "Tossed back in the pan with oil.",
-        "emoji": "🥡"
-      }
     ]
   },
   "general": [
