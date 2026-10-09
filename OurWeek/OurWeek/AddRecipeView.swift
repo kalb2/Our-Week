@@ -651,13 +651,15 @@ extension AddRecipeView {
                 }
             }
 
+            PlanWeekTagChips(tagsText: $tagsText)
+
             // Tags
             VStack(alignment: .leading, spacing: 6) {
                 Text("Tags (comma-separated)")
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
-                TextField("e.g. quick, family-favorite, healthy", text: $tagsText)
+                TextField("Week nights above, or your own", text: $tagsText)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14)
@@ -914,5 +916,56 @@ struct FlowLayout: Layout {
         }
 
         return (positions, CGSize(width: maxX, height: currentY + lineHeight))
+    }
+}
+
+/// Week-night chips stored in `Recipe.tags`, next to any custom tags.
+struct PlanWeekTagChips: View {
+    @Binding var tagsText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Week nights")
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(.gray)
+
+            FlowLayout(spacing: 8) {
+                ForEach(PlanCategory.recipeNights) { night in
+                    let on = isOn(night.name)
+                    Button {
+                        toggle(night.name)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(night.emoji)
+                                .font(.system(size: 12))
+                            Text(night.name)
+                                .font(.system(size: 12, weight: .regular))
+                        }
+                        .foregroundStyle(on ? Color.white : Color.terra600)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(on ? Color.terra500 : Color.terra100)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(on ? Color.terra600 : Color.terra200, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(on ? "Remove \(night.name) tag" : "Tag as \(night.name)")
+                }
+            }
+        }
+    }
+
+    private func isOn(_ name: String) -> Bool {
+        RecipeLabelFormatting.decodeTags(tagsText).contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    private func toggle(_ name: String) {
+        var tags = RecipeLabelFormatting.decodeTags(tagsText)
+        if let index = tags.firstIndex(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
+            tags.remove(at: index)
+        } else {
+            tags.append(name)
+        }
+        tagsText = tags.joined(separator: ", ")
     }
 }

@@ -13,6 +13,11 @@ struct PlanCategory: Identifiable, Hashable {
         id == "takeout" || id == "leftovers"
     }
 
+    /// Nights a recipe can be tagged with. Takeout and leftovers are not recipe tags.
+    static var recipeNights: [PlanCategory] {
+        builtIn.filter { !$0.usesSingleChoice }
+    }
+
     static let builtIn: [PlanCategory] = [
         PlanCategory(id: "taco", name: "Taco Tuesday", emoji: "🌮", keywords: ["taco", "tacos", "burrito", "enchilada", "quesadilla", "fajita", "mexican"], defaultWeekday: 3),
         PlanCategory(id: "crockpot", name: "Crock-Pot", emoji: "🍲", keywords: ["crock", "crockpot", "crock-pot", "slow cooker", "braise", "braised"], defaultWeekday: nil),
@@ -45,56 +50,26 @@ struct PlanCategory: Identifiable, Hashable {
     }
 }
 
-struct PlanSuggestion: Decodable, Hashable {
-    var title: String
-    var detail: String
-    var emoji: String
-    /// Asset catalog name, such as meal52819. Nil means the row keeps its emoji.
-    var image: String?
-    var ingredients: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case title, detail, emoji, image, ingredients
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try container.decode(String.self, forKey: .title)
-        detail = try container.decode(String.self, forKey: .detail)
-        emoji = try container.decode(String.self, forKey: .emoji)
-        image = try container.decodeIfPresent(String.self, forKey: .image)
-        ingredients = try container.decodeIfPresent([String].self, forKey: .ingredients) ?? []
-    }
-}
-
 enum PlanWeekCatalog {
-    private struct File: Decodable {
-        var suggestions: [String: [PlanSuggestion]]
-        var general: [PlanSuggestion]
-    }
-
-    /// 0 means no match. 1 is a weak ingredient-only hit. 10 or more is a real category match.
+    /// 0 means this recipe is not a match for the night.
+    /// 30 or more means the recipe's category or tags name the night.
+    /// 10 or more means the title uses a strong keyword for the night, or Quick is 30 minutes or under.
     static func score(
         name: String,
         categories: String?,
         tags: String?,
-        details: String?,
-        ingredients: String,
         minutes: Int,
         category: PlanCategory
     ) -> Int {
         guard isDinnerMain(name: name, categories: categories, tags: tags, categoryID: category.id) else { return 0 }
         if category.usesSingleChoice { return 0 }
-        let terms = terms(for: category)
-        let identity = [name, categories, tags]
-            .compactMap { $0 }
-            .joined(separator: " ")
-        let hits = terms.filter { containsTerm(identity, $0) }.count
-        if hits > 0 { return 10 + hits }
+        let labels = [categories, tags].compactMap { $0 }.joined(separator: " ")
+        let explicitHits = explicitTerms(for: category).filter { containsTerm(labels, $0) }.count
+        if explicitHits > 0 { return 30 + explicitHits }
+        let titleHits = terms(for: category).filter { containsTerm(name, $0) }.count
+        if titleHits > 0 { return 10 + titleHits }
         if category.id == "quick", minutes > 0, minutes <= 30 { return 10 }
-        let loose = [details, ingredients].compactMap { $0 }.joined(separator: " ")
-        let looseHits = terms.filter { containsTerm(loose, $0) }.count
-        return looseHits > 0 ? 1 : 0
+        return 0
     }
 
     /// Mains can be dinner. Sides, sauces, desserts, drinks, snacks, and breakfast stay out
@@ -112,22 +87,11 @@ enum PlanWeekCatalog {
         return true
     }
 
-    static func rows(for category: PlanCategory) -> [PlanSuggestion] {
-        if category.usesSingleChoice { return [] }
-        if let rows = suggestions[category.id], !rows.isEmpty {
-            return rows
-        }
-        return general
+    private static func explicitTerms(for category: PlanCategory) -> [String] {
+        var terms = [category.name]
+        terms.append(contentsOf: Self.terms(for: category))
+        return terms
     }
-
-    static var suggestions: [String: [PlanSuggestion]] { loaded?.suggestions ?? [:] }
-    static var general: [PlanSuggestion] { loaded?.general ?? [] }
-
-    private static let loaded: File? = {
-        guard let url = Bundle.main.url(forResource: "PlanWeekSuggestions", withExtension: "json"),
-              let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(File.self, from: data)
-    }()
 
     private static func terms(for category: PlanCategory) -> [String] {
         if let builtIn = strongTerms[category.id] { return builtIn }
