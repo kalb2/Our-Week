@@ -727,12 +727,14 @@ struct ImportPreviewView: View {
                 }
             }
 
+            PlanWeekTagChips(tagsText: $tagsText)
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Tags (comma-separated)")
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.gray)
 
-                TextField("e.g. quick, family-favorite, healthy", text: $tagsText)
+                TextField("Week nights above, or your own", text: $tagsText)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 14)

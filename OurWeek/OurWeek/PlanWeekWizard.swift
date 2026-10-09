@@ -15,13 +15,8 @@ struct PlanPick: Identifiable, Hashable {
     var title: String
     var detail: String
     var emoji: String
-    /// Library recipe URI. Nil means a typed meal title.
+    /// Library recipe URI. Nil means takeout or leftovers.
     var recipeURI: String?
-    /// True when the row is from the household library.
-    var yours: Bool = false
-    /// Asset catalog name for a curated photo.
-    var imageName: String? = nil
-    var ingredients: [String] = []
 }
 
 struct PlanWeekWizard: View {
@@ -84,6 +79,10 @@ struct PlanWeekWizard: View {
     @State private var boardOrigin: CGPoint = .zero
     @State private var limitNote: String?
     @State private var planSheet: PlanCover?
+    @State private var showAddRecipe = false
+
+    /// Below this many category matches, the rest of his main dishes are listed too.
+    private let matchPlenty = 4
 
     private var motion: Animation {
         reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.38, dampingFraction: 0.86)
@@ -204,6 +203,12 @@ struct PlanWeekWizard: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
+        }
+        .sheet(isPresented: $showAddRecipe, onDismiss: reloadRecipes) {
+            QuickRecipeAddHost()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.bgBase)
         }
     }
 
@@ -644,8 +649,9 @@ struct PlanWeekWizard: View {
         if day.category.usesSingleChoice {
             return AnyView(simpleNight(day))
         }
-        let rows = options(for: day.date, category: day.category)
+        let menu = nightMenu(for: day.date, category: day.category)
         let currentID = picks[dayKey(day.date)]?.id
+        let showOthers = menu.matches.count < matchPlenty
         return AnyView(VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(weekdayName(day.date))
@@ -656,17 +662,60 @@ struct PlanWeekWizard: View {
                     .foregroundStyle(HomeQuiet.quiet)
             }
             .padding(.horizontal, 24)
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(rows) { option in
-                        optionCard(option, day: day.date, selected: option.id == currentID)
+            if recipes.isEmpty {
+                emptyLibrary
+                    .padding(.horizontal, 24)
+                Spacer(minLength: 0)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if menu.matches.isEmpty && menu.others.isEmpty {
+                            Text("No main dishes in your recipe book yet.")
+                                .font(.system(size: 17))
+                                .foregroundStyle(HomeQuiet.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        ForEach(menu.matches) { option in
+                            optionCard(option, day: day.date, category: day.category, selected: option.id == currentID)
+                        }
+                        if showOthers {
+                            tagHint(day.category)
+                            if !menu.others.isEmpty {
+                                Text("Other recipes")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(HomeQuiet.quiet)
+                                    .padding(.top, 8)
+                                ForEach(menu.others) { option in
+                                    optionCard(option, day: day.date, category: day.category, selected: option.id == currentID)
+                                }
+                            }
+                        }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
             }
         }
         .padding(.top, 16))
+    }
+
+    private func tagHint(_ category: PlanCategory) -> some View {
+        Text("Tag recipes as \(category.name) to see them here.")
+            .font(.system(size: 14))
+            .foregroundStyle(HomeQuiet.quiet)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 4)
+    }
+
+    private var emptyLibrary: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Your recipe book is empty.")
+                .font(.system(size: 20, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            primaryButton("Add a recipe") { showAddRecipe = true }
+        }
+        .padding(.top, 8)
     }
 
     private func simpleNight(_ day: (date: Date, category: PlanCategory)) -> some View {
@@ -738,7 +787,7 @@ struct PlanWeekWizard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func optionCard(_ option: PlanPick, day: Date, selected: Bool) -> some View {
+    private func optionCard(_ option: PlanPick, day: Date, category: PlanCategory, selected: Bool) -> some View {
         HStack(spacing: 0) {
             Button {
                 choose(option)
@@ -749,6 +798,9 @@ struct PlanWeekWizard: View {
             .contextMenu {
                 Button("Pick for \(weekdayName(day))") { choose(option) }
                 if libraryRecipe(option) != nil {
+                    Button(tagActionTitle(option, category: category)) {
+                        toggleNightTag(option, category: category)
+                    }
                     Button("Open recipe") { openRecipe(option) }
                 }
             } preview: {
@@ -779,27 +831,16 @@ struct PlanWeekWizard: View {
 
     private func optionLabel(_ option: PlanPick, selected: Bool) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            planThumb(image: rowImage(for: option), emoji: option.emoji)
+            planThumb(image: rowImage(for: option))
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text(option.title)
-                        .font(.system(size: 18, weight: .regular, design: .serif))
-                        .foregroundStyle(HomeQuiet.ink)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if option.yours {
-                        Text("Yours")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.terra600)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.terra100)
-                            .clipShape(Capsule())
-                    }
-                }
+                Text(option.title)
+                    .font(.system(size: 18, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 if !option.detail.isEmpty {
                     Text(option.detail)
                         .font(.system(size: 14))
@@ -824,16 +865,17 @@ struct PlanWeekWizard: View {
     }
 
     @ViewBuilder
-    private func planThumb(image: UIImage?, emoji: String) -> some View {
+    private func planThumb(image: UIImage?) -> some View {
         if let image {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
         } else {
-            Text(emoji)
-                .font(.system(size: 28))
+            Image(systemName: "fork.knife")
+                .font(.system(size: 18, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.terra50)
+                .background(Color.bgBase)
         }
     }
 
@@ -1262,65 +1304,49 @@ struct PlanWeekWizard: View {
 
     // MARK: - Recipes
 
-    private func options(for date: Date, category: PlanCategory) -> [PlanPick] {
+    private func nightMenu(for date: Date, category: PlanCategory) -> (matches: [PlanPick], others: [PlanPick]) {
         let key = dayKey(date)
-        let others = picks.filter { !Calendar.current.isDate($0.key, inSameDayAs: key) }
-        let usedURIs = Set(others.compactMap(\.value.recipeURI))
-        let usedTitles = Set(others.map { $0.value.title.lowercased() })
+        let taken = picks.filter { !Calendar.current.isDate($0.key, inSameDayAs: key) }
+        let usedURIs = Set(taken.compactMap(\.value.recipeURI))
+        let usedTitles = Set(taken.map { $0.value.title.lowercased() })
 
-        let ranked = recipes.compactMap { recipe -> (Recipe, Int)? in
+        var ranked: [(recipe: Recipe, score: Int)] = []
+        for recipe in recipes {
             let uri = recipe.objectID.uriRepresentation().absoluteString
-            if usedURIs.contains(uri) { return nil }
+            if usedURIs.contains(uri) { continue }
             let name = displayName(recipe)
-            if usedTitles.contains(name.lowercased()) { return nil }
+            if usedTitles.contains(name.lowercased()) { continue }
+            guard PlanWeekCatalog.isDinnerMain(
+                name: name,
+                categories: recipe.categories,
+                tags: recipe.tags,
+                categoryID: category.id
+            ) else { continue }
             let value = PlanWeekCatalog.score(
                 name: name,
                 categories: recipe.categories,
                 tags: recipe.tags,
-                details: recipe.recipeDescription,
-                ingredients: ingredientText(recipe),
                 minutes: Int(recipe.prepTime) + Int(recipe.cookTime),
                 category: category
             )
-            guard value > 0 else { return nil }
-            return (recipe, value)
-        }
-        .sorted { lhs, rhs in
-            if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
-            if lhs.0.isFavorite != rhs.0.isFavorite { return lhs.0.isFavorite && !rhs.0.isFavorite }
-            return displayName(lhs.0).localizedCaseInsensitiveCompare(displayName(rhs.0)) == .orderedAscending
+            ranked.append((recipe, value))
         }
 
-        var rows: [PlanPick] = []
-        for recipe in ranked where recipe.1 >= 10 && rows.count < 10 {
-            rows.append(libraryPick(recipe.0, category: category))
-        }
-        appendSuggestions(PlanWeekCatalog.rows(for: category), to: &rows, category: category, usedTitles: usedTitles)
-        if rows.count < 10 {
-            appendSuggestions(PlanWeekCatalog.general, to: &rows, category: category, usedTitles: usedTitles)
-        }
-        for recipe in ranked where recipe.1 < 10 && rows.count < 10 {
-            rows.append(libraryPick(recipe.0, category: category))
-        }
-
-        if let current = picks[key], !rows.contains(where: { $0.id == current.id }) {
-            rows.insert(current, at: 0)
-        }
-        return Array(rows.prefix(10))
+        let matches = ranked
+            .filter { $0.score >= 10 }
+            .sorted { recipeComesBefore($0, $1) }
+            .map { libraryPick($0.recipe, category: category) }
+        let others = ranked
+            .filter { $0.score < 10 }
+            .sorted { recipeComesBefore($0, $1) }
+            .map { libraryPick($0.recipe, category: category) }
+        return (matches, others)
     }
 
-    private func appendSuggestions(
-        _ suggestions: [PlanSuggestion],
-        to rows: inout [PlanPick],
-        category: PlanCategory,
-        usedTitles: Set<String>
-    ) {
-        for suggestion in suggestions {
-            if rows.count >= 10 { break }
-            if usedTitles.contains(suggestion.title.lowercased()) { continue }
-            if rows.contains(where: { $0.title.caseInsensitiveCompare(suggestion.title) == .orderedSame }) { continue }
-            rows.append(suggestionPick(suggestion, category: category))
-        }
+    private func recipeComesBefore(_ lhs: (recipe: Recipe, score: Int), _ rhs: (recipe: Recipe, score: Int)) -> Bool {
+        if lhs.score != rhs.score { return lhs.score > rhs.score }
+        if lhs.recipe.isFavorite != rhs.recipe.isFavorite { return lhs.recipe.isFavorite && !rhs.recipe.isFavorite }
+        return displayName(lhs.recipe).localizedCaseInsensitiveCompare(displayName(rhs.recipe)) == .orderedAscending
     }
 
     private func libraryPick(_ recipe: Recipe, category: PlanCategory) -> PlanPick {
@@ -1336,24 +1362,35 @@ struct PlanWeekWizard: View {
         } else {
             detail = ""
         }
-        return PlanPick(id: uri, title: name, detail: detail, emoji: category.emoji, recipeURI: uri, yours: true)
+        return PlanPick(id: uri, title: name, detail: detail, emoji: category.emoji, recipeURI: uri)
     }
 
-    private func suggestionPick(_ suggestion: PlanSuggestion, category: PlanCategory) -> PlanPick {
-        PlanPick(
-            id: "s:\(category.id):\(suggestion.title)",
-            title: suggestion.title,
-            detail: suggestion.detail,
-            emoji: suggestion.emoji,
-            recipeURI: nil,
-            imageName: suggestion.image,
-            ingredients: suggestion.ingredients
-        )
+    private func reloadRecipes() {
+        recipes = dataManager.fetchRecipes(sortBy: .favoritesFirst)
     }
 
-    private func ingredientText(_ recipe: Recipe) -> String {
-        let names = dataManager.sortedIngredients(for: recipe).compactMap(\.name)
-        return ([recipe.ingredients].compactMap { $0 } + names).joined(separator: " ")
+    private func hasNightTag(_ recipe: Recipe, _ name: String) -> Bool {
+        RecipeLabelFormatting.decodeTags(recipe.tags).contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    private func tagActionTitle(_ option: PlanPick, category: PlanCategory) -> String {
+        if let recipe = libraryRecipe(option), hasNightTag(recipe, category.name) {
+            return "Remove \(category.name) tag"
+        }
+        return "Tag as \(category.name)"
+    }
+
+    private func toggleNightTag(_ option: PlanPick, category: PlanCategory) {
+        guard let recipe = libraryRecipe(option) else { return }
+        if hasNightTag(recipe, category.name) {
+            let tags = RecipeLabelFormatting.decodeTags(recipe.tags)
+                .filter { $0.caseInsensitiveCompare(category.name) != .orderedSame }
+            dataManager.setRecipesTags([recipe], tags: tags.isEmpty ? nil : tags.joined(separator: ", "))
+        } else {
+            dataManager.addTagsToRecipes([recipe], tags: category.name)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        reloadRecipes()
     }
 
     private func recipe(uri: String) -> Recipe? {
@@ -1425,7 +1462,17 @@ struct PlanWeekWizard: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                if libraryRecipe(option) != nil {
+                if libraryRecipe(option) != nil, let category = assignments[dayKey(day)] {
+                    Button {
+                        toggleNightTag(option, category: category)
+                    } label: {
+                        Text(tagActionTitle(option, category: category))
+                            .font(.system(size: 16))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                    }
+                    .buttonStyle(.plain)
                     Button {
                         openRecipe(option)
                     } label: {
@@ -1454,7 +1501,6 @@ struct PlanWeekWizard: View {
         return PlanPreviewBody(
             title: option.title,
             detail: model.detail,
-            emoji: option.emoji,
             image: model.image,
             ingredients: model.ingredients,
             meta: model.meta
@@ -1479,34 +1525,22 @@ struct PlanWeekWizard: View {
     }
 
     private func rowImage(for option: PlanPick) -> UIImage? {
-        if let recipe = libraryRecipe(option),
-           let data = recipe.imageData,
-           let image = UIImage(data: data) {
-            return image
-        }
-        return bundledPhoto(option.imageName)
-    }
-
-    private func bundledPhoto(_ name: String?) -> UIImage? {
-        guard let name, !name.isEmpty else { return nil }
-        return UIImage(named: name)
+        guard let recipe = libraryRecipe(option),
+              let data = recipe.imageData,
+              let image = UIImage(data: data) else { return nil }
+        return image
     }
 
     private func previewModel(for option: PlanPick) -> PlanPreviewModel {
-        if let recipe = libraryRecipe(option) {
-            let about = recipe.recipeDescription?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return PlanPreviewModel(
-                image: recipe.imageData.flatMap { UIImage(data: $0) },
-                detail: about,
-                ingredients: libraryLines(recipe),
-                meta: libraryMeta(recipe)
-            )
+        guard let recipe = libraryRecipe(option) else {
+            return PlanPreviewModel(image: nil, detail: option.detail, ingredients: [], meta: nil)
         }
+        let about = recipe.recipeDescription?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return PlanPreviewModel(
-            image: bundledPhoto(option.imageName),
-            detail: option.detail,
-            ingredients: Array(option.ingredients.prefix(8)),
-            meta: nil
+            image: recipe.imageData.flatMap { UIImage(data: $0) },
+            detail: about,
+            ingredients: libraryLines(recipe),
+            meta: libraryMeta(recipe)
         )
     }
 
@@ -1703,7 +1737,6 @@ private struct PlanPreviewModel {
 private struct PlanPreviewBody: View {
     var title: String
     var detail: String
-    var emoji: String
     var image: UIImage?
     var ingredients: [String]
     var meta: String?
@@ -1718,11 +1751,12 @@ private struct PlanPreviewBody: View {
                     .frame(height: 220)
                     .clipped()
             } else {
-                Text(emoji)
-                    .font(.system(size: 56))
+                Image(systemName: "fork.knife")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(HomeQuiet.quiet)
                     .frame(maxWidth: .infinity)
                     .frame(height: 160)
-                    .background(Color.terra50)
+                    .background(Color.bgBase)
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
