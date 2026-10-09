@@ -61,7 +61,8 @@ class GeminiService {
             ],
             "generationConfig": [
                 "temperature": imageJPEG == nil ? 0.7 : 0.2,
-                "maxOutputTokens": 4096
+                "maxOutputTokens": 4096,
+                "thinkingConfig": ["thinkingBudget": 0]
             ]
         ]
 
@@ -193,7 +194,8 @@ class GeminiService {
             ],
             "generationConfig": [
                 "temperature": 0.0,
-                "maxOutputTokens": 10
+                "maxOutputTokens": 50,
+                "thinkingConfig": ["thinkingBudget": 0]
             ]
         ]
 
@@ -261,24 +263,48 @@ class GeminiService {
             if let body = String(data: data, encoding: .utf8) {
                 print("[GeminiService] Server error \(httpResponse.statusCode): \(body.prefix(300))")
             }
+            if let message = Self.apiErrorMessage(from: data) {
+                throw GeminiError.parsingError(message: message)
+            }
             throw GeminiError.invalidResponse
         default:
             if let body = String(data: data, encoding: .utf8) {
                 print("[GeminiService] Unexpected status \(httpResponse.statusCode): \(body.prefix(300))")
             }
+            if let message = Self.apiErrorMessage(from: data) {
+                throw GeminiError.parsingError(message: message)
+            }
             throw GeminiError.invalidResponse
         }
+    }
+
+    private static func apiErrorMessage(from data: Data) -> String? {
+        guard let info = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = info["error"] as? [String: Any],
+              let message = error["message"] as? String,
+              !message.isEmpty else { return nil }
+        return message
     }
 
     // MARK: - Response Parsing
 
     private func extractText(from data: Data) throws -> String {
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let candidates = json["candidates"] as? [[String: Any]],
-              let firstCandidate = candidates.first,
-              let content = firstCandidate["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]] else {
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw GeminiError.invalidResponse
+        }
+        guard let candidates = json["candidates"] as? [[String: Any]],
+              let firstCandidate = candidates.first else {
+            if let feedback = json["promptFeedback"] as? [String: Any],
+               let blockReason = feedback["blockReason"] as? String {
+                throw GeminiError.parsingError(message: "Request blocked: \(blockReason)")
+            }
+            throw GeminiError.parsingError(message: "AI returned no candidates")
+        }
+        guard let content = firstCandidate["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              !parts.isEmpty else {
+            let reason = firstCandidate["finishReason"] as? String ?? "UNKNOWN"
+            throw GeminiError.parsingError(message: "Response stopped: \(reason)")
         }
 
         // Find the text part

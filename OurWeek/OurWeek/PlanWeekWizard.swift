@@ -80,6 +80,8 @@ struct PlanWeekWizard: View {
     @State private var limitNote: String?
     @State private var planSheet: PlanCover?
     @State private var showAddRecipe = false
+    /// Bumped when a night tag is toggled so menu and preview labels re-read the recipe's tags.
+    @State private var tagRevision = 0
 
     /// Below this many category matches, the rest of his main dishes are listed too.
     private let matchPlenty = 4
@@ -807,6 +809,7 @@ struct PlanWeekWizard: View {
                 previewBody(option)
                     .frame(width: 300)
             }
+            .id("\(option.id)-\(tagRevision)")
             Button {
                 planSheet = .preview(option, day)
             } label: {
@@ -1374,6 +1377,7 @@ struct PlanWeekWizard: View {
     }
 
     private func tagActionTitle(_ option: PlanPick, category: PlanCategory) -> String {
+        _ = tagRevision
         if let recipe = libraryRecipe(option), hasNightTag(recipe, category.name) {
             return "Remove \(category.name) tag"
         }
@@ -1391,6 +1395,7 @@ struct PlanWeekWizard: View {
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         reloadRecipes()
+        tagRevision &+= 1
     }
 
     private func recipe(uri: String) -> Recipe? {
