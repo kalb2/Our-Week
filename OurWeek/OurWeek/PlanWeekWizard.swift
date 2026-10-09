@@ -322,13 +322,14 @@ struct PlanWeekWizard: View {
             Text(nightsLabel)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(nightsAreFull ? Color.terra500 : HomeQuiet.ink)
-            if let limitNote {
-                Text(limitNote)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.terra600)
-            }
+            Text(limitNote ?? "That's every night.")
+                .font(.system(size: 13))
+                .foregroundStyle(limitNote == nil ? Color.clear : Color.terra600)
+                .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
+                .accessibilityHidden(limitNote == nil)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(limitNote.map { "\(nightsLabel). \($0)" } ?? nightsLabel)
     }
 
     private var customField: some View {
@@ -385,7 +386,7 @@ struct PlanWeekWizard: View {
                 let gap: CGFloat = 8
                 let left = (geo.size.width - gap) * 0.55
                 HStack(alignment: .top, spacing: gap) {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 6) {
                         ForEach(weekDays, id: \.self) { date in
                             dayTarget(date)
                         }
@@ -468,8 +469,8 @@ struct PlanWeekWizard: View {
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { placeArmed(on: date) }
         .background(hovered ? Color.terra50 : Color.white)
@@ -537,8 +538,8 @@ struct PlanWeekWizard: View {
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
         .background(Color.terra500)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
@@ -1407,7 +1408,10 @@ struct PlanWeekWizard: View {
     private func previewSheet(_ option: PlanPick, day: Date) -> some View {
         ScrollView {
             previewBody(option)
-            VStack(spacing: 8) {
+        }
+        .background(Color.bgBase)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 4) {
                 Button {
                     planSheet = nil
                     choose(option)
@@ -1429,16 +1433,17 @@ struct PlanWeekWizard: View {
                             .font(.system(size: 16))
                             .foregroundStyle(HomeQuiet.ink)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(height: 40)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.top, 4)
-            .padding(.bottom, 24)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color.bgBase)
         }
-        .background(Color.bgBase)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color.bgBase)

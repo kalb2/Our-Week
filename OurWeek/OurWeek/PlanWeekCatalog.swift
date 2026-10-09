@@ -17,7 +17,7 @@ struct PlanCategory: Identifiable, Hashable {
         PlanCategory(id: "taco", name: "Taco Tuesday", emoji: "🌮", keywords: ["taco", "tacos", "burrito", "enchilada", "quesadilla", "fajita", "mexican"], defaultWeekday: 3),
         PlanCategory(id: "crockpot", name: "Crock-Pot", emoji: "🍲", keywords: ["crock", "crockpot", "crock-pot", "slow cooker", "braise", "braised"], defaultWeekday: nil),
         PlanCategory(id: "movie", name: "Movie / Theme Night", emoji: "🎬", keywords: ["movie", "nacho", "nachos", "slider", "popcorn"], defaultWeekday: nil),
-        PlanCategory(id: "cozy", name: "Cozy", emoji: "🕯️", keywords: ["cozy", "comfort", "casserole", "pot pie", "mac and cheese"], defaultWeekday: nil),
+        PlanCategory(id: "cozy", name: "Cozy", emoji: "🍲", keywords: ["cozy", "comfort", "casserole", "pot pie", "mac and cheese"], defaultWeekday: nil),
         PlanCategory(id: "sunday", name: "Sunday Dinner", emoji: "🍽️", keywords: ["sunday", "roast", "pot roast", "baked ham"], defaultWeekday: 1),
         PlanCategory(id: "pasta", name: "Pasta Night", emoji: "🍝", keywords: ["pasta", "spaghetti", "noodle", "lasagna", "penne", "rigatoni", "fettuccine"], defaultWeekday: nil),
         PlanCategory(id: "grill", name: "Grill", emoji: "🔥", keywords: ["grill", "grilled", "bbq", "barbecue", "burger"], defaultWeekday: nil),
