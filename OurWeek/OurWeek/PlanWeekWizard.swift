@@ -17,6 +17,8 @@ struct PlanPick: Identifiable, Hashable {
     var emoji: String
     /// Library recipe URI. Nil means a typed meal title.
     var recipeURI: String?
+    /// True when the row is from the household library.
+    var yours: Bool = false
 }
 
 struct PlanWeekWizard: View {
@@ -43,6 +45,8 @@ struct PlanWeekWizard: View {
     @State private var customs: [PlanCategory] = []
     @State private var customName = ""
     @FocusState private var customFocused: Bool
+    @FocusState private var restaurantFocused: Bool
+    @State private var restaurantName = ""
     @State private var assignments: [Date: PlanCategory] = [:]
     @State private var seededIDs: Set<String> = []
     @State private var pickIndex = 0
@@ -70,6 +74,12 @@ struct PlanWeekWizard: View {
         PlanCategory.builtIn + customs
     }
 
+    /// Chosen categories that are not sitting on a day yet.
+    private var trayCategories: [PlanCategory] {
+        let placed = Set(assignments.values.map(\.id))
+        return selected.filter { !placed.contains($0.id) }
+    }
+
     private var assignedDays: [(date: Date, category: PlanCategory)] {
         weekDays.compactMap { date in
             guard let category = assignments[dayKey(date)] else { return nil }
@@ -85,7 +95,10 @@ struct PlanWeekWizard: View {
     var body: some View {
         ZStack {
             Color.bgBase.ignoresSafeArea()
-                .onTapGesture { customFocused = false }
+                .onTapGesture {
+                    customFocused = false
+                    restaurantFocused = false
+                }
             VStack(spacing: 0) {
                 header
                 switch step {
@@ -112,6 +125,10 @@ struct PlanWeekWizard: View {
         .onPreferenceChange(BoardOriginKey.self) { boardOrigin = $0 }
         .preferredColorScheme(.light)
         .onAppear(perform: load)
+        .onChange(of: pickIndex) { _, _ in syncRestaurantField() }
+        .onChange(of: step) { _, new in
+            if new == .pick { syncRestaurantField() }
+        }
         .confirmationDialog(
             "Some days already have dinner",
             isPresented: $showReplace,
@@ -290,7 +307,7 @@ struct PlanWeekWizard: View {
                         Text("Drop them on a day")
                             .font(.system(size: 32, weight: .regular, design: .serif))
                             .foregroundStyle(HomeQuiet.ink)
-                        Text("Drag a category onto a day, or tap it and then tap the day. A category can land on more than one day.")
+                        Text("Drag a category onto a day, or tap it and then tap the day. Once it’s placed, it leaves the tray.")
                             .font(.system(size: 16))
                             .foregroundStyle(HomeQuiet.quiet)
                             .fixedSize(horizontal: false, vertical: true)
@@ -305,12 +322,20 @@ struct PlanWeekWizard: View {
                             dayTarget(date)
                         }
                     }
-                    LazyVGrid(columns: chipColumns, alignment: .leading, spacing: 10) {
-                        ForEach(selected) { category in
-                            draggableChip(category)
+                    if trayCategories.isEmpty {
+                        Text("All set")
+                            .font(.system(size: 15))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+                    } else {
+                        ChipFlowLayout(spacing: 10) {
+                            ForEach(trayCategories) { category in
+                                draggableChip(category)
+                            }
                         }
+                        .padding(.top, 6)
                     }
-                    .padding(.top, 6)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
@@ -361,9 +386,9 @@ struct PlanWeekWizard: View {
                     clearDay(date)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(HomeQuiet.quiet)
-                        .frame(width: 36, height: 36)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -423,15 +448,9 @@ struct PlanWeekWizard: View {
             .accessibilityAction { toggleArmed(category) }
     }
 
-    @ViewBuilder
     private func paletteChip(_ category: PlanCategory, lifted: Bool) -> some View {
-        if lifted {
-            chipLabel(category, lifted: true)
-                .fixedSize(horizontal: true, vertical: false)
-        } else {
-            chipLabel(category, lifted: false)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        chipLabel(category, lifted: lifted)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private func chipLabel(_ category: PlanCategory, lifted: Bool) -> some View {
@@ -522,9 +541,12 @@ struct PlanWeekWizard: View {
     }
 
     private func pickBody(_ day: (date: Date, category: PlanCategory)) -> some View {
+        if day.category.usesSingleChoice {
+            return AnyView(simpleNight(day))
+        }
         let rows = options(for: day.date, category: day.category)
         let currentID = picks[dayKey(day.date)]?.id
-        return VStack(alignment: .leading, spacing: 14) {
+        return AnyView(VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(weekdayName(day.date))
                     .font(.system(size: 32, weight: .regular, design: .serif))
@@ -549,7 +571,76 @@ struct PlanWeekWizard: View {
                 .padding(.bottom, 12)
             }
         }
+        .padding(.top, 16))
+    }
+
+    private func simpleNight(_ day: (date: Date, category: PlanCategory)) -> some View {
+        let key = dayKey(day.date)
+        let current = picks[key]
+        let chosen = current != nil
+        let title = day.category.id == "leftovers" ? "Leftovers" : "Takeout / eat out"
+        return VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(weekdayName(day.date))
+                    .font(.system(size: 32, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Text("\(day.category.emoji)  \(day.category.name)")
+                    .font(.system(size: 16))
+                    .foregroundStyle(HomeQuiet.quiet)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { restaurantFocused = false }
+            Button {
+                confirmSimple(day.category)
+            } label: {
+                HStack(spacing: 14) {
+                    Text(day.category.emoji)
+                        .font(.system(size: 36))
+                    Text(title)
+                        .font(.system(size: 26, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Spacer(minLength: 0)
+                    if chosen {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.terra500)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(chosen ? Color.terra500 : HomeQuiet.cardStroke, lineWidth: chosen ? 1.5 : 1)
+                )
+            }
+            .buttonStyle(.plain)
+            if day.category.id == "takeout" {
+                TextField("Restaurant name", text: $restaurantName)
+                    .font(.system(size: 17))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.done)
+                    .focused($restaurantFocused)
+                    .onSubmit { confirmSimple(day.category) }
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
+                    )
+            }
+            Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { restaurantFocused = false }
+        }
+        .padding(.horizontal, 24)
         .padding(.top, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func optionRow(_ option: PlanPick, selected: Bool) -> some View {
@@ -558,15 +649,30 @@ struct PlanWeekWizard: View {
                 .font(.system(size: 28))
                 .frame(width: 40)
             VStack(alignment: .leading, spacing: 3) {
-                Text(option.title)
-                    .font(.system(size: 18, weight: .regular, design: .serif))
-                    .foregroundStyle(HomeQuiet.ink)
-                    .multilineTextAlignment(.leading)
-                Text(option.detail)
-                    .font(.system(size: 14))
-                    .foregroundStyle(HomeQuiet.quiet)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                HStack(spacing: 8) {
+                    Text(option.title)
+                        .font(.system(size: 18, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if option.yours {
+                        Text("Yours")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.terra600)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.terra100)
+                            .clipShape(Capsule())
+                    }
+                }
+                if !option.detail.isEmpty {
+                    Text(option.detail)
+                        .font(.system(size: 14))
+                        .foregroundStyle(HomeQuiet.quiet)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
             }
             Spacer(minLength: 8)
             if selected {
@@ -809,11 +915,18 @@ struct PlanWeekWizard: View {
 
     private func assign(_ category: PlanCategory, to date: Date) {
         let key = dayKey(date)
-        if assignments[key]?.id != category.id {
-            picks[key] = nil
+        let displaced = assignments.keys.filter { $0 != key && assignments[$0]?.id == category.id }
+        withAnimation(motion) {
+            for other in displaced {
+                assignments[other] = nil
+                picks[other] = nil
+            }
+            if assignments[key]?.id != category.id {
+                picks[key] = nil
+            }
+            assignments[key] = category
+            armed = nil
         }
-        assignments[key] = category
-        armed = nil
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
@@ -826,6 +939,47 @@ struct PlanWeekWizard: View {
         let key = dayKey(date)
         assignments[key] = nil
         picks[key] = nil
+    }
+
+    private func confirmSimple(_ category: PlanCategory) {
+        restaurantFocused = false
+        let title: String
+        let detail: String
+        if category.id == "leftovers" {
+            title = "Leftovers"
+            detail = "Eat what you already cooked."
+        } else {
+            let place = restaurantName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if place.isEmpty {
+                title = "Takeout / eat out"
+                detail = "Order in or go out."
+            } else {
+                title = "Takeout: \(place)"
+                detail = place
+            }
+        }
+        choose(PlanPick(
+            id: "s:\(category.id)",
+            title: title,
+            detail: detail,
+            emoji: category.emoji,
+            recipeURI: nil
+        ))
+    }
+
+    private func syncRestaurantField() {
+        restaurantFocused = false
+        guard let current = currentAssignment, current.category.id == "takeout" else {
+            restaurantName = ""
+            return
+        }
+        let title = picks[dayKey(current.date)]?.title ?? ""
+        let prefix = "Takeout: "
+        if title.hasPrefix(prefix) {
+            restaurantName = String(title.dropFirst(prefix.count))
+        } else {
+            restaurantName = ""
+        }
     }
 
     private func choose(_ pick: PlanPick) {
@@ -955,30 +1109,39 @@ struct PlanWeekWizard: View {
         let usedURIs = Set(others.compactMap(\.value.recipeURI))
         let usedTitles = Set(others.map { $0.value.title.lowercased() })
 
-        var rows: [PlanPick] = []
-        let matched = matchingRecipes(category).filter { recipe in
+        let ranked = recipes.compactMap { recipe -> (Recipe, Int)? in
             let uri = recipe.objectID.uriRepresentation().absoluteString
-            if usedURIs.contains(uri) { return false }
-            return !usedTitles.contains(displayName(recipe).lowercased())
+            if usedURIs.contains(uri) { return nil }
+            let name = displayName(recipe)
+            if usedTitles.contains(name.lowercased()) { return nil }
+            let value = PlanWeekCatalog.score(
+                name: name,
+                categories: recipe.categories,
+                tags: recipe.tags,
+                details: recipe.recipeDescription,
+                ingredients: ingredientText(recipe),
+                minutes: Int(recipe.prepTime) + Int(recipe.cookTime),
+                category: category
+            )
+            guard value > 0 else { return nil }
+            return (recipe, value)
         }
-        for recipe in matched.prefix(10) {
-            rows.append(libraryPick(recipe, category: category))
+        .sorted { lhs, rhs in
+            if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
+            if lhs.0.isFavorite != rhs.0.isFavorite { return lhs.0.isFavorite && !rhs.0.isFavorite }
+            return displayName(lhs.0).localizedCaseInsensitiveCompare(displayName(rhs.0)) == .orderedAscending
         }
 
-        if category.id.hasPrefix("custom-"), matched.isEmpty {
-            let pool = recipes.filter { recipe in
-                let uri = recipe.objectID.uriRepresentation().absoluteString
-                if usedURIs.contains(uri) { return false }
-                return !usedTitles.contains(displayName(recipe).lowercased())
-            }
-            for recipe in pool.prefix(5) where rows.count < 10 {
-                rows.append(libraryPick(recipe, category: category))
-            }
+        var rows: [PlanPick] = []
+        for recipe in ranked where recipe.1 >= 10 && rows.count < 10 {
+            rows.append(libraryPick(recipe.0, category: category))
         }
-
         appendSuggestions(PlanWeekCatalog.rows(for: category), to: &rows, category: category, usedTitles: usedTitles)
         if rows.count < 10 {
             appendSuggestions(PlanWeekCatalog.general, to: &rows, category: category, usedTitles: usedTitles)
+        }
+        for recipe in ranked where recipe.1 < 10 && rows.count < 10 {
+            rows.append(libraryPick(recipe.0, category: category))
         }
 
         if let current = picks[key], !rows.contains(where: { $0.id == current.id }) {
@@ -1001,16 +1164,6 @@ struct PlanWeekWizard: View {
         }
     }
 
-    private func matchingRecipes(_ category: PlanCategory) -> [Recipe] {
-        recipes.filter { recipe in
-            PlanWeekCatalog.matches(
-                blob: recipeBlob(recipe),
-                minutes: Int(recipe.prepTime) + Int(recipe.cookTime),
-                category: category
-            )
-        }
-    }
-
     private func libraryPick(_ recipe: Recipe, category: PlanCategory) -> PlanPick {
         let name = displayName(recipe)
         let uri = recipe.objectID.uriRepresentation().absoluteString
@@ -1018,13 +1171,13 @@ struct PlanWeekWizard: View {
         let minutes = Int(recipe.prepTime) + Int(recipe.cookTime)
         let detail: String
         if !about.isEmpty {
-            detail = "Your recipe · \(about)"
+            detail = about
         } else if minutes > 0 {
-            detail = "Your recipe · \(minutes) min"
+            detail = "\(minutes) min"
         } else {
-            detail = "Your recipe"
+            detail = ""
         }
-        return PlanPick(id: uri, title: name, detail: detail, emoji: category.emoji, recipeURI: uri)
+        return PlanPick(id: uri, title: name, detail: detail, emoji: category.emoji, recipeURI: uri, yours: true)
     }
 
     private func suggestionPick(_ suggestion: PlanSuggestion, category: PlanCategory) -> PlanPick {
@@ -1037,17 +1190,9 @@ struct PlanWeekWizard: View {
         )
     }
 
-    private func recipeBlob(_ recipe: Recipe) -> String {
+    private func ingredientText(_ recipe: Recipe) -> String {
         let names = dataManager.sortedIngredients(for: recipe).compactMap(\.name)
-        return [
-            recipe.name,
-            recipe.tags,
-            recipe.categories,
-            recipe.recipeDescription,
-            recipe.ingredients
-        ]
-        .compactMap { $0 }
-        .joined(separator: " ") + " " + names.joined(separator: " ")
+        return ([recipe.ingredients].compactMap { $0 } + names).joined(separator: " ")
     }
 
     private func recipe(uri: String) -> Recipe? {
@@ -1247,5 +1392,65 @@ private struct ChipGrab: UIViewRepresentable {
             }
             return false
         }
+    }
+}
+
+private struct ChipFlowLayout: Layout {
+    var spacing: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 0
+        let rows = lines(maxWidth: width, subviews: subviews)
+        let height = rows.reduce(CGFloat(0)) { $0 + $1.height } + CGFloat(max(rows.count - 1, 0)) * spacing
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = lines(maxWidth: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        var cursor = subviews.startIndex
+        for row in rows {
+            var x = bounds.minX
+            for size in row.sizes {
+                subviews[cursor].place(
+                    at: CGPoint(x: x, y: y),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(width: size.width, height: size.height)
+                )
+                x += size.width + spacing
+                cursor = subviews.index(after: cursor)
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Line {
+        var sizes: [CGSize]
+        var height: CGFloat
+    }
+
+    private func lines(maxWidth: CGFloat, subviews: Subviews) -> [Line] {
+        var rows: [Line] = []
+        var sizes: [CGSize] = []
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let next = rowWidth == 0 ? size.width : rowWidth + spacing + size.width
+            if rowWidth > 0, maxWidth > 0, next > maxWidth {
+                rows.append(Line(sizes: sizes, height: rowHeight))
+                sizes = [size]
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                sizes.append(size)
+                rowWidth = next
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        if !sizes.isEmpty {
+            rows.append(Line(sizes: sizes, height: rowHeight))
+        }
+        return rows
     }
 }
