@@ -4,787 +4,2130 @@
       {
         "title": "Carnitas tacos",
         "detail": "Slow-braised pork, onion, and cilantro.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Pork shoulder",
+          "Onion",
+          "Orange",
+          "Cumin",
+          "Corn tortillas",
+          "Cilantro",
+          "Salsa",
+          "Lime"
+        ]
       },
       {
         "title": "Fish tacos",
-        "detail": "Crisp fish, slaw, and lime crema.",
-        "emoji": "🌮"
+        "detail": "Crisp fish, cabbage, and avocado.",
+        "emoji": "🌮",
+        "image": "meal52819",
+        "ingredients": [
+          "White fish",
+          "Flour tortillas",
+          "Avocado",
+          "Cabbage",
+          "Salsa",
+          "Spring onions",
+          "Lime",
+          "Garlic"
+        ]
       },
       {
         "title": "Black bean tacos",
         "detail": "Beans, peppers, and salsa.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Black beans",
+          "Bell pepper",
+          "Onion",
+          "Cumin",
+          "Corn tortillas",
+          "Salsa",
+          "Lime",
+          "Cilantro"
+        ]
       },
       {
-        "title": "Chicken tinga tacos",
-        "detail": "Smoky shredded chicken.",
-        "emoji": "🌮"
+        "title": "Crock-pot chicken tacos",
+        "detail": "Chicken, beans, and crisp shells.",
+        "emoji": "🌮",
+        "image": "meal52830",
+        "ingredients": [
+          "Chicken",
+          "Refried beans",
+          "Taco shells",
+          "Mexican cheese",
+          "Avocado",
+          "Jalapeño",
+          "Salsa",
+          "Sour cream"
+        ]
       },
       {
         "title": "Shrimp tacos",
         "detail": "Garlic shrimp and cabbage.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Shrimp",
+          "Garlic",
+          "Cabbage",
+          "Lime",
+          "Corn tortillas",
+          "Chili powder",
+          "Cilantro"
+        ]
       },
       {
         "title": "Mushroom tacos",
         "detail": "Roasted mushrooms and salsa verde.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Mushrooms",
+          "Onion",
+          "Garlic",
+          "Salsa verde",
+          "Corn tortillas",
+          "Lime",
+          "Cilantro"
+        ]
       },
       {
         "title": "Potato tacos",
         "detail": "Crispy potatoes and crema.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Potatoes",
+          "Onion",
+          "Cumin",
+          "Corn tortillas",
+          "Crema",
+          "Cabbage",
+          "Lime"
+        ]
       },
       {
         "title": "Barbacoa tacos",
         "detail": "Chile beef and onion.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Beef",
+          "Dried chiles",
+          "Onion",
+          "Cumin",
+          "Corn tortillas",
+          "Cilantro",
+          "Lime"
+        ]
       },
       {
-        "title": "Cauliflower tacos",
-        "detail": "Roasted cauliflower and lime.",
-        "emoji": "🌮"
+        "title": "Chickpea fajitas",
+        "detail": "Chickpeas, peppers, and lime.",
+        "emoji": "🌮",
+        "image": "meal52870",
+        "ingredients": [
+          "Chickpeas",
+          "Tomatoes",
+          "Red onion",
+          "Avocado",
+          "Lime",
+          "Corn tortillas",
+          "Paprika",
+          "Coriander"
+        ]
       },
       {
         "title": "Steak tacos",
         "detail": "Chili-lime steak and cilantro.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Steak",
+          "Chili powder",
+          "Lime",
+          "Onion",
+          "Corn tortillas",
+          "Cilantro",
+          "Salsa"
+        ]
       },
       {
-        "title": "Turkey tacos",
-        "detail": "Seasoned turkey and cheddar.",
-        "emoji": "🌮"
+        "title": "Chicken enchilada casserole",
+        "detail": "Chicken, tortillas, and enchilada sauce.",
+        "emoji": "🌮",
+        "image": "meal52765",
+        "ingredients": [
+          "Enchilada sauce",
+          "Monterey Jack",
+          "Corn tortillas",
+          "Chicken"
+        ]
       },
       {
         "title": "Chorizo tacos",
         "detail": "Chorizo, potato, and egg.",
-        "emoji": "🌮"
+        "emoji": "🌮",
+        "ingredients": [
+          "Chorizo",
+          "Potato",
+          "Egg",
+          "Onion",
+          "Corn tortillas",
+          "Cilantro",
+          "Salsa"
+        ]
       }
     ],
     "crockpot": [
       {
         "title": "Pot roast",
         "detail": "Beef, carrots, and potatoes.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "image": "meal52812",
+        "ingredients": [
+          "Beef brisket",
+          "Carrots",
+          "Potatoes",
+          "Onion",
+          "Garlic",
+          "Thyme",
+          "Rosemary",
+          "Beef stock"
+        ]
       },
       {
-        "title": "Salsa chicken",
-        "detail": "Chicken that shreds into dinner.",
-        "emoji": "🍲"
+        "title": "Chicken and mushroom hotpot",
+        "detail": "Chicken, mushrooms, and potato.",
+        "emoji": "🍲",
+        "image": "meal52846",
+        "ingredients": [
+          "Chicken",
+          "Mushrooms",
+          "Onion",
+          "Potatoes",
+          "Sweetcorn",
+          "Chicken stock",
+          "Mustard",
+          "Nutmeg"
+        ]
       },
       {
         "title": "Pulled pork",
         "detail": "Slow pork and a soft bun.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Pork shoulder",
+          "Onion",
+          "Brown sugar",
+          "Paprika",
+          "Apple cider vinegar",
+          "Buns"
+        ]
       },
       {
-        "title": "Beef stew",
-        "detail": "Beef, potatoes, and thyme.",
-        "emoji": "🍲"
+        "title": "Beef bourguignon",
+        "detail": "Beef, bacon, and mushrooms.",
+        "emoji": "🍲",
+        "image": "meal52904",
+        "ingredients": [
+          "Beef",
+          "Bacon",
+          "Mushrooms",
+          "Shallots",
+          "Red wine",
+          "Garlic",
+          "Tomato",
+          "Thyme"
+        ]
       },
       {
         "title": "White chicken chili",
         "detail": "Chicken, white beans, and green chile.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Chicken",
+          "White beans",
+          "Green chiles",
+          "Onion",
+          "Cumin",
+          "Chicken stock",
+          "Lime"
+        ]
       },
       {
-        "title": "Honey garlic chicken",
-        "detail": "Sticky chicken and rice.",
-        "emoji": "🍲"
+        "title": "Coq au vin",
+        "detail": "Chicken, bacon, and red wine.",
+        "emoji": "🍲",
+        "image": "meal52832",
+        "ingredients": [
+          "Chicken",
+          "Bacon",
+          "Shallots",
+          "Mushrooms",
+          "Red wine",
+          "Garlic",
+          "Thyme",
+          "Bay leaves"
+        ]
       },
       {
         "title": "Italian beef",
         "detail": "Peppery beef for sandwiches.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Beef roast",
+          "Onion",
+          "Garlic",
+          "Italian seasoning",
+          "Beef stock",
+          "Pepperoncini",
+          "Rolls"
+        ]
       },
       {
-        "title": "Lentil stew",
-        "detail": "Lentils, tomato, and carrot.",
-        "emoji": "🍲"
+        "title": "Hunter's stew",
+        "detail": "Sausage, cabbage, and beef.",
+        "emoji": "🍲",
+        "image": "meal53018",
+        "ingredients": [
+          "Kielbasa",
+          "Pork",
+          "Bacon",
+          "Cabbage",
+          "Mushrooms",
+          "Onion",
+          "Sauerkraut",
+          "Tomato"
+        ]
       },
       {
         "title": "Mississippi roast",
         "detail": "Peppery beef with a gravy.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Beef roast",
+          "Pepperoncini",
+          "Ranch seasoning",
+          "Butter",
+          "Onion",
+          "Rolls"
+        ]
       },
       {
         "title": "Chicken tortilla soup",
         "detail": "Broth, chicken, and chips.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Chicken",
+          "Tomatoes",
+          "Onion",
+          "Black beans",
+          "Corn",
+          "Tortilla strips",
+          "Lime",
+          "Cilantro"
+        ]
       },
       {
         "title": "BBQ chicken",
         "detail": "Shredded chicken and sauce.",
-        "emoji": "🍲"
+        "emoji": "🍲",
+        "ingredients": [
+          "Chicken",
+          "Barbecue sauce",
+          "Onion",
+          "Garlic",
+          "Paprika",
+          "Brown sugar"
+        ]
       },
       {
-        "title": "Chili",
-        "detail": "Beans, beef, and warm spice.",
-        "emoji": "🍲"
+        "title": "Smoky lentil chili",
+        "detail": "Lentils, squash, and warm spice.",
+        "emoji": "🍲",
+        "image": "meal52784",
+        "ingredients": [
+          "Brown lentils",
+          "Squash",
+          "Tomatoes",
+          "Carrots",
+          "Onion",
+          "Cumin",
+          "Smoked paprika",
+          "Garlic"
+        ]
       }
     ],
     "movie": [
       {
         "title": "Sheet-pan nachos",
         "detail": "Chips, cheese, and salsa.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Tortilla chips",
+          "Cheddar",
+          "Black beans",
+          "Jalapeño",
+          "Salsa",
+          "Sour cream",
+          "Cilantro"
+        ]
       },
       {
         "title": "Sliders",
         "detail": "Small burgers for the couch.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Ground beef",
+          "Slider buns",
+          "Cheddar",
+          "Onion",
+          "Pickles",
+          "Ketchup"
+        ]
       },
       {
         "title": "Popcorn chicken",
         "detail": "Crisp bites and a dipping sauce.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Chicken",
+          "Buttermilk",
+          "Flour",
+          "Paprika",
+          "Garlic powder",
+          "Salt"
+        ]
       },
       {
         "title": "Quesadillas",
         "detail": "Cheese crisped in a tortilla.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Flour tortillas",
+          "Cheddar",
+          "Chicken",
+          "Bell pepper",
+          "Onion",
+          "Salsa"
+        ]
       },
       {
         "title": "Loaded fries",
         "detail": "Fries, cheese, and scallions.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Potatoes",
+          "Cheddar",
+          "Bacon",
+          "Sour cream",
+          "Scallions",
+          "Salt"
+        ]
       },
       {
         "title": "Snack board",
         "detail": "Cheese, fruit, and crackers.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Cheddar",
+          "Crackers",
+          "Salami",
+          "Olives",
+          "Grapes",
+          "Nuts"
+        ]
       },
       {
         "title": "Pizza rolls",
         "detail": "Warm rolls and marinara.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Pizza dough",
+          "Mozzarella",
+          "Pepperoni",
+          "Tomato sauce",
+          "Italian seasoning"
+        ]
       },
       {
         "title": "Soft pretzels",
         "detail": "Salted pretzels and mustard.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Flour",
+          "Yeast",
+          "Butter",
+          "Salt",
+          "Baking soda",
+          "Mustard"
+        ]
       },
       {
         "title": "Mini corn dogs",
         "detail": "A handful, with ketchup.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Hot dogs",
+          "Cornmeal",
+          "Flour",
+          "Buttermilk",
+          "Egg",
+          "Mustard"
+        ]
       },
       {
         "title": "Mozzarella sticks",
         "detail": "Marinara on the side.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "image": "meal53442",
+        "ingredients": [
+          "Mozzarella",
+          "Flour",
+          "Egg",
+          "Milk",
+          "Butter"
+        ]
       },
       {
         "title": "Popcorn mix",
         "detail": "Popcorn with something salty.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Popcorn",
+          "Butter",
+          "Pretzels",
+          "Cheddar crackers",
+          "Peanuts",
+          "Salt"
+        ]
       },
       {
         "title": "Deli sliders",
         "detail": "Ham, cheese, and a soft roll.",
-        "emoji": "🎬"
+        "emoji": "🎬",
+        "ingredients": [
+          "Slider buns",
+          "Ham",
+          "Turkey",
+          "Swiss",
+          "Poppy seeds",
+          "Butter",
+          "Mustard"
+        ]
       }
     ],
     "cozy": [
       {
         "title": "Chicken pot pie",
         "detail": "Creamy chicken under a crust.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Chicken",
+          "Carrots",
+          "Peas",
+          "Celery",
+          "Onion",
+          "Pie crust",
+          "Chicken stock"
+        ]
       },
       {
         "title": "Mac and cheese",
         "detail": "A baked, bubbling pan.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Macaroni",
+          "Cheddar",
+          "Milk",
+          "Butter",
+          "Flour",
+          "Mustard"
+        ]
       },
       {
         "title": "Tomato soup and grilled cheese",
         "detail": "The cold-night pair.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Tomatoes",
+          "Onion",
+          "Bread",
+          "Cheddar",
+          "Butter",
+          "Basil"
+        ]
       },
       {
-        "title": "Shepherd's pie",
-        "detail": "Lamb or beef under potatoes.",
-        "emoji": "🕯️"
+        "title": "Vegetable shepherd's pie",
+        "detail": "Lentils, mushrooms, and potato.",
+        "emoji": "🕯️",
+        "image": "meal53000",
+        "ingredients": [
+          "Potatoes",
+          "Brown lentils",
+          "Mushrooms",
+          "Onion",
+          "Garlic",
+          "Rosemary",
+          "Vegetable stock"
+        ]
       },
       {
-        "title": "Meatloaf",
-        "detail": "A glaze, and mashed potatoes.",
-        "emoji": "🕯️"
+        "title": "Turkey meatloaf",
+        "detail": "Turkey, onion, and breadcrumbs.",
+        "emoji": "🕯️",
+        "image": "meal52845",
+        "ingredients": [
+          "Turkey",
+          "Onion",
+          "Garlic",
+          "Breadcrumbs",
+          "Tomato",
+          "Barbecue sauce",
+          "Egg"
+        ]
       },
       {
         "title": "Baked ziti",
         "detail": "Pasta, sauce, and cheese.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Ziti",
+          "Italian sausage",
+          "Ricotta",
+          "Mozzarella",
+          "Tomato sauce",
+          "Basil"
+        ]
       },
       {
         "title": "Creamy chicken and rice",
         "detail": "One pot, extra pepper.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Chicken",
+          "Rice",
+          "Onion",
+          "Garlic",
+          "Chicken stock",
+          "Cream",
+          "Parsley"
+        ]
       },
       {
         "title": "Chicken noodle soup",
         "detail": "Broth, noodles, and carrot.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Chicken",
+          "Egg noodles",
+          "Carrots",
+          "Celery",
+          "Onion",
+          "Chicken stock",
+          "Parsley"
+        ]
       },
       {
         "title": "Beef and barley stew",
         "detail": "A long simmer.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Beef",
+          "Barley",
+          "Carrots",
+          "Celery",
+          "Onion",
+          "Beef stock",
+          "Thyme"
+        ]
       },
       {
         "title": "Tuna noodle casserole",
         "detail": "The weeknight classic.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Tuna",
+          "Egg noodles",
+          "Peas",
+          "Mushroom soup",
+          "Milk",
+          "Breadcrumbs"
+        ]
       },
       {
         "title": "Biscuits and sausage gravy",
         "detail": "Warm and filling.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Breakfast sausage",
+          "Flour",
+          "Milk",
+          "Black pepper",
+          "Butter",
+          "Biscuits"
+        ]
       },
       {
         "title": "Potato soup",
         "detail": "Potatoes, bacon, and chives.",
-        "emoji": "🕯️"
+        "emoji": "🕯️",
+        "ingredients": [
+          "Potatoes",
+          "Onion",
+          "Bacon",
+          "Cheddar",
+          "Milk",
+          "Chicken stock",
+          "Chives"
+        ]
       }
     ],
     "sunday": [
       {
-        "title": "Roast chicken",
-        "detail": "Herbs, lemon, and pan juices.",
-        "emoji": "🍽️"
+        "title": "Algerian roast chicken",
+        "detail": "Roast chicken with garlic and cayenne.",
+        "emoji": "🍽️",
+        "image": "meal53280",
+        "ingredients": [
+          "Chicken",
+          "Onion",
+          "Garlic",
+          "Dijon mustard",
+          "Balsamic vinegar",
+          "Cayenne"
+        ]
       },
       {
-        "title": "Baked ham",
-        "detail": "A sweet glaze and mustard.",
-        "emoji": "🍽️"
+        "title": "Slow-roasted ham",
+        "detail": "Ham, lemon, garlic, and wine.",
+        "emoji": "🍽️",
+        "image": "meal53302",
+        "ingredients": [
+          "Pork shoulder",
+          "Lemon",
+          "Garlic",
+          "White wine",
+          "Black pepper"
+        ]
       },
       {
         "title": "Pot roast dinner",
         "detail": "Beef and vegetables, sliced.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "image": "meal52812",
+        "ingredients": [
+          "Beef brisket",
+          "Carrots",
+          "Potatoes",
+          "Onion",
+          "Garlic",
+          "Thyme",
+          "Rosemary",
+          "Beef stock"
+        ]
       },
       {
         "title": "Herb pork tenderloin",
         "detail": "With roasted potatoes.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "ingredients": [
+          "Pork tenderloin",
+          "Garlic",
+          "Rosemary",
+          "Thyme",
+          "Olive oil",
+          "Salt"
+        ]
       },
       {
-        "title": "Salmon and asparagus",
-        "detail": "Butter, lemon, and dill.",
-        "emoji": "🍽️"
+        "title": "Honey teriyaki salmon",
+        "detail": "Salmon, soy, and sesame.",
+        "emoji": "🍽️",
+        "image": "meal52773",
+        "ingredients": [
+          "Salmon",
+          "Soy sauce",
+          "Sake",
+          "Sesame seeds",
+          "Olive oil"
+        ]
       },
       {
         "title": "Sunday gravy",
         "detail": "Slow sauce over pasta.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "ingredients": [
+          "Italian sausage",
+          "Beef",
+          "Tomatoes",
+          "Onion",
+          "Garlic",
+          "Basil",
+          "Pasta"
+        ]
       },
       {
-        "title": "Meatloaf dinner",
-        "detail": "Glazed loaf and green beans.",
-        "emoji": "🍽️"
+        "title": "Soy-glazed meatloaf",
+        "detail": "Beef loaf, potatoes, and carrots.",
+        "emoji": "🍽️",
+        "image": "meal52992",
+        "ingredients": [
+          "Ground beef",
+          "Potatoes",
+          "Carrots",
+          "Soy sauce",
+          "Bread",
+          "Scallions",
+          "Garlic"
+        ]
       },
       {
         "title": "Roast turkey breast",
         "detail": "Enough for tomorrow too.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "ingredients": [
+          "Turkey breast",
+          "Butter",
+          "Garlic",
+          "Sage",
+          "Thyme",
+          "Onion"
+        ]
       },
       {
         "title": "Beef tenderloin",
         "detail": "A small roast, simply seasoned.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "ingredients": [
+          "Beef tenderloin",
+          "Garlic",
+          "Butter",
+          "Thyme",
+          "Salt",
+          "Black pepper"
+        ]
       },
       {
         "title": "Lasagna",
         "detail": "Layers for a long table.",
-        "emoji": "🍽️"
+        "emoji": "🍽️",
+        "image": "meal52844",
+        "ingredients": [
+          "Minced beef",
+          "Lasagne sheets",
+          "Tomatoes",
+          "Bacon",
+          "Mozzarella",
+          "Parmesan",
+          "Crème fraîche",
+          "Basil"
+        ]
       },
       {
-        "title": "Lamb chops",
-        "detail": "Rosemary and garlic.",
-        "emoji": "🍽️"
+        "title": "Chilli ginger lamb chops",
+        "detail": "Lamb chops, chilli, and ginger.",
+        "emoji": "🍽️",
+        "image": "meal53265",
+        "ingredients": [
+          "Lamb chops",
+          "Chili powder",
+          "Ginger",
+          "Garlic",
+          "Cumin",
+          "Lemon"
+        ]
       },
       {
-        "title": "Stuffed shells",
-        "detail": "Ricotta, sauce, and Sunday pace.",
-        "emoji": "🍽️"
+        "title": "Spinach and ricotta cannelloni",
+        "detail": "Spinach, ricotta, and tomato.",
+        "emoji": "🍽️",
+        "image": "meal52849",
+        "ingredients": [
+          "Spinach",
+          "Ricotta",
+          "Mascarpone",
+          "Tomatoes",
+          "Mozzarella",
+          "Parmesan",
+          "Basil"
+        ]
       }
     ],
     "pasta": [
       {
         "title": "Spaghetti and meatballs",
         "detail": "Sauce, herbs, and Parmesan.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "ingredients": [
+          "Spaghetti",
+          "Ground beef",
+          "Breadcrumbs",
+          "Egg",
+          "Tomato sauce",
+          "Parmesan",
+          "Garlic"
+        ]
       },
       {
         "title": "Cacio e pepe",
         "detail": "Pecorino, pepper, and pasta water.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "ingredients": [
+          "Spaghetti",
+          "Pecorino",
+          "Black pepper",
+          "Butter",
+          "Pasta water"
+        ]
       },
       {
-        "title": "Pesto pasta",
-        "detail": "Basil, garlic, and pasta.",
-        "emoji": "🍝"
+        "title": "Spaghetti carbonara",
+        "detail": "Eggs, bacon, and pecorino.",
+        "emoji": "🍝",
+        "image": "meal52982",
+        "ingredients": [
+          "Spaghetti",
+          "Egg yolks",
+          "Bacon",
+          "Pecorino",
+          "Black pepper"
+        ]
       },
       {
-        "title": "Lemon ricotta pasta",
-        "detail": "Bright, with peas if you have them.",
-        "emoji": "🍝"
+        "title": "Arrabiata penne",
+        "detail": "Penne, tomato, and chilli.",
+        "emoji": "🍝",
+        "image": "meal52771",
+        "ingredients": [
+          "Penne",
+          "Tomatoes",
+          "Garlic",
+          "Red chilli",
+          "Basil",
+          "Parmesan"
+        ]
       },
       {
-        "title": "Sausage rigatoni",
-        "detail": "Tomato, fennel, and sausage.",
-        "emoji": "🍝"
+        "title": "Rigatoni with fennel sausage",
+        "detail": "Sausage, fennel, and tomato.",
+        "emoji": "🍝",
+        "image": "meal52783",
+        "ingredients": [
+          "Rigatoni",
+          "Fennel sausage",
+          "Fennel",
+          "Onion",
+          "Tomatoes",
+          "Red wine",
+          "Garlic",
+          "Pecorino"
+        ]
       },
       {
-        "title": "Garlic shrimp linguine",
-        "detail": "Shrimp, chili, and parsley.",
-        "emoji": "🍝"
+        "title": "Chilli prawn linguine",
+        "detail": "Prawns, chilli, and linguine.",
+        "emoji": "🍝",
+        "image": "meal52839",
+        "ingredients": [
+          "Linguine",
+          "Prawns",
+          "Red chilli",
+          "Cherry tomatoes",
+          "Garlic",
+          "Sugar snap peas",
+          "Basil"
+        ]
       },
       {
-        "title": "Weeknight bolognese",
-        "detail": "A short simmer over noodles.",
-        "emoji": "🍝"
+        "title": "Spaghetti bolognese",
+        "detail": "Beef, tomato, and spaghetti.",
+        "emoji": "🍝",
+        "image": "meal52770",
+        "ingredients": [
+          "Spaghetti",
+          "Minced beef",
+          "Tomatoes",
+          "Mushrooms",
+          "Onion",
+          "Garlic",
+          "Parmesan"
+        ]
       },
       {
         "title": "Fettuccine Alfredo",
         "detail": "Butter, cream, and Parmesan.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "image": "meal53064",
+        "ingredients": [
+          "Fettuccine",
+          "Heavy cream",
+          "Butter",
+          "Parmesan",
+          "Parsley"
+        ]
       },
       {
         "title": "Baked ziti",
         "detail": "Sauce baked under cheese.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "ingredients": [
+          "Ziti",
+          "Italian sausage",
+          "Ricotta",
+          "Mozzarella",
+          "Tomato sauce",
+          "Basil"
+        ]
       },
       {
         "title": "Penne alla vodka",
         "detail": "Tomato, cream, and a little heat.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "ingredients": [
+          "Penne",
+          "Tomato",
+          "Vodka",
+          "Cream",
+          "Garlic",
+          "Parmesan",
+          "Chili flakes"
+        ]
       },
       {
         "title": "Lasagna",
         "detail": "A full pan, salad on the side.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "image": "meal52844",
+        "ingredients": [
+          "Minced beef",
+          "Lasagne sheets",
+          "Tomatoes",
+          "Bacon",
+          "Mozzarella",
+          "Parmesan",
+          "Crème fraîche",
+          "Basil"
+        ]
       },
       {
         "title": "Aglio e olio",
         "detail": "Garlic, olive oil, and chili.",
-        "emoji": "🍝"
+        "emoji": "🍝",
+        "ingredients": [
+          "Spaghetti",
+          "Garlic",
+          "Olive oil",
+          "Chili flakes",
+          "Parsley",
+          "Parmesan"
+        ]
       }
     ],
     "grill": [
       {
-        "title": "Burgers",
-        "detail": "Cheddar, lettuce, and a toasted bun.",
-        "emoji": "🔥"
+        "title": "Aussie burgers",
+        "detail": "Beef, beetroot, and a soft bun.",
+        "emoji": "🔥",
+        "image": "meal53099",
+        "ingredients": [
+          "Minced steak",
+          "Beetroot",
+          "Rocket",
+          "Bun",
+          "Sour cream and chives"
+        ]
       },
       {
-        "title": "Grilled chicken",
-        "detail": "Thighs, salt, and a char.",
-        "emoji": "🔥"
+        "title": "Tandoori chicken",
+        "detail": "Yogurt, lemon, and warm spice.",
+        "emoji": "🔥",
+        "image": "meal52806",
+        "ingredients": [
+          "Chicken thighs",
+          "Greek yogurt",
+          "Lemon",
+          "Paprika",
+          "Ginger",
+          "Garlic",
+          "Garam masala",
+          "Red onion"
+        ]
       },
       {
-        "title": "Steak",
-        "detail": "A hot grill and a rest.",
-        "emoji": "🔥"
+        "title": "Steak Diane",
+        "detail": "Steak, mushrooms, and a pan sauce.",
+        "emoji": "🔥",
+        "image": "meal52935",
+        "ingredients": [
+          "Beef fillet",
+          "Mushrooms",
+          "Shallots",
+          "Garlic",
+          "Brandy",
+          "Cream",
+          "Dijon mustard"
+        ]
       },
       {
-        "title": "Grilled salmon",
-        "detail": "Lemon and a little oil.",
-        "emoji": "🔥"
+        "title": "Honey teriyaki salmon",
+        "detail": "Salmon, soy, and sesame.",
+        "emoji": "🔥",
+        "image": "meal52773",
+        "ingredients": [
+          "Salmon",
+          "Soy sauce",
+          "Sake",
+          "Sesame seeds",
+          "Olive oil"
+        ]
       },
       {
         "title": "Sausages and peppers",
         "detail": "On a roll, or not.",
-        "emoji": "🔥"
+        "emoji": "🔥",
+        "ingredients": [
+          "Italian sausage",
+          "Bell peppers",
+          "Onion",
+          "Garlic",
+          "Olive oil",
+          "Rolls"
+        ]
       },
       {
         "title": "Shrimp skewers",
         "detail": "Garlic, lemon, and herbs.",
-        "emoji": "🔥"
+        "emoji": "🔥",
+        "ingredients": [
+          "Shrimp",
+          "Garlic",
+          "Lemon",
+          "Olive oil",
+          "Paprika",
+          "Parsley"
+        ]
       },
       {
-        "title": "Pork chops",
-        "detail": "A quick brine, then the grill.",
-        "emoji": "🔥"
+        "title": "Pork chops in creole sauce",
+        "detail": "Pork chops, tomato, and cumin.",
+        "emoji": "🔥",
+        "image": "meal53528",
+        "ingredients": [
+          "Pork chops",
+          "Tomato",
+          "Onion",
+          "Garlic",
+          "Cumin",
+          "Cilantro",
+          "Mustard"
+        ]
       },
       {
         "title": "Veggie skewers",
         "detail": "Peppers, onion, and zucchini.",
-        "emoji": "🔥"
+        "emoji": "🔥",
+        "ingredients": [
+          "Zucchini",
+          "Bell pepper",
+          "Red onion",
+          "Mushrooms",
+          "Olive oil",
+          "Lemon"
+        ]
       },
       {
-        "title": "BBQ chicken thighs",
-        "detail": "Sauce at the end.",
-        "emoji": "🔥"
+        "title": "Spiced barbecued chicken",
+        "detail": "Chicken thighs and a smoky glaze.",
+        "emoji": "🔥",
+        "image": "meal53105",
+        "ingredients": [
+          "Chicken thighs",
+          "Lemon",
+          "Garlic",
+          "Curry powder",
+          "Chilli flakes",
+          "Rosemary",
+          "Thyme"
+        ]
       },
       {
         "title": "Grilled pizza",
         "detail": "Dough, sauce, and whatever's open.",
-        "emoji": "🔥"
+        "emoji": "🔥",
+        "ingredients": [
+          "Pizza dough",
+          "Mozzarella",
+          "Tomato sauce",
+          "Basil",
+          "Olive oil"
+        ]
       },
       {
-        "title": "Lamb burgers",
-        "detail": "Cumin and yogurt.",
-        "emoji": "🔥"
+        "title": "Lamb tzatziki burgers",
+        "detail": "Lamb, cucumber, and mint yogurt.",
+        "emoji": "🔥",
+        "image": "meal53010",
+        "ingredients": [
+          "Lamb",
+          "Bun",
+          "Cumin",
+          "Garlic",
+          "Cucumber",
+          "Greek yogurt",
+          "Mint"
+        ]
       },
       {
-        "title": "Chicken skewers",
-        "detail": "Yogurt marinade.",
-        "emoji": "🔥"
+        "title": "Smoky chicken skewers",
+        "detail": "Chicken, paprika, and garlic.",
+        "emoji": "🔥",
+        "image": "meal53264",
+        "ingredients": [
+          "Chicken thighs",
+          "Smoked paprika",
+          "Cumin",
+          "Garlic",
+          "Fennel seeds",
+          "Smoky aïoli"
+        ]
       }
     ],
     "breakfast": [
       {
         "title": "Pancakes",
         "detail": "Butter and maple.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "image": "meal52854",
+        "ingredients": [
+          "Flour",
+          "Eggs",
+          "Milk",
+          "Raspberries",
+          "Blueberries",
+          "Sugar"
+        ]
       },
       {
-        "title": "Waffles",
-        "detail": "Crisp edges, fruit on top.",
-        "emoji": "🥞"
+        "title": "Gingerbread waffles",
+        "detail": "Waffles with gingerbread spice.",
+        "emoji": "🥞",
+        "image": "meal53578",
+        "ingredients": [
+          "Flour",
+          "Egg",
+          "Milk",
+          "Butter",
+          "Gingerbread spice",
+          "Dark beer"
+        ]
       },
       {
-        "title": "Omelets",
-        "detail": "Cheese, herbs, and a salad.",
-        "emoji": "🥞"
+        "title": "French omelette",
+        "detail": "Eggs, butter, and herbs.",
+        "emoji": "🥞",
+        "image": "meal52915",
+        "ingredients": [
+          "Eggs",
+          "Butter",
+          "Gruyère",
+          "Parmesan",
+          "Chives",
+          "Tarragon",
+          "Parsley"
+        ]
       },
       {
         "title": "Breakfast burritos",
         "detail": "Eggs, potato, and salsa.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "Eggs",
+          "Potatoes",
+          "Cheddar",
+          "Flour tortillas",
+          "Salsa",
+          "Scallions"
+        ]
       },
       {
         "title": "Shakshuka",
         "detail": "Eggs in a pepper sauce.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "image": "meal52963",
+        "ingredients": [
+          "Eggs",
+          "Cherry tomatoes",
+          "Red onion",
+          "Red chilli",
+          "Garlic",
+          "Feta",
+          "Coriander"
+        ]
       },
       {
         "title": "French toast",
         "detail": "Cinnamon and berries.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "Bread",
+          "Eggs",
+          "Milk",
+          "Cinnamon",
+          "Vanilla",
+          "Butter",
+          "Maple syrup"
+        ]
       },
       {
-        "title": "Frittata",
-        "detail": "Eggs, greens, and cheese.",
-        "emoji": "🥞"
+        "title": "Chorizo and potato omelette",
+        "detail": "Eggs, chorizo, and potato.",
+        "emoji": "🥞",
+        "image": "meal53159",
+        "ingredients": [
+          "Eggs",
+          "Chorizo",
+          "Potatoes",
+          "Cheddar",
+          "Parsley"
+        ]
       },
       {
         "title": "Biscuits and gravy",
         "detail": "Sausage gravy over warm biscuits.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "Breakfast sausage",
+          "Flour",
+          "Milk",
+          "Black pepper",
+          "Biscuits",
+          "Butter"
+        ]
       },
       {
-        "title": "Eggs and hash",
-        "detail": "Crispy potatoes and eggs.",
-        "emoji": "🥞"
+        "title": "Full English breakfast",
+        "detail": "Eggs, bacon, sausage, and beans.",
+        "emoji": "🥞",
+        "image": "meal52896",
+        "ingredients": [
+          "Eggs",
+          "Sausages",
+          "Bacon",
+          "Mushrooms",
+          "Tomatoes",
+          "Baked beans",
+          "Bread"
+        ]
       },
       {
         "title": "Breakfast sandwiches",
         "detail": "Egg, cheese, and a toasted muffin.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "English muffins",
+          "Eggs",
+          "Cheddar",
+          "Bacon",
+          "Butter"
+        ]
       },
       {
         "title": "Dutch baby",
         "detail": "A puffed pancake, lemon and sugar.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "Eggs",
+          "Flour",
+          "Milk",
+          "Butter",
+          "Lemon",
+          "Powdered sugar"
+        ]
       },
       {
         "title": "Chilaquiles",
         "detail": "Tortilla chips, salsa, and eggs.",
-        "emoji": "🥞"
+        "emoji": "🥞",
+        "ingredients": [
+          "Tortilla chips",
+          "Salsa verde",
+          "Eggs",
+          "Crema",
+          "Cotija",
+          "Cilantro",
+          "Onion"
+        ]
       }
     ],
     "sheetpan": [
       {
         "title": "Chicken and vegetables",
         "detail": "One pan, roasted until brown.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Chicken",
+          "Potatoes",
+          "Carrots",
+          "Onion",
+          "Olive oil",
+          "Paprika",
+          "Garlic"
+        ]
       },
       {
         "title": "Sausage and peppers",
         "detail": "With potatoes if you want.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Italian sausage",
+          "Bell peppers",
+          "Onion",
+          "Potatoes",
+          "Garlic",
+          "Olive oil"
+        ]
       },
       {
-        "title": "Salmon and broccoli",
-        "detail": "Lemon over the top.",
-        "emoji": "🥘"
+        "title": "Baked salmon with fennel",
+        "detail": "Salmon, fennel, and tomatoes.",
+        "emoji": "🥘",
+        "image": "meal52959",
+        "ingredients": [
+          "Salmon",
+          "Fennel",
+          "Cherry tomatoes",
+          "Lemon",
+          "Black olives",
+          "Parsley"
+        ]
       },
       {
-        "title": "Sheet-pan fajitas",
-        "detail": "Peppers, onion, and chicken.",
-        "emoji": "🥘"
+        "title": "Chickpea fajitas",
+        "detail": "Chickpeas, peppers, and lime.",
+        "emoji": "🥘",
+        "image": "meal52870",
+        "ingredients": [
+          "Chickpeas",
+          "Tomatoes",
+          "Red onion",
+          "Avocado",
+          "Lime",
+          "Corn tortillas",
+          "Paprika",
+          "Coriander"
+        ]
       },
       {
         "title": "Gnocchi and vegetables",
         "detail": "Crisp gnocchi, olive oil.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Gnocchi",
+          "Zucchini",
+          "Cherry tomatoes",
+          "Garlic",
+          "Olive oil",
+          "Parmesan"
+        ]
       },
       {
         "title": "Meatballs and broccoli",
         "detail": "Sauce in the pan.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Meatballs",
+          "Broccoli",
+          "Garlic",
+          "Olive oil",
+          "Parmesan",
+          "Chili flakes"
+        ]
       },
       {
         "title": "Shrimp and asparagus",
         "detail": "Garlic and a hot oven.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Shrimp",
+          "Asparagus",
+          "Garlic",
+          "Lemon",
+          "Olive oil",
+          "Chili flakes"
+        ]
       },
       {
         "title": "Tofu and peppers",
         "detail": "A soy-chili glaze.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Tofu",
+          "Bell peppers",
+          "Onion",
+          "Soy sauce",
+          "Garlic",
+          "Olive oil"
+        ]
       },
       {
         "title": "Chicken sausage and potatoes",
         "detail": "Rosemary and onion.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Chicken sausage",
+          "Potatoes",
+          "Onion",
+          "Bell pepper",
+          "Olive oil",
+          "Paprika"
+        ]
       },
       {
         "title": "Sheet-pan nachos",
         "detail": "Cheese melted in the oven.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Tortilla chips",
+          "Cheddar",
+          "Black beans",
+          "Jalapeño",
+          "Salsa",
+          "Sour cream",
+          "Cilantro"
+        ]
       },
       {
-        "title": "Pork chops and apples",
-        "detail": "Mustard and thyme.",
-        "emoji": "🥘"
+        "title": "Skillet apple pork chops",
+        "detail": "Pork, apples, and sweet potato.",
+        "emoji": "🥘",
+        "image": "meal52994",
+        "ingredients": [
+          "Pork",
+          "Apples",
+          "Potatoes",
+          "Zucchini",
+          "Garlic",
+          "Lemon"
+        ]
       },
       {
         "title": "Chickpeas and cauliflower",
         "detail": "Cumin and lemon.",
-        "emoji": "🥘"
+        "emoji": "🥘",
+        "ingredients": [
+          "Chickpeas",
+          "Cauliflower",
+          "Olive oil",
+          "Cumin",
+          "Paprika",
+          "Lemon",
+          "Garlic"
+        ]
       }
     ],
     "soup": [
       {
         "title": "Chicken noodle soup",
         "detail": "Classic, with extra noodles.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Chicken",
+          "Egg noodles",
+          "Carrots",
+          "Celery",
+          "Onion",
+          "Chicken stock",
+          "Parsley"
+        ]
       },
       {
-        "title": "Tomato soup",
-        "detail": "With a grilled cheese.",
-        "emoji": "🥣"
+        "title": "Creamy tomato soup",
+        "detail": "Tomatoes, onion, and milk.",
+        "emoji": "🥣",
+        "image": "meal52841",
+        "ingredients": [
+          "Tomatoes",
+          "Passata",
+          "Onion",
+          "Carrots",
+          "Celery",
+          "Potatoes",
+          "Milk"
+        ]
       },
       {
         "title": "Tortilla soup",
         "detail": "Chicken, tomato, and chips.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Chicken",
+          "Tomatoes",
+          "Onion",
+          "Corn",
+          "Black beans",
+          "Tortilla strips",
+          "Lime"
+        ]
       },
       {
         "title": "Minestrone",
         "detail": "Beans, pasta, and vegetables.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Kidney beans",
+          "Pasta",
+          "Zucchini",
+          "Carrots",
+          "Tomatoes",
+          "Onion",
+          "Vegetable stock",
+          "Basil"
+        ]
       },
       {
-        "title": "Chili",
-        "detail": "A bowl and cornbread.",
-        "emoji": "🥣"
+        "title": "Vegetarian chilli",
+        "detail": "Beans, tomatoes, and roasted vegetables.",
+        "emoji": "🥣",
+        "image": "meal52867",
+        "ingredients": [
+          "Roasted vegetables",
+          "Kidney beans",
+          "Tomatoes",
+          "Mixed grain"
+        ]
       },
       {
         "title": "Potato leek soup",
         "detail": "Smooth, with chives.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Potatoes",
+          "Leeks",
+          "Onion",
+          "Vegetable stock",
+          "Cream",
+          "Thyme"
+        ]
       },
       {
-        "title": "Broccoli cheddar soup",
-        "detail": "Sharp cheese, soft broccoli.",
-        "emoji": "🥣"
+        "title": "Broccoli and Stilton soup",
+        "detail": "Broccoli, potato, and Stilton.",
+        "emoji": "🥣",
+        "image": "meal52842",
+        "ingredients": [
+          "Broccoli",
+          "Stilton",
+          "Potatoes",
+          "Onion",
+          "Leek",
+          "Celery",
+          "Vegetable stock"
+        ]
       },
       {
         "title": "Lentil soup",
         "detail": "Cumin, lemon, and greens.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Lentils",
+          "Carrots",
+          "Celery",
+          "Onion",
+          "Garlic",
+          "Tomatoes",
+          "Vegetable stock"
+        ]
       },
       {
         "title": "White chicken chili",
         "detail": "Green chile and white beans.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Chicken",
+          "White beans",
+          "Green chiles",
+          "Onion",
+          "Cumin",
+          "Chicken stock",
+          "Lime"
+        ]
       },
       {
         "title": "Clam chowder",
         "detail": "Potatoes and a little bacon.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "image": "meal52840",
+        "ingredients": [
+          "Clams",
+          "Potatoes",
+          "Bacon",
+          "Onion",
+          "Milk",
+          "Cream",
+          "Thyme",
+          "Parsley"
+        ]
       },
       {
         "title": "Italian wedding soup",
         "detail": "Meatballs and greens.",
-        "emoji": "🥣"
+        "emoji": "🥣",
+        "ingredients": [
+          "Meatballs",
+          "Escarole",
+          "Pastina",
+          "Carrots",
+          "Chicken stock",
+          "Parmesan"
+        ]
       },
       {
-        "title": "Butternut squash soup",
-        "detail": "Sage and cream.",
-        "emoji": "🥣"
+        "title": "Thai pumpkin soup",
+        "detail": "Pumpkin, coconut, and ginger.",
+        "emoji": "🥣",
+        "image": "meal53210",
+        "ingredients": [
+          "Pumpkin",
+          "Coconut milk",
+          "Onion",
+          "Ginger",
+          "Lemongrass",
+          "Thai red curry paste",
+          "Lime"
+        ]
       }
     ],
     "pizza": [
       {
         "title": "Margherita pizza",
         "detail": "Tomato, mozzarella, and basil.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "image": "meal53014",
+        "ingredients": [
+          "Flour",
+          "Passata",
+          "Mozzarella",
+          "Basil",
+          "Oregano",
+          "Olive oil",
+          "Yeast"
+        ]
       },
       {
         "title": "Pepperoni pizza",
         "detail": "A Friday classic.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Tomato sauce",
+          "Mozzarella",
+          "Pepperoni",
+          "Oregano"
+        ]
       },
       {
         "title": "White pizza",
         "detail": "Ricotta, garlic, and mozzarella.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Ricotta",
+          "Mozzarella",
+          "Garlic",
+          "Olive oil",
+          "Parmesan"
+        ]
       },
       {
         "title": "BBQ chicken pizza",
         "detail": "Sauce, chicken, and red onion.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Barbecue sauce",
+          "Chicken",
+          "Red onion",
+          "Mozzarella",
+          "Cilantro"
+        ]
       },
       {
         "title": "Veggie pizza",
         "detail": "Peppers, mushrooms, and onion.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Tomato sauce",
+          "Mozzarella",
+          "Bell pepper",
+          "Mushrooms",
+          "Red onion",
+          "Basil"
+        ]
       },
       {
         "title": "Pesto pizza",
         "detail": "Basil, mozzarella, and tomato.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Pesto",
+          "Mozzarella",
+          "Tomatoes",
+          "Parmesan"
+        ]
       },
       {
         "title": "Sausage and mushroom pizza",
         "detail": "Fennel sausage and herbs.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Tomato sauce",
+          "Italian sausage",
+          "Mushrooms",
+          "Mozzarella"
+        ]
       },
       {
         "title": "Sausage flatbread",
         "detail": "A quicker crust.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Flatbread",
+          "Italian sausage",
+          "Mozzarella",
+          "Onion",
+          "Tomato sauce"
+        ]
       },
       {
         "title": "Hawaiian pizza",
         "detail": "Ham and pineapple, if that's your house.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Tomato sauce",
+          "Ham",
+          "Pineapple",
+          "Mozzarella"
+        ]
       },
       {
         "title": "Mushroom pizza",
         "detail": "Garlic and thyme.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Tomato sauce",
+          "Mushrooms",
+          "Mozzarella",
+          "Garlic",
+          "Thyme"
+        ]
       },
       {
         "title": "Four cheese pizza",
         "detail": "Mozzarella and something sharp.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Pizza dough",
+          "Mozzarella",
+          "Parmesan",
+          "Fontina",
+          "Ricotta",
+          "Olive oil"
+        ]
       },
       {
         "title": "Pizza bagels",
         "detail": "Small, fast, and plenty.",
-        "emoji": "🍕"
+        "emoji": "🍕",
+        "ingredients": [
+          "Bagels",
+          "Tomato sauce",
+          "Mozzarella",
+          "Pepperoni",
+          "Oregano"
+        ]
       }
     ],
     "quick": [
       {
-        "title": "Stir-fry",
-        "detail": "Whatever vegetables, and rice.",
-        "emoji": "⏱️"
+        "title": "Beef and broccoli stir-fry",
+        "detail": "Steak, broccoli, and soy.",
+        "emoji": "⏱️",
+        "image": "meal53366",
+        "ingredients": [
+          "Sirloin steak",
+          "Broccoli",
+          "Garlic",
+          "Soy sauce",
+          "Oyster sauce",
+          "Chicken stock"
+        ]
       },
       {
         "title": "Quesadillas",
         "detail": "Cheese and a skillet.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Flour tortillas",
+          "Cheddar",
+          "Chicken",
+          "Bell pepper",
+          "Onion",
+          "Salsa"
+        ]
       },
       {
-        "title": "Fried rice",
-        "detail": "Day-old rice, egg, and scallion.",
-        "emoji": "⏱️"
+        "title": "Chicken fried rice",
+        "detail": "Chicken, rice, egg, and peas.",
+        "emoji": "⏱️",
+        "image": "meal53367",
+        "ingredients": [
+          "Chicken",
+          "Jasmine rice",
+          "Egg",
+          "Carrots",
+          "Peas",
+          "Onion",
+          "Garlic",
+          "Scallions"
+        ]
       },
       {
         "title": "BLTs",
         "detail": "Bacon, lettuce, and tomato.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Bacon",
+          "Lettuce",
+          "Tomato",
+          "Bread",
+          "Mayonnaise"
+        ]
       },
       {
         "title": "Tuna melts",
         "detail": "Open-faced and broiled.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Tuna",
+          "Mayonnaise",
+          "Celery",
+          "Bread",
+          "Cheddar"
+        ]
       },
       {
         "title": "Aglio e olio",
         "detail": "Garlic, oil, and pasta.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Spaghetti",
+          "Garlic",
+          "Olive oil",
+          "Chili flakes",
+          "Parsley",
+          "Parmesan"
+        ]
       },
       {
-        "title": "Chicken tacos",
-        "detail": "Seasoned chicken, ten minutes.",
-        "emoji": "⏱️"
+        "title": "Crock-pot chicken tacos",
+        "detail": "Chicken, beans, and crisp shells.",
+        "emoji": "⏱️",
+        "image": "meal52830",
+        "ingredients": [
+          "Chicken",
+          "Refried beans",
+          "Taco shells",
+          "Mexican cheese",
+          "Avocado",
+          "Jalapeño",
+          "Salsa",
+          "Sour cream"
+        ]
       },
       {
         "title": "Salad with chicken",
         "detail": "Greens and a warm protein.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Chicken",
+          "Lettuce",
+          "Tomato",
+          "Cucumber",
+          "Olive oil",
+          "Lemon"
+        ]
       },
       {
-        "title": "Ramen bowls",
-        "detail": "Broth, an egg, and greens.",
-        "emoji": "⏱️"
+        "title": "Ramen with a boiled egg",
+        "detail": "Noodles, egg, and spring onion.",
+        "emoji": "⏱️",
+        "image": "meal53383",
+        "ingredients": [
+          "Noodles",
+          "Egg",
+          "Spring onions",
+          "Soy sauce",
+          "Chilli sauce"
+        ]
       },
       {
         "title": "Bean and cheese burritos",
         "detail": "A warm tortilla, fast.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Flour tortillas",
+          "Refried beans",
+          "Cheddar",
+          "Salsa",
+          "Rice"
+        ]
       },
       {
         "title": "Shrimp scampi",
         "detail": "Garlic butter and pasta.",
-        "emoji": "⏱️"
+        "emoji": "⏱️",
+        "ingredients": [
+          "Shrimp",
+          "Garlic",
+          "Butter",
+          "Lemon",
+          "White wine",
+          "Parsley",
+          "Pasta"
+        ]
       },
       {
-        "title": "Egg fried rice",
-        "detail": "Eggs, soy, and leftover rice.",
-        "emoji": "⏱️"
+        "title": "Thai prawn fried rice",
+        "detail": "Prawns, rice, peas, and egg.",
+        "emoji": "⏱️",
+        "image": "meal53198",
+        "ingredients": [
+          "Prawns",
+          "Brown rice",
+          "Peas",
+          "Egg",
+          "Red onion",
+          "Garlic",
+          "Red chilli",
+          "Soy sauce"
+        ]
       }
     ]
   },
   "general": [
     {
-      "title": "Roast chicken",
-      "detail": "Salt, heat, and a pan.",
-      "emoji": "🍽️"
+      "title": "Algerian roast chicken",
+      "detail": "Roast chicken with garlic and cayenne.",
+      "emoji": "🍽️",
+      "image": "meal53280",
+      "ingredients": [
+        "Chicken",
+        "Onion",
+        "Garlic",
+        "Dijon mustard",
+        "Balsamic vinegar",
+        "Cayenne"
+      ]
     },
     {
-      "title": "Fried rice",
-      "detail": "Rice, egg, and scallion.",
-      "emoji": "🍽️"
+      "title": "Chicken fried rice",
+      "detail": "Chicken, rice, egg, and peas.",
+      "emoji": "🍽️",
+      "image": "meal53367",
+      "ingredients": [
+        "Chicken",
+        "Jasmine rice",
+        "Egg",
+        "Carrots",
+        "Peas",
+        "Onion",
+        "Garlic",
+        "Scallions"
+      ]
     },
     {
       "title": "Butter pasta",
       "detail": "Noodles, butter, and cheese.",
-      "emoji": "🍽️"
+      "emoji": "🍽️",
+      "ingredients": [
+        "Pasta",
+        "Butter",
+        "Parmesan",
+        "Garlic",
+        "Parsley",
+        "Black pepper"
+      ]
     },
     {
-      "title": "Burgers",
-      "detail": "A skillet works if the grill doesn't.",
-      "emoji": "🍽️"
+      "title": "Aussie burgers",
+      "detail": "Beef, beetroot, and a soft bun.",
+      "emoji": "🍽️",
+      "image": "meal53099",
+      "ingredients": [
+        "Minced steak",
+        "Beetroot",
+        "Rocket",
+        "Bun",
+        "Sour cream and chives"
+      ]
     },
     {
       "title": "Quesadillas",
       "detail": "Cheese crisped in a tortilla.",
-      "emoji": "🍽️"
+      "emoji": "🍽️",
+      "ingredients": [
+        "Flour tortillas",
+        "Cheddar",
+        "Chicken",
+        "Bell pepper",
+        "Onion",
+        "Salsa"
+      ]
     },
     {
       "title": "Soup and bread",
       "detail": "A bowl and something to dip.",
-      "emoji": "🍽️"
+      "emoji": "🍽️",
+      "ingredients": [
+        "Onion",
+        "Carrots",
+        "Celery",
+        "Vegetable stock",
+        "Bread",
+        "Butter"
+      ]
     },
     {
       "title": "Sheet-pan sausage",
       "detail": "Sausage and vegetables.",
-      "emoji": "🍽️"
+      "emoji": "🍽️",
+      "ingredients": [
+        "Italian sausage",
+        "Potatoes",
+        "Bell peppers",
+        "Onion",
+        "Olive oil",
+        "Garlic"
+      ]
     },
     {
       "title": "Bean tacos",
       "detail": "Beans, salsa, and a tortilla.",
-      "emoji": "🍽️"
+      "emoji": "🍽️",
+      "ingredients": [
+        "Black beans",
+        "Corn tortillas",
+        "Onion",
+        "Cumin",
+        "Salsa",
+        "Lime",
+        "Cilantro"
+      ]
     }
   ]
 }

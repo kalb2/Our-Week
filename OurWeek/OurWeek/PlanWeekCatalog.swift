@@ -49,6 +49,22 @@ struct PlanSuggestion: Decodable, Hashable {
     var title: String
     var detail: String
     var emoji: String
+    /// Asset catalog name, such as meal52819. Nil means the row keeps its emoji.
+    var image: String?
+    var ingredients: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case title, detail, emoji, image, ingredients
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        detail = try container.decode(String.self, forKey: .detail)
+        emoji = try container.decode(String.self, forKey: .emoji)
+        image = try container.decodeIfPresent(String.self, forKey: .image)
+        ingredients = try container.decodeIfPresent([String].self, forKey: .ingredients) ?? []
+    }
 }
 
 enum PlanWeekCatalog {

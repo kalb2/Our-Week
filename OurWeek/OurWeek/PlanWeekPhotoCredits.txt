@@ -1,0 +1,315 @@
+Plan week photos
+
+Source: TheMealDB (https://www.themealdb.com).
+TheMealDB meal images are free to use.
+Each file is a 200×200 JPEG made from that meal's thumbnail.
+Nothing is downloaded when the app runs.
+
+meal52765.jpg
+  Meal: Chicken Enchilada Casserole (52765)
+  Page: https://www.themealdb.com/meal/52765
+  Image: https://www.themealdb.com/images/media/meals/qtuwxu1468233098.jpg
+  File size: 17590 bytes
+
+meal52770.jpg
+  Meal: Spaghetti Bolognese (52770)
+  Page: https://www.themealdb.com/meal/52770
+  Image: https://www.themealdb.com/images/media/meals/sutysw1468247559.jpg
+  File size: 22917 bytes
+
+meal52771.jpg
+  Meal: Spicy Arrabiata Penne (52771)
+  Page: https://www.themealdb.com/meal/52771
+  Image: https://www.themealdb.com/images/media/meals/ustsqw1468250014.jpg
+  File size: 13896 bytes
+
+meal52773.jpg
+  Meal: Honey Teriyaki Salmon (52773)
+  Page: https://www.themealdb.com/meal/52773
+  Image: https://www.themealdb.com/images/media/meals/xxyupu1468262513.jpg
+  File size: 23758 bytes
+
+meal52783.jpg
+  Meal: Rigatoni with fennel sausage sauce (52783)
+  Page: https://www.themealdb.com/meal/52783
+  Image: https://www.themealdb.com/images/media/meals/qtqvys1468573168.jpg
+  File size: 14193 bytes
+
+meal52784.jpg
+  Meal: Smoky Lentil Chili with Squash (52784)
+  Page: https://www.themealdb.com/meal/52784
+  Image: https://www.themealdb.com/images/media/meals/uwxqwy1483389553.jpg
+  File size: 18356 bytes
+
+meal52806.jpg
+  Meal: Tandoori chicken (52806)
+  Page: https://www.themealdb.com/meal/52806
+  Image: https://www.themealdb.com/images/media/meals/qptpvt1487339892.jpg
+  File size: 22210 bytes
+
+meal52812.jpg
+  Meal: Beef Brisket Pot Roast (52812)
+  Page: https://www.themealdb.com/meal/52812
+  Image: https://www.themealdb.com/images/media/meals/ursuup1487348423.jpg
+  File size: 27428 bytes
+
+meal52819.jpg
+  Meal: Cajun spiced fish tacos (52819)
+  Page: https://www.themealdb.com/meal/52819
+  Image: https://www.themealdb.com/images/media/meals/uvuyxu1503067369.jpg
+  File size: 21471 bytes
+
+meal52830.jpg
+  Meal: Crock Pot Chicken Baked Tacos (52830)
+  Page: https://www.themealdb.com/meal/52830
+  Image: https://www.themealdb.com/images/media/meals/ypxvwv1505333929.jpg
+  File size: 23911 bytes
+
+meal52832.jpg
+  Meal: Coq au vin (52832)
+  Page: https://www.themealdb.com/meal/52832
+  Image: https://www.themealdb.com/images/media/meals/qstyvs1505931190.jpg
+  File size: 16520 bytes
+
+meal52839.jpg
+  Meal: Chilli prawn linguine (52839)
+  Page: https://www.themealdb.com/meal/52839
+  Image: https://www.themealdb.com/images/media/meals/usywpp1511189717.jpg
+  File size: 17191 bytes
+
+meal52840.jpg
+  Meal: Clam chowder (52840)
+  Page: https://www.themealdb.com/meal/52840
+  Image: https://www.themealdb.com/images/media/meals/rvtvuw1511190488.jpg
+  File size: 9828 bytes
+
+meal52841.jpg
+  Meal: Creamy Tomato Soup (52841)
+  Page: https://www.themealdb.com/meal/52841
+  Image: https://www.themealdb.com/images/media/meals/stpuws1511191310.jpg
+  File size: 12325 bytes
+
+meal52842.jpg
+  Meal: Broccoli & Stilton soup (52842)
+  Page: https://www.themealdb.com/meal/52842
+  Image: https://www.themealdb.com/images/media/meals/tvvxpv1511191952.jpg
+  File size: 11048 bytes
+
+meal52844.jpg
+  Meal: Lasagne (52844)
+  Page: https://www.themealdb.com/meal/52844
+  Image: https://www.themealdb.com/images/media/meals/wtsvxx1511296896.jpg
+  File size: 15346 bytes
+
+meal52845.jpg
+  Meal: Turkey Meatloaf (52845)
+  Page: https://www.themealdb.com/meal/52845
+  Image: https://www.themealdb.com/images/media/meals/ypuxtw1511297463.jpg
+  File size: 18618 bytes
+
+meal52846.jpg
+  Meal: Chicken & mushroom Hotpot (52846)
+  Page: https://www.themealdb.com/meal/52846
+  Image: https://www.themealdb.com/images/media/meals/uuuspp1511297945.jpg
+  File size: 20919 bytes
+
+meal52849.jpg
+  Meal: Spinach & Ricotta Cannelloni (52849)
+  Page: https://www.themealdb.com/meal/52849
+  Image: https://www.themealdb.com/images/media/meals/wspuvp1511303478.jpg
+  File size: 13759 bytes
+
+meal52854.jpg
+  Meal: Pancakes (52854)
+  Page: https://www.themealdb.com/meal/52854
+  Image: https://www.themealdb.com/images/media/meals/rwuyqx1511383174.jpg
+  File size: 15579 bytes
+
+meal52867.jpg
+  Meal: Vegetarian Chilli (52867)
+  Page: https://www.themealdb.com/meal/52867
+  Image: https://www.themealdb.com/images/media/meals/wqurxy1511453156.jpg
+  File size: 17947 bytes
+
+meal52870.jpg
+  Meal: Chickpea Fajitas (52870)
+  Page: https://www.themealdb.com/meal/52870
+  Image: https://www.themealdb.com/images/media/meals/tvtxpq1511464705.jpg
+  File size: 19924 bytes
+
+meal52896.jpg
+  Meal: Full English Breakfast (52896)
+  Page: https://www.themealdb.com/meal/52896
+  Image: https://www.themealdb.com/images/media/meals/sqrtwu1511721265.jpg
+  File size: 19212 bytes
+
+meal52904.jpg
+  Meal: Beef Bourguignon (52904)
+  Page: https://www.themealdb.com/meal/52904
+  Image: https://www.themealdb.com/images/media/meals/vtqxtu1511784197.jpg
+  File size: 17549 bytes
+
+meal52915.jpg
+  Meal: French Omelette (52915)
+  Page: https://www.themealdb.com/meal/52915
+  Image: https://www.themealdb.com/images/media/meals/yvpuuy1511797244.jpg
+  File size: 12778 bytes
+
+meal52935.jpg
+  Meal: Steak Diane (52935)
+  Page: https://www.themealdb.com/meal/52935
+  Image: https://www.themealdb.com/images/media/meals/vussxq1511882648.jpg
+  File size: 18980 bytes
+
+meal52959.jpg
+  Meal: Baked salmon with fennel & tomatoes (52959)
+  Page: https://www.themealdb.com/meal/52959
+  Image: https://www.themealdb.com/images/media/meals/1548772327.jpg
+  File size: 22725 bytes
+
+meal52963.jpg
+  Meal: Shakshuka (52963)
+  Page: https://www.themealdb.com/meal/52963
+  Image: https://www.themealdb.com/images/media/meals/g373701551450225.jpg
+  File size: 21293 bytes
+
+meal52982.jpg
+  Meal: Spaghetti alla Carbonara (52982)
+  Page: https://www.themealdb.com/meal/52982
+  Image: https://www.themealdb.com/images/media/meals/llcbn01574260722.jpg
+  File size: 16029 bytes
+
+meal52992.jpg
+  Meal: Soy-Glazed Meatloaves with Wasabi Mashed Potatoes & Roasted Carrots (52992)
+  Page: https://www.themealdb.com/meal/52992
+  Image: https://www.themealdb.com/images/media/meals/o2wb6p1581005243.jpg
+  File size: 21153 bytes
+
+meal52994.jpg
+  Meal: Skillet Apple Pork Chops with Roasted Sweet Potatoes & Zucchini (52994)
+  Page: https://www.themealdb.com/meal/52994
+  Image: https://www.themealdb.com/images/media/meals/h3ijwo1581013377.jpg
+  File size: 21932 bytes
+
+meal53000.jpg
+  Meal: Vegetable Shepherds Pie (53000)
+  Page: https://www.themealdb.com/meal/53000
+  Image: https://www.themealdb.com/images/media/meals/w8umt11583268117.jpg
+  File size: 16655 bytes
+
+meal53010.jpg
+  Meal: Lamb Tzatziki Burgers (53010)
+  Page: https://www.themealdb.com/meal/53010
+  Image: https://www.themealdb.com/images/media/meals/k420tj1585565244.jpg
+  File size: 10849 bytes
+
+meal53014.jpg
+  Meal: Pizza Express Margherita (53014)
+  Page: https://www.themealdb.com/meal/53014
+  Image: https://www.themealdb.com/images/media/meals/x0lk931587671540.jpg
+  File size: 19890 bytes
+
+meal53018.jpg
+  Meal: Bigos (Hunters Stew) (53018)
+  Page: https://www.themealdb.com/meal/53018
+  Image: https://www.themealdb.com/images/media/meals/md8w601593348504.jpg
+  File size: 20090 bytes
+
+meal53064.jpg
+  Meal: Fettuccine Alfredo (53064)
+  Page: https://www.themealdb.com/meal/53064
+  Image: https://www.themealdb.com/images/media/meals/0jv5gx1661040802.jpg
+  File size: 17507 bytes
+
+meal53099.jpg
+  Meal: Aussie Burgers (53099)
+  Page: https://www.themealdb.com/meal/53099
+  Image: https://www.themealdb.com/images/media/meals/44bzep1761848278.jpg
+  File size: 14183 bytes
+
+meal53105.jpg
+  Meal: Spiced smoky barbecued chicken (53105)
+  Page: https://www.themealdb.com/meal/53105
+  Image: https://www.themealdb.com/images/media/meals/a08uqk1761848682.jpg
+  File size: 18043 bytes
+
+meal53159.jpg
+  Meal: Chorizo, potato & cheese omelette (53159)
+  Page: https://www.themealdb.com/meal/53159
+  Image: https://www.themealdb.com/images/media/meals/0y6uvc1763258983.jpg
+  File size: 21852 bytes
+
+meal53198.jpg
+  Meal: Thai fried rice with prawns & peas (53198)
+  Page: https://www.themealdb.com/meal/53198
+  Image: https://www.themealdb.com/images/media/meals/hblwvg1763478203.jpg
+  File size: 24926 bytes
+
+meal53210.jpg
+  Meal: Thai pumpkin soup (53210)
+  Page: https://www.themealdb.com/meal/53210
+  Image: https://www.themealdb.com/images/media/meals/1brbso1763585098.jpg
+  File size: 13999 bytes
+
+meal53264.jpg
+  Meal: Smoky chicken skewers (53264)
+  Page: https://www.themealdb.com/meal/53264
+  Image: https://www.themealdb.com/images/media/meals/3um6il1763794322.jpg
+  File size: 21360 bytes
+
+meal53265.jpg
+  Meal: Chilli ginger lamb chops (53265)
+  Page: https://www.themealdb.com/meal/53265
+  Image: https://www.themealdb.com/images/media/meals/8xuvhj1763794991.jpg
+  File size: 20521 bytes
+
+meal53280.jpg
+  Meal: Poulet Roti a l'Algerienne (Algerian Roast Chicken) (53280)
+  Page: https://www.themealdb.com/meal/53280
+  Image: https://www.themealdb.com/images/media/meals/nlxald1764112200.jpg
+  File size: 22857 bytes
+
+meal53302.jpg
+  Meal: Slow-roasted ham with lemon, garlic & sage (53302)
+  Page: https://www.themealdb.com/meal/53302
+  Image: https://www.themealdb.com/images/media/meals/w36ets1764362474.jpg
+  File size: 25937 bytes
+
+meal53366.jpg
+  Meal: Beef and Broccoli Stir-Fry (53366)
+  Page: https://www.themealdb.com/meal/53366
+  Image: https://www.themealdb.com/images/media/meals/m0p0j81765568742.jpg
+  File size: 26061 bytes
+
+meal53367.jpg
+  Meal: Chicken Fried Rice (53367)
+  Page: https://www.themealdb.com/meal/53367
+  Image: https://www.themealdb.com/images/media/meals/wuyd2h1765655837.jpg
+  File size: 25552 bytes
+
+meal53383.jpg
+  Meal: Ramen Noodles with Boiled Egg (53383)
+  Page: https://www.themealdb.com/meal/53383
+  Image: https://www.themealdb.com/images/media/meals/ip5xtp1769779958.jpg
+  File size: 22076 bytes
+
+meal53442.jpg
+  Meal: Cheese Sticks (53442)
+  Page: https://www.themealdb.com/meal/53442
+  Image: https://www.themealdb.com/images/media/meals/7i6csk1780094394.jpg
+  File size: 19893 bytes
+
+meal53528.jpg
+  Meal: Chuletas de Cerdo a la Criolla (Pork Chops in Creole Sauce) (53528)
+  Page: https://www.themealdb.com/meal/53528
+  Image: https://www.themealdb.com/images/media/meals/087fu71783802698.jpg
+  File size: 20258 bytes
+
+meal53578.jpg
+  Meal: Gingerbread Waffles (53578)
+  Page: https://www.themealdb.com/meal/53578
+  Image: https://www.themealdb.com/images/media/meals/0wmns51784837949.jpg
+  File size: 20060 bytes
+
+Images: 51
+JPEG bytes: 968954
