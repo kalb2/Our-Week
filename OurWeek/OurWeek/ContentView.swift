@@ -1266,6 +1266,7 @@ struct WeeklyCalendarCard: View {
     @State private var selectedAppleEvent: AppleCalendarEvent?
     @State private var weekOffset: Int = 0
     @State private var showWeekPlanner = false
+    @State private var showPlanWeek = false
     @State private var recipes: [Recipe] = []
     @State private var linesByDay: [Date: [DinnerLine]] = [:]
     @State private var skipNextCommitID: String?
@@ -1509,6 +1510,17 @@ struct WeeklyCalendarCard: View {
         }) {
             WeekPlannerView(weekDays: listedWeekDates)
         }
+        .fullScreenCover(isPresented: $showPlanWeek, onDismiss: {
+            loadData()
+            refreshAppleEvents()
+        }) {
+            PlanWeekWizard(weekDays: listedWeekDates) {
+                showPlanWeek = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    showWeekPlanner = true
+                }
+            }
+        }
         .fullScreenCover(isPresented: $showClearWeek) {
             clearWeekPrompt
                 .presentationBackground(.clear)
@@ -1688,8 +1700,8 @@ struct WeeklyCalendarCard: View {
         VStack(spacing: 0) {
             weekHairline
             HStack(spacing: 6) {
-                weekActionButton("Swipe to plan", enabled: !weekDates.isEmpty) {
-                    showWeekPlanner = true
+                weekActionButton("Plan week", enabled: !listedWeekDates.isEmpty) {
+                    showPlanWeek = true
                 }
                 weekActionButton("Share", enabled: !listedWeekDates.isEmpty) {
                     shareCurrentWeek()
