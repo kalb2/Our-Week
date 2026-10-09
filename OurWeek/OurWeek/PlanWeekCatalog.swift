@@ -89,7 +89,7 @@ enum PlanWeekCatalog {
 
     private static func explicitTerms(for category: PlanCategory) -> [String] {
         var terms = [category.name]
-        terms.append(contentsOf: terms(for: category))
+        terms.append(contentsOf: Self.terms(for: category))
         return terms
     }
 
