@@ -1,0 +1,852 @@
+{
+  "suggestions": {
+    "taco": [
+      {
+        "title": "Carnitas tacos",
+        "detail": "Slow-braised pork, onion, and cilantro.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Fish tacos",
+        "detail": "Crisp fish, slaw, and lime crema.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Black bean tacos",
+        "detail": "Beans, peppers, and salsa.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Chicken tinga tacos",
+        "detail": "Smoky shredded chicken.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Shrimp tacos",
+        "detail": "Garlic shrimp and cabbage.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Mushroom tacos",
+        "detail": "Roasted mushrooms and salsa verde.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Potato tacos",
+        "detail": "Crispy potatoes and crema.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Barbacoa tacos",
+        "detail": "Chile beef and onion.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Cauliflower tacos",
+        "detail": "Roasted cauliflower and lime.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Steak tacos",
+        "detail": "Chili-lime steak and cilantro.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Turkey tacos",
+        "detail": "Seasoned turkey and cheddar.",
+        "emoji": "🌮"
+      },
+      {
+        "title": "Chorizo tacos",
+        "detail": "Chorizo, potato, and egg.",
+        "emoji": "🌮"
+      }
+    ],
+    "crockpot": [
+      {
+        "title": "Pot roast",
+        "detail": "Beef, carrots, and potatoes.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Salsa chicken",
+        "detail": "Chicken that shreds into dinner.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Pulled pork",
+        "detail": "Slow pork and a soft bun.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Beef stew",
+        "detail": "Beef, potatoes, and thyme.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "White chicken chili",
+        "detail": "Chicken, white beans, and green chile.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Honey garlic chicken",
+        "detail": "Sticky chicken and rice.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Italian beef",
+        "detail": "Peppery beef for sandwiches.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Lentil stew",
+        "detail": "Lentils, tomato, and carrot.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Mississippi roast",
+        "detail": "Peppery beef with a gravy.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Chicken tortilla soup",
+        "detail": "Broth, chicken, and chips.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "BBQ chicken",
+        "detail": "Shredded chicken and sauce.",
+        "emoji": "🍲"
+      },
+      {
+        "title": "Chili",
+        "detail": "Beans, beef, and warm spice.",
+        "emoji": "🍲"
+      }
+    ],
+    "movie": [
+      {
+        "title": "Sheet-pan nachos",
+        "detail": "Chips, cheese, and salsa.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Sliders",
+        "detail": "Small burgers for the couch.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Popcorn chicken",
+        "detail": "Crisp bites and a dipping sauce.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Quesadillas",
+        "detail": "Cheese crisped in a tortilla.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Loaded fries",
+        "detail": "Fries, cheese, and scallions.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Snack board",
+        "detail": "Cheese, fruit, and crackers.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Pizza rolls",
+        "detail": "Warm rolls and marinara.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Soft pretzels",
+        "detail": "Salted pretzels and mustard.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Mini corn dogs",
+        "detail": "A handful, with ketchup.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Mozzarella sticks",
+        "detail": "Marinara on the side.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Popcorn mix",
+        "detail": "Popcorn with something salty.",
+        "emoji": "🎬"
+      },
+      {
+        "title": "Deli sliders",
+        "detail": "Ham, cheese, and a soft roll.",
+        "emoji": "🎬"
+      }
+    ],
+    "cozy": [
+      {
+        "title": "Chicken pot pie",
+        "detail": "Creamy chicken under a crust.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Mac and cheese",
+        "detail": "A baked, bubbling pan.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Tomato soup and grilled cheese",
+        "detail": "The cold-night pair.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Shepherd's pie",
+        "detail": "Lamb or beef under potatoes.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Meatloaf",
+        "detail": "A glaze, and mashed potatoes.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Baked ziti",
+        "detail": "Pasta, sauce, and cheese.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Creamy chicken and rice",
+        "detail": "One pot, extra pepper.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Chicken noodle soup",
+        "detail": "Broth, noodles, and carrot.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Beef and barley stew",
+        "detail": "A long simmer.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Tuna noodle casserole",
+        "detail": "The weeknight classic.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Biscuits and sausage gravy",
+        "detail": "Warm and filling.",
+        "emoji": "🕯️"
+      },
+      {
+        "title": "Potato soup",
+        "detail": "Potatoes, bacon, and chives.",
+        "emoji": "🕯️"
+      }
+    ],
+    "sunday": [
+      {
+        "title": "Roast chicken",
+        "detail": "Herbs, lemon, and pan juices.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Baked ham",
+        "detail": "A sweet glaze and mustard.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Pot roast dinner",
+        "detail": "Beef and vegetables, sliced.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Herb pork tenderloin",
+        "detail": "With roasted potatoes.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Salmon and asparagus",
+        "detail": "Butter, lemon, and dill.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Sunday gravy",
+        "detail": "Slow sauce over pasta.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Meatloaf dinner",
+        "detail": "Glazed loaf and green beans.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Roast turkey breast",
+        "detail": "Enough for tomorrow too.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Beef tenderloin",
+        "detail": "A small roast, simply seasoned.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Lasagna",
+        "detail": "Layers for a long table.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Lamb chops",
+        "detail": "Rosemary and garlic.",
+        "emoji": "🍽️"
+      },
+      {
+        "title": "Stuffed shells",
+        "detail": "Ricotta, sauce, and Sunday pace.",
+        "emoji": "🍽️"
+      }
+    ],
+    "pasta": [
+      {
+        "title": "Spaghetti and meatballs",
+        "detail": "Sauce, herbs, and Parmesan.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Cacio e pepe",
+        "detail": "Pecorino, pepper, and pasta water.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Pesto pasta",
+        "detail": "Basil, garlic, and pasta.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Lemon ricotta pasta",
+        "detail": "Bright, with peas if you have them.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Sausage rigatoni",
+        "detail": "Tomato, fennel, and sausage.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Garlic shrimp linguine",
+        "detail": "Shrimp, chili, and parsley.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Weeknight bolognese",
+        "detail": "A short simmer over noodles.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Fettuccine Alfredo",
+        "detail": "Butter, cream, and Parmesan.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Baked ziti",
+        "detail": "Sauce baked under cheese.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Penne alla vodka",
+        "detail": "Tomato, cream, and a little heat.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Lasagna",
+        "detail": "A full pan, salad on the side.",
+        "emoji": "🍝"
+      },
+      {
+        "title": "Aglio e olio",
+        "detail": "Garlic, olive oil, and chili.",
+        "emoji": "🍝"
+      }
+    ],
+    "grill": [
+      {
+        "title": "Burgers",
+        "detail": "Cheddar, lettuce, and a toasted bun.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Grilled chicken",
+        "detail": "Thighs, salt, and a char.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Steak",
+        "detail": "A hot grill and a rest.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Grilled salmon",
+        "detail": "Lemon and a little oil.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Sausages and peppers",
+        "detail": "On a roll, or not.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Shrimp skewers",
+        "detail": "Garlic, lemon, and herbs.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Pork chops",
+        "detail": "A quick brine, then the grill.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Veggie skewers",
+        "detail": "Peppers, onion, and zucchini.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "BBQ chicken thighs",
+        "detail": "Sauce at the end.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Grilled pizza",
+        "detail": "Dough, sauce, and whatever's open.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Lamb burgers",
+        "detail": "Cumin and yogurt.",
+        "emoji": "🔥"
+      },
+      {
+        "title": "Chicken skewers",
+        "detail": "Yogurt marinade.",
+        "emoji": "🔥"
+      }
+    ],
+    "breakfast": [
+      {
+        "title": "Pancakes",
+        "detail": "Butter and maple.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Waffles",
+        "detail": "Crisp edges, fruit on top.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Omelets",
+        "detail": "Cheese, herbs, and a salad.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Breakfast burritos",
+        "detail": "Eggs, potato, and salsa.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Shakshuka",
+        "detail": "Eggs in a pepper sauce.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "French toast",
+        "detail": "Cinnamon and berries.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Frittata",
+        "detail": "Eggs, greens, and cheese.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Biscuits and gravy",
+        "detail": "Sausage gravy over warm biscuits.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Eggs and hash",
+        "detail": "Crispy potatoes and eggs.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Breakfast sandwiches",
+        "detail": "Egg, cheese, and a toasted muffin.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Dutch baby",
+        "detail": "A puffed pancake, lemon and sugar.",
+        "emoji": "🥞"
+      },
+      {
+        "title": "Chilaquiles",
+        "detail": "Tortilla chips, salsa, and eggs.",
+        "emoji": "🥞"
+      }
+    ],
+    "sheetpan": [
+      {
+        "title": "Chicken and vegetables",
+        "detail": "One pan, roasted until brown.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Sausage and peppers",
+        "detail": "With potatoes if you want.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Salmon and broccoli",
+        "detail": "Lemon over the top.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Sheet-pan fajitas",
+        "detail": "Peppers, onion, and chicken.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Gnocchi and vegetables",
+        "detail": "Crisp gnocchi, olive oil.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Meatballs and broccoli",
+        "detail": "Sauce in the pan.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Shrimp and asparagus",
+        "detail": "Garlic and a hot oven.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Tofu and peppers",
+        "detail": "A soy-chili glaze.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Chicken sausage and potatoes",
+        "detail": "Rosemary and onion.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Sheet-pan nachos",
+        "detail": "Cheese melted in the oven.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Pork chops and apples",
+        "detail": "Mustard and thyme.",
+        "emoji": "🥘"
+      },
+      {
+        "title": "Chickpeas and cauliflower",
+        "detail": "Cumin and lemon.",
+        "emoji": "🥘"
+      }
+    ],
+    "soup": [
+      {
+        "title": "Chicken noodle soup",
+        "detail": "Classic, with extra noodles.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Tomato soup",
+        "detail": "With a grilled cheese.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Tortilla soup",
+        "detail": "Chicken, tomato, and chips.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Minestrone",
+        "detail": "Beans, pasta, and vegetables.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Chili",
+        "detail": "A bowl and cornbread.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Potato leek soup",
+        "detail": "Smooth, with chives.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Broccoli cheddar soup",
+        "detail": "Sharp cheese, soft broccoli.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Lentil soup",
+        "detail": "Cumin, lemon, and greens.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "White chicken chili",
+        "detail": "Green chile and white beans.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Clam chowder",
+        "detail": "Potatoes and a little bacon.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Italian wedding soup",
+        "detail": "Meatballs and greens.",
+        "emoji": "🥣"
+      },
+      {
+        "title": "Butternut squash soup",
+        "detail": "Sage and cream.",
+        "emoji": "🥣"
+      }
+    ],
+    "pizza": [
+      {
+        "title": "Margherita pizza",
+        "detail": "Tomato, mozzarella, and basil.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Pepperoni pizza",
+        "detail": "A Friday classic.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "White pizza",
+        "detail": "Ricotta, garlic, and mozzarella.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "BBQ chicken pizza",
+        "detail": "Sauce, chicken, and red onion.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Veggie pizza",
+        "detail": "Peppers, mushrooms, and onion.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Pesto pizza",
+        "detail": "Basil, mozzarella, and tomato.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Sausage and mushroom pizza",
+        "detail": "Fennel sausage and herbs.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Sausage flatbread",
+        "detail": "A quicker crust.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Hawaiian pizza",
+        "detail": "Ham and pineapple, if that's your house.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Mushroom pizza",
+        "detail": "Garlic and thyme.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Four cheese pizza",
+        "detail": "Mozzarella and something sharp.",
+        "emoji": "🍕"
+      },
+      {
+        "title": "Pizza bagels",
+        "detail": "Small, fast, and plenty.",
+        "emoji": "🍕"
+      }
+    ],
+    "quick": [
+      {
+        "title": "Stir-fry",
+        "detail": "Whatever vegetables, and rice.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Quesadillas",
+        "detail": "Cheese and a skillet.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Fried rice",
+        "detail": "Day-old rice, egg, and scallion.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "BLTs",
+        "detail": "Bacon, lettuce, and tomato.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Tuna melts",
+        "detail": "Open-faced and broiled.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Aglio e olio",
+        "detail": "Garlic, oil, and pasta.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Chicken tacos",
+        "detail": "Seasoned chicken, ten minutes.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Salad with chicken",
+        "detail": "Greens and a warm protein.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Ramen bowls",
+        "detail": "Broth, an egg, and greens.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Bean and cheese burritos",
+        "detail": "A warm tortilla, fast.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Shrimp scampi",
+        "detail": "Garlic butter and pasta.",
+        "emoji": "⏱️"
+      },
+      {
+        "title": "Egg fried rice",
+        "detail": "Eggs, soy, and leftover rice.",
+        "emoji": "⏱️"
+      }
+    ],
+    "leftovers": [
+      {
+        "title": "Leftover night",
+        "detail": "Eat what you already cooked.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Takeout",
+        "detail": "Order in and call it dinner.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Eat out",
+        "detail": "Leave the kitchen alone.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Fridge bowls",
+        "detail": "Rice, a vegetable, and what's left.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Sandwich night",
+        "detail": "Whatever will fit in bread.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Freezer soup",
+        "detail": "A container you forgot about.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Pizza out",
+        "detail": "A slice, not a project.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Picnic leftovers",
+        "detail": "The good parts of yesterday.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Deli night",
+        "detail": "Rotisserie chicken and a salad.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Breakfast for the leftovers",
+        "detail": "Eggs over whatever remains.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Snack dinner",
+        "detail": "Cheese, fruit, and crackers.",
+        "emoji": "🥡"
+      },
+      {
+        "title": "Second-day pasta",
+        "detail": "Tossed back in the pan with oil.",
+        "emoji": "🥡"
+      }
+    ]
+  },
+  "general": [
+    {
+      "title": "Roast chicken",
+      "detail": "Salt, heat, and a pan.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Fried rice",
+      "detail": "Rice, egg, and scallion.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Butter pasta",
+      "detail": "Noodles, butter, and cheese.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Burgers",
+      "detail": "A skillet works if the grill doesn't.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Quesadillas",
+      "detail": "Cheese crisped in a tortilla.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Soup and bread",
+      "detail": "A bowl and something to dip.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Sheet-pan sausage",
+      "detail": "Sausage and vegetables.",
+      "emoji": "🍽️"
+    },
+    {
+      "title": "Bean tacos",
+      "detail": "Beans, salsa, and a tortilla.",
+      "emoji": "🍽️"
+    }
+  ]
+}
