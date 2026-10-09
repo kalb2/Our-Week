@@ -16,7 +16,7 @@ class GeminiService {
     // MARK: - Configuration
 
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
-    private let textModel = "gemini-2.5-flash"
+    private let textModel = "gemini-3.8-flash"
     private let imageModel = "gemini-2.5-flash-image"
 
     private let rateLimiter = RateLimiter.shared
@@ -62,7 +62,7 @@ class GeminiService {
             "generationConfig": [
                 "temperature": imageJPEG == nil ? 0.7 : 0.2,
                 "maxOutputTokens": 4096,
-                "thinkingConfig": ["thinkingBudget": 0]
+                "thinkingConfig": ["thinkingLevel": "low"]
             ]
         ]
 
@@ -194,8 +194,8 @@ class GeminiService {
             ],
             "generationConfig": [
                 "temperature": 0.0,
-                "maxOutputTokens": 50,
-                "thinkingConfig": ["thinkingBudget": 0]
+                "maxOutputTokens": 1024,
+                "thinkingConfig": ["thinkingLevel": "low"]
             ]
         ]
 
