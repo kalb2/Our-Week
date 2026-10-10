@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import CoreData
+import Combine
 import UIKit
 
 enum KeyboardDismiss {
@@ -378,6 +379,20 @@ struct RecipeLibraryView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: ShareImportStore.didArrive)) { _ in
             consumeShareImport()
+        }
+        // The grid is a fetched snapshot, so refresh it whenever a Recipe changes in the
+        // view context: saves from the + fan, imports, other sheets, and merged
+        // share-extension / CloudKit changes all post this.
+        .onReceive(
+            NotificationCenter.default
+                .publisher(
+                    for: .NSManagedObjectContextObjectsDidChange,
+                    object: PersistenceController.shared.container.viewContext
+                )
+                .filter(Self.touchesRecipes)
+                .debounce(for: .milliseconds(150), scheduler: DispatchQueue.main)
+        ) { _ in
+            loadRecipes()
         }
         .overlay {
             if isReadingShare {
@@ -884,6 +899,13 @@ struct RecipeLibraryView: View {
 
     private var selectedRecipes: [Recipe] {
         recipes.filter { selectedRecipeIDs.contains($0.objectID) }
+    }
+
+    private static func touchesRecipes(_ note: Notification) -> Bool {
+        let keys = [NSInsertedObjectsKey, NSDeletedObjectsKey, NSUpdatedObjectsKey, NSRefreshedObjectsKey]
+        return keys.contains { key in
+            (note.userInfo?[key] as? Set<NSManagedObject>)?.contains { $0 is Recipe } ?? false
+        }
     }
 
     private func loadRecipes() {
