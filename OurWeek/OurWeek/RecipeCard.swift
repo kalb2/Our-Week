@@ -35,9 +35,10 @@ struct RecipeCard: View {
                 ZStack(alignment: .topTrailing) {
                     // A clear frame owns the layout. scaledToFill images would
                     // otherwise expand the button's hit target over the toolbar.
+                    // Fixed 4:3 image area so every card matches, photo or not.
                     Color.clear
                         .frame(maxWidth: .infinity)
-                        .frame(height: 120)
+                        .aspectRatio(4.0 / 3.0, contentMode: .fit)
                         .overlay {
                             if let data = recipe.imageData, let uiImage = UIImage(data: data) {
                                 Image(uiImage: uiImage)
@@ -81,9 +82,11 @@ struct RecipeCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(recipe.name ?? "Untitled")
                         .font(.system(size: 16, weight: .regular, design: .serif))
-                        .lineLimit(2)
+                        .lineLimit(2, reservesSpace: true)
+                        .truncationMode(.tail)
+                        .multilineTextAlignment(.leading)
                         .foregroundStyle(HomeQuiet.ink)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
 
                     HStack(spacing: 8) {
                         if totalTime > 0 {
@@ -109,6 +112,8 @@ struct RecipeCard: View {
                                 .foregroundStyle(HomeQuiet.quiet)
                         }
                     }
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: 14, maxHeight: 14, alignment: .leading)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)

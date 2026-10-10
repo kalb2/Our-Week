@@ -20,6 +20,7 @@ enum GeminiError: Error, LocalizedError {
     case timeout
     case quotaExceeded
     case imageDecodingFailed
+    case modelBusy
 
     var errorDescription: String? {
         switch self {
@@ -49,6 +50,8 @@ enum GeminiError: Error, LocalizedError {
             return "You've used your daily AI quota. It resets at midnight."
         case .imageDecodingFailed:
             return "Couldn't process the generated image. Please try again."
+        case .modelBusy:
+            return "Gemini is busy right now. Try again in a minute."
         }
     }
 
@@ -62,6 +65,8 @@ enum GeminiError: Error, LocalizedError {
             return "Wait a moment before making another request. The free tier allows 15 requests per minute."
         case .networkError:
             return "Make sure you have an active internet connection and try again."
+        case .modelBusy:
+            return "Google's servers are overloaded. Wait a minute, then try again."
         case .quotaExceeded:
             return "The free tier allows 1,500 requests per day. Try again tomorrow or reduce usage with caching."
         default:

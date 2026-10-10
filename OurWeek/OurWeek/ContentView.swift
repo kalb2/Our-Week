@@ -4679,8 +4679,8 @@ struct MainTabBar: View {
             .frame(maxWidth: .infinity)
             .accessibilityLabel(isAddOpen ? "Close" : "Add")
 
-            // Meals
-            TabItem(icon: "fork.knife", label: "Meals",
+            // Recipes
+            TabItem(icon: "book", label: "Recipes",
                     isSelected: selectedTab == .meals)
                 .onTapGesture {
                     selectedTab = .meals
