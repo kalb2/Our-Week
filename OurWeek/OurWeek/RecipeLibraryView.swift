@@ -84,6 +84,7 @@ struct RecipeLibraryView: View {
     @State private var showBulkDeleteConfirm = false
     @State private var showBulkCategories = false
     @State private var showBulkTags = false
+    @State private var showTagWizard = false
 
     @AppStorage("profileImageData") private var profileImageData: Data?
 
@@ -198,6 +199,9 @@ struct RecipeLibraryView: View {
             }
         }
         .onChange(of: searchText) { _, _ in loadRecipes() }
+        .fullScreenCover(isPresented: $showTagWizard, onDismiss: { loadRecipes() }) {
+            TagRecipesWizard()
+        }
         .onChange(of: selectedSort) { _, _ in loadRecipes() }
         .sheet(isPresented: $showURLImport, onDismiss: {
             urlImportSeed = ""
@@ -535,6 +539,25 @@ struct RecipeLibraryView: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+            }
+
+            if !isSelectMode {
+                Menu {
+                    Button {
+                        showTagWizard = true
+                    } label: {
+                        Label("Tag recipes", systemImage: "tag")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                }
+                .accessibilityLabel("More")
             }
 
             // Profile avatar

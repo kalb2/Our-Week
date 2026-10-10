@@ -80,6 +80,10 @@ struct PlanWeekWizard: View {
     @State private var limitNote: String?
     @State private var planSheet: PlanCover?
     @State private var showAddRecipe = false
+    @State private var showTagNudge = false
+    @State private var showTagWizard = false
+    /// The tagging nudge shows at most once per app session.
+    @MainActor private static var tagNudgeHandled = false
     /// Bumped when a night tag is toggled so menu and preview labels re-read the recipe's tags.
     @State private var tagRevision = 0
 
@@ -142,7 +146,11 @@ struct PlanWeekWizard: View {
                 header
                 switch step {
                 case .categories:
-                    categoriesStep
+                    if showTagNudge {
+                        tagNudge
+                    } else {
+                        categoriesStep
+                    }
                 case .days:
                     daysStep
                 case .pick:
@@ -164,6 +172,12 @@ struct PlanWeekWizard: View {
         .onPreferenceChange(BoardOriginKey.self) { boardOrigin = $0 }
         .preferredColorScheme(.light)
         .onAppear(perform: load)
+        .fullScreenCover(isPresented: $showTagWizard, onDismiss: {
+            recipes = dataManager.fetchRecipes(sortBy: .favoritesFirst)
+            showTagNudge = false
+        }) {
+            TagRecipesWizard()
+        }
         .onChange(of: pickIndex) { _, _ in syncRestaurantField() }
         .onChange(of: step) { _, new in
             if new == .pick { syncRestaurantField() }
@@ -1028,7 +1042,47 @@ struct PlanWeekWizard: View {
         guard !didLoad else { return }
         didLoad = true
         recipes = dataManager.fetchRecipes(sortBy: .favoritesFirst)
+        showTagNudge = !Self.tagNudgeHandled && TagRecipesWizard.needsTagging(recipes)
         refreshExisting()
+    }
+
+    private var tagNudge: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tag your recipes first so each night has good picks.")
+                .font(.system(size: 26, weight: .regular, design: .serif))
+                .foregroundStyle(HomeQuiet.ink)
+            Text("It takes a minute. Obvious matches are already checked.")
+                .font(.system(size: 15))
+                .foregroundStyle(HomeQuiet.quiet)
+            Button {
+                Self.tagNudgeHandled = true
+                showTagWizard = true
+            } label: {
+                Text("Tag recipes")
+                    .font(.system(size: 17))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(Color.terra500)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            Button {
+                Self.tagNudgeHandled = true
+                showTagNudge = false
+            } label: {
+                Text("Skip for now")
+                    .font(.system(size: 16))
+                    .foregroundStyle(HomeQuiet.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func toggle(_ category: PlanCategory) {
