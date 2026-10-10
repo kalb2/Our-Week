@@ -12,8 +12,14 @@ struct TagRecipesWizard: View {
     @State private var checked: Set<String> = []
     @State private var taggedCount = 0
     @State private var didLoad = false
+    @State private var nights = PlanCategory.recipeNights
+    @State private var dishType = "Main"
+    @State private var showNewNight = false
+    @State private var newNightName = ""
 
-    private let nights = PlanCategory.recipeNights
+    /// Course values in Recipe.categories. Only Main can be a dinner pick.
+    static let dishTypes = ["Main", "Side", "Appetizer", "Dessert", "Breakfast", "Snack", "Drink"]
+    private static let dinnerLabels: Set<String> = ["Main", "Dinner", "Full meal"]
     private let chipColumns = [GridItem(.adaptive(minimum: 148), spacing: 10)]
 
     private var current: Recipe? { index < queue.count ? queue[index] : nil }
@@ -32,6 +38,13 @@ struct TagRecipesWizard: View {
         }
         .preferredColorScheme(.light)
         .onAppear(perform: load)
+        .alert("New night", isPresented: $showNewNight) {
+            TextField("Fondue, Brinner…", text: $newNightName)
+            Button("Add") { addNight() }
+            Button("Cancel", role: .cancel) { newNightName = "" }
+        } message: {
+            Text("It shows up as a chip everywhere you tag recipes.")
+        }
     }
 
     // MARK: - Header
@@ -68,25 +81,33 @@ struct TagRecipesWizard: View {
                         .font(.system(size: 28, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.ink)
                         .lineLimit(3)
-                    Text("Which nights does this fit?")
+                    if dishType == "Main" {
+                        Text("Which nights does this fit?")
+                            .font(.system(size: 15))
+                            .foregroundStyle(HomeQuiet.quiet)
+                        LazyVGrid(columns: chipColumns, alignment: .leading, spacing: 10) {
+                            ForEach(nights) { night in
+                                chip(night)
+                            }
+                            newNightChip
+                        }
+                    } else {
+                        Text("Won't show in dinner picks")
+                            .font(.system(size: 15))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .padding(.vertical, 4)
+                    }
+                    Text("Dish type")
                         .font(.system(size: 15))
                         .foregroundStyle(HomeQuiet.quiet)
-                    LazyVGrid(columns: chipColumns, alignment: .leading, spacing: 10) {
-                        ForEach(nights) { night in
-                            chip(night)
+                        .padding(.top, 8)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], alignment: .leading, spacing: 10) {
+                        ForEach(Self.dishTypes, id: \.self) { type in
+                            dishChip(type)
                         }
                     }
-                    Button {
-                        markNotDinner(recipe)
-                    } label: {
-                        Text("Not a dinner")
-                            .font(.system(size: 15))
-                            .foregroundStyle(Color.terra600)
-                            .underline()
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
                 }
+                .animation(.easeInOut(duration: 0.2), value: dishType)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
@@ -167,6 +188,58 @@ struct TagRecipesWizard: View {
         .accessibilityValue(on ? "Selected" : "Not selected")
     }
 
+    private var newNightChip: some View {
+        Button {
+            newNightName = ""
+            showNewNight = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("New")
+                    .font(.system(size: 14))
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Color.terra600)
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(Color.white)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(HomeQuiet.buttonStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("New night")
+    }
+
+    private func dishChip(_ type: String) -> some View {
+        let on = dishType == type
+        return Button {
+            dishType = type
+        } label: {
+            Text(type)
+                .font(.system(size: 14))
+                .foregroundStyle(on ? Color.white : HomeQuiet.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(on ? Color.terra500 : Color.white)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(on ? Color.terra600 : HomeQuiet.buttonStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dish type \(type)")
+        .accessibilityValue(on ? "Selected" : "Not selected")
+    }
+
+    private func addNight() {
+        let name = newNightName
+        newNightName = ""
+        guard let night = CustomNightStore.add(name) else { return }
+        if !nights.contains(where: { $0.id == night.id }) {
+            nights.append(night)
+        }
+        checked.insert(night.name)
+    }
+
     // MARK: - End
 
     private var endScreen: some View {
@@ -211,6 +284,7 @@ struct TagRecipesWizard: View {
 
     private func prepareChecks() {
         guard let recipe = current else { checked = []; return }
+        dishType = Self.currentDishType(recipe)
         let existing = Set(RecipeLabelFormatting.decodeTags(recipe.tags).map { $0.lowercased() })
         var result: Set<String> = []
         for night in nights {
@@ -232,6 +306,11 @@ struct TagRecipesWizard: View {
     }
 
     private func saveAndAdvance(_ recipe: Recipe) {
+        saveDishType(recipe)
+        guard dishType == "Main" else {
+            advance()
+            return
+        }
         let nightNames = Set(nights.map { $0.name.lowercased() })
         let others = RecipeLabelFormatting.decodeTags(recipe.tags)
             .filter { !nightNames.contains($0.lowercased()) }
@@ -245,12 +324,36 @@ struct TagRecipesWizard: View {
         advance()
     }
 
-    private func markNotDinner(_ recipe: Recipe) {
-        var categories = RecipeLabelFormatting.decodeCategories(recipe.categories)
-        categories.subtract(["Main", "Dinner", "Full meal"])
-        categories.insert("Side")
-        dataManager.setRecipesCategories([recipe], categories: RecipeLabelFormatting.encodeCategories(categories))
-        advance()
+    /// Replaces only the course value; a non-main type also drops Main/Dinner/Full meal.
+    private func saveDishType(_ recipe: Recipe) {
+        let current = RecipeLabelFormatting.decodeCategories(recipe.categories)
+        var updated = current.filter { label in
+            !Self.dishTypes.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
+        }
+        if dishType != "Main" {
+            updated = updated.filter { label in
+                !Self.dinnerLabels.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
+            }
+        }
+        updated.insert(dishType)
+        if updated != current {
+            dataManager.setRecipesCategories([recipe], categories: RecipeLabelFormatting.encodeCategories(updated))
+        }
+    }
+
+    /// The recipe's course from its categories, or a guess from its title.
+    static func currentDishType(_ recipe: Recipe) -> String {
+        let labels = RecipeLabelFormatting.decodeCategories(recipe.categories)
+        for type in dishTypes where type != "Main" {
+            if labels.contains(where: { $0.caseInsensitiveCompare(type) == .orderedSame }) { return type }
+        }
+        if labels.contains(where: { $0.caseInsensitiveCompare("Main") == .orderedSame }) { return "Main" }
+        let title = (recipe.name ?? "").lowercased()
+        let desserts = ["brownie", "cookie", "cake", "cupcake", "cheesecake", "pie", "dessert", "pudding", "fudge", "cobbler", "crisp", "tart"]
+        if desserts.contains(where: { title.range(of: "\\b\($0)s?\\b", options: .regularExpression) != nil }) {
+            return "Dessert"
+        }
+        return PlanWeekCatalog.looksLikeSide(recipe.name ?? "") ? "Side" : "Main"
     }
 
     private func advance() {

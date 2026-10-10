@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import CoreData
+import Combine
 import EventKit
 import EventKitUI
 import UniformTypeIdentifiers
@@ -502,12 +503,23 @@ struct QuickRecipeAddHost: View {
     @State private var manualSeedURL = ""
     @State private var loadedPack: LoadedRecipePack?
     @State private var packLoadError: String?
+    /// Set when any flow from this chooser saves a recipe, so the chooser closes too.
+    @State private var didAddRecipe = false
 
     var body: some View {
         AddRecipeEntrySheet { route in
             open(route)
         }
         .background(Color.bgBase)
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSManagedObjectContextObjectsDidChange,
+                object: PersistenceController.shared.container.viewContext
+            )
+        ) { note in
+            let inserted = note.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? []
+            if inserted.contains(where: { $0 is Recipe }) { didAddRecipe = true }
+        }
         .sheet(isPresented: $showURLImport, onDismiss: finishURL) {
             URLImportView(
                 scrapedRecipe: $scrapedRecipe,
@@ -548,17 +560,17 @@ struct QuickRecipeAddHost: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showManual) {
+        .sheet(isPresented: $showManual, onDismiss: closeIfAdded) {
             AddRecipeView(recipe: nil, initialName: manualSeedName, initialSourceURL: manualSeedURL)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $previewRecipe) { recipe in
+        .sheet(item: $previewRecipe, onDismiss: closeIfAdded) { recipe in
             ImportPreviewView(scrapedRecipe: recipe)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .sheet(item: $loadedPack) { pack in
+        .sheet(item: $loadedPack, onDismiss: closeIfAdded) { pack in
             RecipePackImportView(loaded: pack)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
@@ -580,7 +592,14 @@ struct QuickRecipeAddHost: View {
         }
     }
 
+    private func closeIfAdded() {
+        guard didAddRecipe else { return }
+        didAddRecipe = false
+        dismiss()
+    }
+
     private func open(_ route: AddRecipeRoute) {
+        didAddRecipe = false
         switch route {
         case .link(let url):
             urlFailure = nil
