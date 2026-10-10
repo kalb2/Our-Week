@@ -199,7 +199,8 @@ enum PlanWeekCatalog {
         "drink", "drinks", "beverage", "beverages",
         "sauce", "sauces", "dressing", "dressings", "dip", "dips",
         "bread", "breads", "baked good", "baked goods", "pastry", "pastries",
-        "condiment", "condiments"
+        "condiment", "condiments",
+        "other"
     ]
 
     private static let breakfastLabels: Set<String> = ["breakfast", "brunch"]

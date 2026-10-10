@@ -18,9 +18,10 @@ struct TagRecipesWizard: View {
     @State private var newNightName = ""
 
     /// Course values in Recipe.categories. Only Main can be a dinner pick.
-    static let dishTypes = ["Main", "Side", "Appetizer", "Dessert", "Breakfast", "Snack", "Drink"]
+    static let dishTypes = ["Main", "Side", "Sauce", "Bread", "Appetizer", "Dessert", "Breakfast", "Snack", "Drink", "Other"]
     private static let dinnerLabels: Set<String> = ["Main", "Dinner", "Full meal"]
-    private let chipColumns = [GridItem(.adaptive(minimum: 148), spacing: 10)]
+    private let chipColumns = [GridItem(.adaptive(minimum: 116), spacing: 8)]
+    @State private var showAll = false
 
     private var current: Recipe? { index < queue.count ? queue[index] : nil }
 
@@ -64,7 +65,13 @@ struct TagRecipesWizard: View {
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(HomeQuiet.quiet)
             Spacer()
-            Color.clear.frame(width: 44, height: 44)
+            Button { setShowAll(!showAll) } label: {
+                Text(showAll ? "Needs work" : "Show all")
+                    .font(.system(size: 13))
+                    .foregroundStyle(HomeQuiet.quiet)
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.top, 8)
@@ -75,17 +82,29 @@ struct TagRecipesWizard: View {
     private func card(_ recipe: Recipe) -> some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    photo(recipe)
-                    Text(displayName(recipe))
-                        .font(.system(size: 28, weight: .regular, design: .serif))
-                        .foregroundStyle(HomeQuiet.ink)
-                        .lineLimit(3)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 14) {
+                        photo(recipe)
+                        Text(displayName(recipe))
+                            .font(.system(size: 24, weight: .regular, design: .serif))
+                            .foregroundStyle(HomeQuiet.ink)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Text("Dish type")
+                        .font(.system(size: 14))
+                        .foregroundStyle(HomeQuiet.quiet)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 80), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(Self.dishTypes, id: \.self) { type in
+                            dishChip(type)
+                        }
+                    }
                     if dishType == "Main" {
                         Text("Which nights does this fit?")
-                            .font(.system(size: 15))
+                            .font(.system(size: 14))
                             .foregroundStyle(HomeQuiet.quiet)
-                        LazyVGrid(columns: chipColumns, alignment: .leading, spacing: 10) {
+                            .padding(.top, 4)
+                        LazyVGrid(columns: chipColumns, alignment: .leading, spacing: 8) {
                             ForEach(nights) { night in
                                 chip(night)
                             }
@@ -93,18 +112,9 @@ struct TagRecipesWizard: View {
                         }
                     } else {
                         Text("Won't show in dinner picks")
-                            .font(.system(size: 15))
+                            .font(.system(size: 14))
                             .foregroundStyle(HomeQuiet.quiet)
-                            .padding(.vertical, 4)
-                    }
-                    Text("Dish type")
-                        .font(.system(size: 15))
-                        .foregroundStyle(HomeQuiet.quiet)
-                        .padding(.top, 8)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 10)], alignment: .leading, spacing: 10) {
-                        ForEach(Self.dishTypes, id: \.self) { type in
-                            dishChip(type)
-                        }
+                            .padding(.top, 4)
                     }
                 }
                 .animation(.easeInOut(duration: 0.2), value: dishType)
@@ -142,8 +152,7 @@ struct TagRecipesWizard: View {
 
     private func photo(_ recipe: Recipe) -> some View {
         Color.clear
-            .frame(maxWidth: .infinity)
-            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+            .frame(width: 72, height: 72)
             .overlay {
                 if let data = recipe.imageData, let image = UIImage(data: data) {
                     Image(uiImage: image).resizable().scaledToFill()
@@ -151,12 +160,12 @@ struct TagRecipesWizard: View {
                     Color(red: 0.98, green: 0.96, blue: 0.94)
                         .overlay(
                             Image(systemName: "fork.knife")
-                                .font(.system(size: 28))
+                                .font(.system(size: 20))
                                 .foregroundStyle(HomeQuiet.quiet)
                         )
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func chip(_ night: PlanCategory) -> some View {
@@ -167,18 +176,14 @@ struct TagRecipesWizard: View {
             HStack(spacing: 6) {
                 Text(night.emoji)
                 Text(night.name)
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
-                if on {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
-                }
             }
             .foregroundStyle(on ? Color.white : HomeQuiet.ink)
-            .padding(.horizontal, 12)
-            .frame(height: 44)
+            .padding(.horizontal, 10)
+            .frame(height: 34)
             .background(on ? Color.terra500 : Color.white)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(on ? Color.terra600 : HomeQuiet.buttonStroke, lineWidth: 1))
@@ -197,12 +202,12 @@ struct TagRecipesWizard: View {
                 Image(systemName: "plus")
                     .font(.system(size: 12, weight: .semibold))
                 Text("New")
-                    .font(.system(size: 14))
+                    .font(.system(size: 13))
                 Spacer(minLength: 0)
             }
             .foregroundStyle(Color.terra600)
-            .padding(.horizontal, 12)
-            .frame(height: 44)
+            .padding(.horizontal, 10)
+            .frame(height: 34)
             .background(Color.white)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(HomeQuiet.buttonStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -217,10 +222,12 @@ struct TagRecipesWizard: View {
             dishType = type
         } label: {
             Text(type)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(on ? Color.white : HomeQuiet.ink)
                 .frame(maxWidth: .infinity)
-                .frame(height: 40)
+                .frame(height: 32)
                 .background(on ? Color.terra500 : Color.white)
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(on ? Color.terra600 : HomeQuiet.buttonStroke, lineWidth: 1))
@@ -245,14 +252,28 @@ struct TagRecipesWizard: View {
     private var endScreen: some View {
         VStack(spacing: 16) {
             Spacer()
-            Text("\(taggedCount) \(taggedCount == 1 ? "recipe" : "recipes") tagged")
+            Text(nothingToDo ? "All your recipes are tagged" : "\(taggedCount) \(taggedCount == 1 ? "recipe" : "recipes") tagged")
                 .font(.system(size: 30, weight: .regular, design: .serif))
                 .foregroundStyle(HomeQuiet.ink)
+                .multilineTextAlignment(.center)
             Text("Plan week will use these tags to suggest dinners.")
                 .font(.system(size: 15))
                 .foregroundStyle(HomeQuiet.quiet)
                 .multilineTextAlignment(.center)
             Spacer()
+            if !showAll {
+                Button { setShowAll(true) } label: {
+                    Text(nothingToDo ? "Review all" : "Show all recipes")
+                        .font(.system(size: 16))
+                        .foregroundStyle(HomeQuiet.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
             Button { dismiss() } label: {
                 Text("Done")
                     .font(.system(size: 17))
@@ -273,13 +294,49 @@ struct TagRecipesWizard: View {
     private func load() {
         guard !didLoad else { return }
         didLoad = true
+        buildQueue()
+        nothingToDo = queue.isEmpty
+    }
+
+    @State private var nothingToDo = false
+
+    private func setShowAll(_ value: Bool) {
+        showAll = value
+        nothingToDo = false
+        buildQueue()
+    }
+
+    /// Default: only recipes missing a dish type, or mains with no night tag (missing type first).
+    /// Show all: every recipe, mains and untagged first.
+    private func buildQueue() {
         let all = dataManager.fetchRecipes(sortBy: .recentlyAdded)
-        queue = all.enumerated().sorted { a, b in
-            let ka = (Self.isMain(a.element) ? 0 : 1, Self.hasNightTag(a.element) ? 1 : 0)
-            let kb = (Self.isMain(b.element) ? 0 : 1, Self.hasNightTag(b.element) ? 1 : 0)
-            return ka != kb ? ka < kb : a.offset < b.offset
-        }.map(\.element)
+        let indexed = Array(all.enumerated())
+        if showAll {
+            queue = indexed.sorted { a, b in
+                let ka = (Self.isMain(a.element) ? 0 : 1, Self.hasNightTag(a.element) ? 1 : 0)
+                let kb = (Self.isMain(b.element) ? 0 : 1, Self.hasNightTag(b.element) ? 1 : 0)
+                return ka != kb ? ka < kb : a.offset < b.offset
+            }.map(\.element)
+        } else {
+            queue = indexed.filter { Self.needsWork($0.element) }.sorted { a, b in
+                let ka = Self.hasDishType(a.element) ? 1 : 0
+                let kb = Self.hasDishType(b.element) ? 1 : 0
+                return ka != kb ? ka < kb : a.offset < b.offset
+            }.map(\.element)
+        }
+        index = 0
+        taggedCount = 0
         prepareChecks()
+    }
+
+    static func hasDishType(_ recipe: Recipe) -> Bool {
+        let labels = RecipeLabelFormatting.decodeCategories(recipe.categories)
+        return labels.contains { label in dishTypes.contains { $0.caseInsensitiveCompare(label) == .orderedSame } }
+    }
+
+    static func needsWork(_ recipe: Recipe) -> Bool {
+        if !hasDishType(recipe) { return true }
+        return currentDishType(recipe) == "Main" && !hasNightTag(recipe)
     }
 
     private func prepareChecks() {
@@ -349,6 +406,11 @@ struct TagRecipesWizard: View {
         }
         if labels.contains(where: { $0.caseInsensitiveCompare("Main") == .orderedSame }) { return "Main" }
         let title = (recipe.name ?? "").lowercased()
+        func has(_ words: [String]) -> Bool {
+            words.contains { title.range(of: "\\b\($0)\\b", options: .regularExpression) != nil }
+        }
+        if has(["sauce", "sauces", "dressing", "dip", "gravy", "salsa", "aioli", "pesto"]) { return "Sauce" }
+        if has(["bread", "breads", "roll", "rolls", "biscuit", "biscuits", "focaccia", "garlic bread"]) { return "Bread" }
         let desserts = ["brownie", "cookie", "cake", "cupcake", "cheesecake", "pie", "dessert", "pudding", "fudge", "cobbler", "crisp", "tart"]
         if desserts.contains(where: { title.range(of: "\\b\($0)s?\\b", options: .regularExpression) != nil }) {
             return "Dessert"
