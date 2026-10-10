@@ -72,7 +72,8 @@ enum RecipePlannerMeals {
         "dessert", "desserts",
         "snack", "snacks",
         "appetizer", "appetizers", "starter", "starters",
-        "drink", "drinks", "beverage", "beverages"
+        "drink", "drinks", "beverage", "beverages",
+        "sauce", "sauces", "bread", "breads", "other"
     ]
 
     /// Existing meal-occasion categories. They count only when the recipe is not an excluded course.

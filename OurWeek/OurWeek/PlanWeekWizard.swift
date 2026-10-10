@@ -54,7 +54,7 @@ struct PlanWeekWizard: View {
 
     @State private var step: Step = .categories
     @State private var selected: [PlanCategory] = []
-    @State private var customs: [PlanCategory] = []
+    @State private var customs: [PlanCategory] = CustomNightStore.categories
     @State private var customName = ""
     @FocusState private var customFocused: Bool
     @FocusState private var restaurantFocused: Bool
@@ -336,6 +336,22 @@ struct PlanWeekWizard: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
+        .contextMenu {
+            if category.isCustom {
+                Button(role: .destructive) {
+                    removeCustom(category)
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private func removeCustom(_ category: PlanCategory) {
+        CustomNightStore.remove(category.name)
+        customs.removeAll { $0.id == category.id }
+        selected.removeAll { $0.id == category.id }
+        assignments = assignments.filter { $0.value.id != category.id }
     }
 
     private var nightCounter: some View {
@@ -1107,8 +1123,15 @@ struct PlanWeekWizard: View {
             refuseAnotherNight()
             return
         }
-        let category = PlanCategory.custom(name: name)
-        customs.append(category)
+        guard let category = CustomNightStore.add(name) else { return }
+        if category.isCustom, !customs.contains(where: { $0.id == category.id }) {
+            customs.append(category)
+        }
+        guard !selected.contains(where: { $0.id == category.id }) else {
+            customName = ""
+            customFocused = false
+            return
+        }
         selected.append(category)
         customName = ""
         customFocused = false

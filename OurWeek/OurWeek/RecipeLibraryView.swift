@@ -1055,7 +1055,7 @@ struct RecipeLibraryView: View {
 // MARK: - Recipe Constants
 
 struct RecipeConstants {
-    static let categories = ["Main", "Full meal", "Breakfast", "Lunch", "Dinner", "Dessert", "Snack", "Side", "Appetizer", "Drink"]
+    static let categories = ["Main", "Full meal", "Breakfast", "Lunch", "Dinner", "Dessert", "Snack", "Side", "Sauce", "Bread", "Appetizer", "Drink", "Other"]
     static let difficulties = ["Easy", "Medium", "Hard"]
     static let units = ["", "tsp", "tbsp", "cup", "oz", "lb", "g", "kg", "ml", "L", "pinch", "dash", "whole", "slice", "clove", "can", "pkg"]
 
@@ -1063,7 +1063,8 @@ struct RecipeConstants {
         "Main": "🥩", "Full meal": "🍱",
         "Breakfast": "🥞", "Lunch": "🥗", "Dinner": "🍝",
         "Dessert": "🍰", "Snack": "🍎", "Side": "🥦",
-        "Appetizer": "🧆", "Drink": "🥤"
+        "Appetizer": "🧆", "Drink": "🥤",
+        "Sauce": "🥫", "Bread": "🥖", "Other": "🍴"
     ]
 
     static let foodEmojis = ["🍳", "🥘", "🍲", "🌮", "🍕", "🥙", "🍜", "🥗", "🍝", "🧁", "🥞", "🍔", "🌯", "🥩", "🍱"]

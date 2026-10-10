@@ -13,9 +13,12 @@ struct PlanCategory: Identifiable, Hashable {
         id == "takeout" || id == "leftovers"
     }
 
-    /// Nights a recipe can be tagged with. Takeout and leftovers are not recipe tags.
+    var isCustom: Bool { id.hasPrefix("custom-") }
+
+    /// Nights a recipe can be tagged with, including saved custom nights.
+    /// Takeout and leftovers are not recipe tags.
     static var recipeNights: [PlanCategory] {
-        builtIn.filter { !$0.usesSingleChoice }
+        builtIn.filter { !$0.usesSingleChoice } + CustomNightStore.categories
     }
 
     static let builtIn: [PlanCategory] = [
@@ -31,22 +34,62 @@ struct PlanCategory: Identifiable, Hashable {
         PlanCategory(id: "soup", name: "Soup", emoji: "🥣", keywords: ["soup", "chili", "chowder", "stew"], defaultWeekday: nil),
         PlanCategory(id: "pizza", name: "Pizza Night", emoji: "🍕", keywords: ["pizza", "flatbread"], defaultWeekday: nil),
         PlanCategory(id: "quick", name: "Quick 30-min", emoji: "⏱️", keywords: ["quick", "30-min", "30 min", "weeknight"], defaultWeekday: nil),
+        PlanCategory(id: "wings", name: "Wings", emoji: "🍗", keywords: ["wing", "wings", "buffalo"], defaultWeekday: nil),
+        PlanCategory(id: "asian", name: "Asian", emoji: "🥢", keywords: ["stir fry", "teriyaki", "fried rice", "ramen", "curry"], defaultWeekday: nil),
+        PlanCategory(id: "italian", name: "Italian", emoji: "🇮🇹", keywords: ["lasagna", "parmesan", "risotto", "gnocchi"], defaultWeekday: nil),
+        PlanCategory(id: "burgers", name: "Burgers & Sandwiches", emoji: "🍔", keywords: ["burger", "sandwich", "wrap", "panini"], defaultWeekday: nil),
+        PlanCategory(id: "seafood", name: "Seafood", emoji: "🦐", keywords: ["salmon", "shrimp", "fish"], defaultWeekday: nil),
+        PlanCategory(id: "salads", name: "Salads", emoji: "🥗", keywords: ["salad"], defaultWeekday: nil),
+        PlanCategory(id: "casserole", name: "Casserole", emoji: "🫕", keywords: ["casserole", "bake", "hotdish"], defaultWeekday: nil),
         PlanCategory(id: "takeout", name: "Takeout / Eat Out", emoji: "🥡", keywords: ["takeout", "take-out", "eat out"], defaultWeekday: nil),
         PlanCategory(id: "leftovers", name: "Leftovers", emoji: "🍱", keywords: ["leftover", "leftovers"], defaultWeekday: nil)
     ]
 
+    /// Custom nights match only by an explicit tag with their name, so they carry no keywords.
     static func custom(name: String) -> PlanCategory {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let stops: Set<String> = ["and", "the", "for", "with", "from", "your"]
-        let words = trimmed.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
-        let keywords = words.filter { $0.count >= 3 && !stops.contains($0) }
         return PlanCategory(
-            id: "custom-\(UUID().uuidString)",
+            id: "custom-\(trimmed.lowercased())",
             name: trimmed,
             emoji: "✦",
-            keywords: keywords.isEmpty ? [trimmed.lowercased()] : keywords,
+            keywords: [],
             defaultWeekday: nil
         )
+    }
+}
+
+/// Custom week nights the user added, saved so they appear as chips everywhere.
+enum CustomNightStore {
+    private static let key = "planWeek.customNights"
+
+    static var names: [String] {
+        UserDefaults.standard.stringArray(forKey: key) ?? []
+    }
+
+    static var categories: [PlanCategory] {
+        names.map { PlanCategory.custom(name: $0) }
+    }
+
+    /// Adds a name unless it matches a built-in or saved night. Returns the category to use.
+    @discardableResult
+    static func add(_ name: String) -> PlanCategory? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let existing = PlanCategory.builtIn.first(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return existing
+        }
+        var list = names
+        if let saved = list.first(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return PlanCategory.custom(name: saved)
+        }
+        list.append(trimmed)
+        UserDefaults.standard.set(list, forKey: key)
+        return PlanCategory.custom(name: trimmed)
+    }
+
+    static func remove(_ name: String) {
+        let list = names.filter { $0.caseInsensitiveCompare(name) != .orderedSame }
+        UserDefaults.standard.set(list, forKey: key)
     }
 }
 
@@ -66,6 +109,9 @@ enum PlanWeekCatalog {
         let labels = [categories, tags].compactMap { $0 }.joined(separator: " ")
         let explicitHits = explicitTerms(for: category).filter { containsTerm(labels, $0) }.count
         if explicitHits > 0 { return 30 + explicitHits }
+        if category.id == "salads" {
+            return isMainSalad(name: name, categories: categories, tags: tags) ? 11 : 0
+        }
         let titleHits = terms(for: category).filter { containsTerm(name, $0) }.count
         if titleHits > 0 { return 10 + titleHits }
         if category.id == "quick", minutes > 0, minutes <= 30 { return 10 }
@@ -77,6 +123,7 @@ enum PlanWeekCatalog {
     static func isDinnerMain(name: String, categories: String?, tags: String?, categoryID: String) -> Bool {
         let labels = RecipeLabelFormatting.labelSet(categories: categories, tags: tags)
         if labels.contains(where: { hardExcludedLabels.contains($0) }) { return false }
+        if categoryID == "salads", isMainSalad(name: name, categories: categories, tags: tags) { return true }
         if (labels.contains("salad") || labels.contains("salads")) && !titleHasMainForm(name) {
             return false
         }
@@ -87,6 +134,19 @@ enum PlanWeekCatalog {
         return true
     }
 
+    /// A salad counts as dinner only when it is marked Main or names a protein.
+    static func isMainSalad(name: String, categories: String?, tags: String?) -> Bool {
+        guard containsTerm(name, "salad") || containsTerm(name, "salads") else { return false }
+        let labels = RecipeLabelFormatting.labelSet(categories: categories, tags: tags)
+        if labels.contains("main") { return true }
+        return containsProtein(name) || containsTerm(name, "taco")
+    }
+
+    /// The same title check that keeps sides out of dinner picks.
+    static func looksLikeSide(_ name: String) -> Bool {
+        titleIsSide(name)
+    }
+
     private static func explicitTerms(for category: PlanCategory) -> [String] {
         var terms = [category.name]
         terms.append(contentsOf: Self.terms(for: category))
@@ -95,6 +155,7 @@ enum PlanWeekCatalog {
 
     private static func terms(for category: PlanCategory) -> [String] {
         if let builtIn = strongTerms[category.id] { return builtIn }
+        if category.isCustom { return [] }
         return category.keywords
     }
 
@@ -138,7 +199,8 @@ enum PlanWeekCatalog {
         "drink", "drinks", "beverage", "beverages",
         "sauce", "sauces", "dressing", "dressings", "dip", "dips",
         "bread", "breads", "baked good", "baked goods", "pastry", "pastries",
-        "condiment", "condiments"
+        "condiment", "condiments",
+        "other"
     ]
 
     private static let breakfastLabels: Set<String> = ["breakfast", "brunch"]
@@ -188,6 +250,13 @@ enum PlanWeekCatalog {
         "sheetpan": ["sheet pan", "sheet-pan", "sheetpan", "tray bake"],
         "soup": ["soup", "chili", "chowder", "stew", "bisque"],
         "pizza": ["pizza", "flatbread"],
-        "quick": ["quick", "30-min", "30 min", "30 minute", "weeknight"]
+        "quick": ["quick", "30-min", "30 min", "30 minute", "weeknight"],
+        "wings": ["wing", "wings", "buffalo"],
+        "asian": ["stir fry", "stir-fry", "teriyaki", "fried rice", "lo mein", "orange chicken", "kung pao", "ramen", "pho", "curry", "thai", "korean", "bulgogi", "sesame", "general tso", "pad thai", "dumpling", "dumplings", "sushi"],
+        "italian": ["lasagna", "parmesan", "parm", "risotto", "gnocchi", "marsala", "piccata"],
+        "burgers": ["burger", "burgers", "sandwich", "sandwiches", "sliders", "wrap", "wraps", "panini", "sub", "grilled cheese"],
+        "seafood": ["salmon", "shrimp", "fish", "tilapia", "cod", "crab", "scallop", "scallops"],
+        "salads": [],
+        "casserole": ["casserole", "bake", "hotdish"]
     ]
 }
