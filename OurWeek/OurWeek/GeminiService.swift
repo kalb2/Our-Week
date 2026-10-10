@@ -17,6 +17,10 @@ class GeminiService {
 
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
     private let textModel = "gemini-3.8-flash"
+    /// Lighter model tried once when textModel stays overloaded (ai.google.dev/gemini-api/docs/models).
+    private let fallbackTextModel = "gemini-3.5-flash-lite"
+    /// Waits before each retry of an overloaded request.
+    private let retryDelays: [UInt64] = [2, 5]
     private let imageModel = "gemini-2.5-flash-image"
 
     private let rateLimiter = RateLimiter.shared
@@ -54,7 +58,6 @@ class GeminiService {
             ])
         }
 
-        let url = URL(string: "\(baseURL)/models/\(textModel):generateContent?key=\(apiKey)")!
         var body: [String: Any] = [
             "contents": [
                 ["parts": parts]
@@ -72,7 +75,13 @@ class GeminiService {
             ]
         }
 
-        let data = try await makeRequest(url: url, body: body, timeout: imageJPEG == nil ? 30 : 60)
+        // Vision: 45s per attempt, ~90s overall. Text: 30s per attempt, ~75s overall.
+        let data = try await generateWithRetry(
+            apiKey: apiKey,
+            body: body,
+            attemptTimeout: imageJPEG == nil ? 30 : 45,
+            totalBudget: imageJPEG == nil ? 75 : 90
+        )
         let text = try extractText(from: data)
 
         rateLimiter.recordRequest()
@@ -209,6 +218,38 @@ class GeminiService {
 
     // MARK: - Network Layer
 
+    /// Calls textModel, retrying overloaded responses (2s, then 5s), then tries the
+    /// lighter fallback model once. Never runs past `totalBudget` seconds.
+    private func generateWithRetry(
+        apiKey: String,
+        body: [String: Any],
+        attemptTimeout: TimeInterval,
+        totalBudget: TimeInterval
+    ) async throws -> Data {
+        let deadline = Date().addingTimeInterval(totalBudget)
+        var attempts: [(model: String, delay: UInt64)] = [(textModel, 0)]
+        attempts += retryDelays.map { (textModel, $0) }
+        attempts.append((fallbackTextModel, 0))
+
+        var lastError: Error = GeminiError.modelBusy
+        for attempt in attempts {
+            if attempt.delay > 0 {
+                guard Date().addingTimeInterval(TimeInterval(attempt.delay) + 5) < deadline else { break }
+                try await Task.sleep(nanoseconds: attempt.delay * 1_000_000_000)
+            }
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 5 else { break }
+            let url = URL(string: "\(baseURL)/models/\(attempt.model):generateContent?key=\(apiKey)")!
+            do {
+                return try await makeRequest(url: url, body: body, timeout: min(attemptTimeout, remaining))
+            } catch GeminiError.modelBusy {
+                lastError = GeminiError.modelBusy
+                print("[GeminiService] \(attempt.model) busy, retrying")
+            }
+        }
+        throw lastError
+    }
+
     private func makeRequest(url: URL, body: [String: Any], timeout: TimeInterval) async throws -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -217,11 +258,22 @@ class GeminiService {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
+        // timeoutInterval alone is an idle timeout; the resource timeout caps the whole request.
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = timeout
+        config.timeoutIntervalForResource = timeout
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
+
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch let error as URLError where error.code == .timedOut {
             throw GeminiError.timeout
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw GeminiError.networkError(underlying: error)
         }
@@ -258,7 +310,15 @@ class GeminiService {
             throw GeminiError.parsingError(message: "The AI model could not be found. Please try again later.")
         case 429:
             print("[GeminiService] API rate limited (429)")
+            if Self.isOverloaded(data) {
+                throw GeminiError.modelBusy
+            }
             throw GeminiError.rateLimitExceeded(resetTime: Date().addingTimeInterval(60))
+        case 500, 503:
+            if let body = String(data: data, encoding: .utf8) {
+                print("[GeminiService] Server busy \(httpResponse.statusCode): \(body.prefix(300))")
+            }
+            throw GeminiError.modelBusy
         case 500...599:
             if let body = String(data: data, encoding: .utf8) {
                 print("[GeminiService] Server error \(httpResponse.statusCode): \(body.prefix(300))")
@@ -276,6 +336,15 @@ class GeminiService {
             }
             throw GeminiError.invalidResponse
         }
+    }
+
+    /// True when a 429 body says the model is overloaded rather than the user's quota being hit.
+    private static func isOverloaded(_ data: Data) -> Bool {
+        let info = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let error = info?["error"] as? [String: Any]
+        let status = (error?["status"] as? String ?? "").uppercased()
+        let message = (error?["message"] as? String ?? "").lowercased()
+        return status == "UNAVAILABLE" || message.contains("high demand") || message.contains("overloaded")
     }
 
     private static func apiErrorMessage(from data: Data) -> String? {

@@ -25,6 +25,7 @@ struct PhotoImportView: View {
     @State private var isParsing = false
     @State private var errorMessage: String?
     @State private var missingKey = !KeychainManager.hasGeminiAPIKey()
+    @State private var parseTask: Task<Void, Never>?
 
     private var cameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -70,9 +71,13 @@ struct PhotoImportView: View {
         }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
-            Task {
+            Task { @MainActor in
+                // Clear so picking the same photo again still triggers a retry.
+                photoItem = nil
                 if let transfer = try? await item.loadTransferable(type: RecipePhotoTransfer.self) {
                     beginParse(data: transfer.data)
+                } else {
+                    errorMessage = "Couldn't load that photo. Try another one."
                 }
             }
         }
@@ -86,7 +91,10 @@ struct PhotoImportView: View {
 
     private var header: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: {
+                cancelParse()
+                dismiss()
+            }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.black)
@@ -193,6 +201,9 @@ struct PhotoImportView: View {
                 Text("Reading recipe")
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(.black)
+                Button("Cancel") { cancelParse() }
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(Color.terra500)
             }
             .padding(24)
             .background(Color.bgBase)
@@ -213,17 +224,29 @@ struct PhotoImportView: View {
         }
         isParsing = true
         errorMessage = nil
-        Task {
+        parseTask = Task { @MainActor in
+            defer {
+                isParsing = false
+                parseTask = nil
+            }
             do {
                 let recipe = try await GeminiService.shared.parseRecipeFromImage(image)
+                try Task.checkCancellation()
                 scrapedRecipe = recipe
-                isParsing = false
                 dismiss()
+            } catch is CancellationError {
+                // Cancelled by the user; nothing to show.
             } catch {
-                errorMessage = error.localizedDescription
-                isParsing = false
+                guard !Task.isCancelled else { return }
+                errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
         }
+    }
+
+    private func cancelParse() {
+        parseTask?.cancel()
+        parseTask = nil
+        isParsing = false
     }
 }
 
