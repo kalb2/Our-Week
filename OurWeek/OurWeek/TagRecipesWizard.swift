@@ -10,7 +10,7 @@ struct TagRecipesWizard: View {
     @State private var queue: [Recipe] = []
     @State private var index = 0
     @State private var checked: Set<String> = []
-    @State private var taggedCount = 0
+    @State private var updatedCount = 0
     @State private var didLoad = false
     @State private var nights = PlanCategory.recipeNights
     @State private var dishType = "Main"
@@ -252,7 +252,7 @@ struct TagRecipesWizard: View {
     private var endScreen: some View {
         VStack(spacing: 16) {
             Spacer()
-            Text(nothingToDo ? "All your recipes are tagged" : "\(taggedCount) \(taggedCount == 1 ? "recipe" : "recipes") tagged")
+            Text(nothingToDo ? "All your recipes are tagged" : "\(updatedCount) \(updatedCount == 1 ? "recipe" : "recipes") updated")
                 .font(.system(size: 30, weight: .regular, design: .serif))
                 .foregroundStyle(HomeQuiet.ink)
                 .multilineTextAlignment(.center)
@@ -325,13 +325,17 @@ struct TagRecipesWizard: View {
             }.map(\.element)
         }
         index = 0
-        taggedCount = 0
+        updatedCount = 0
         prepareChecks()
     }
 
+    /// A course category counts, and so does Full meal or Dinner (both read as Main).
     static func hasDishType(_ recipe: Recipe) -> Bool {
         let labels = RecipeLabelFormatting.decodeCategories(recipe.categories)
-        return labels.contains { label in dishTypes.contains { $0.caseInsensitiveCompare(label) == .orderedSame } }
+        return labels.contains { label in
+            dishTypes.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
+                || dinnerLabels.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
+        }
     }
 
     static func needsWork(_ recipe: Recipe) -> Bool {
@@ -363,8 +367,9 @@ struct TagRecipesWizard: View {
     }
 
     private func saveAndAdvance(_ recipe: Recipe) {
-        saveDishType(recipe)
+        var changed = saveDishType(recipe)
         guard dishType == "Main" else {
+            if changed { updatedCount += 1 }
             advance()
             return
         }
@@ -376,13 +381,16 @@ struct TagRecipesWizard: View {
         let encoded = tags.isEmpty ? nil : tags.joined(separator: ", ")
         if encoded != recipe.tags {
             dataManager.setRecipesTags([recipe], tags: encoded)
+            changed = true
         }
-        if !chosen.isEmpty { taggedCount += 1 }
+        if changed { updatedCount += 1 }
         advance()
     }
 
     /// Replaces only the course value; a non-main type also drops Main/Dinner/Full meal.
-    private func saveDishType(_ recipe: Recipe) {
+    /// Returns true when the categories changed.
+    @discardableResult
+    private func saveDishType(_ recipe: Recipe) -> Bool {
         let current = RecipeLabelFormatting.decodeCategories(recipe.categories)
         var updated = current.filter { label in
             !Self.dishTypes.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
@@ -392,10 +400,15 @@ struct TagRecipesWizard: View {
                 !Self.dinnerLabels.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
             }
         }
-        updated.insert(dishType)
-        if updated != current {
-            dataManager.setRecipesCategories([recipe], categories: RecipeLabelFormatting.encodeCategories(updated))
+        // Full meal / Dinner already mean Main, so don't add a redundant Main.
+        let hadMain = current.contains { $0.caseInsensitiveCompare("Main") == .orderedSame }
+        let alreadyMain = dishType == "Main" && !hadMain && updated.contains { label in
+            Self.dinnerLabels.contains { $0.caseInsensitiveCompare(label) == .orderedSame }
         }
+        if !alreadyMain { updated.insert(dishType) }
+        guard updated != current else { return false }
+        dataManager.setRecipesCategories([recipe], categories: RecipeLabelFormatting.encodeCategories(updated))
+        return true
     }
 
     /// The recipe's course from its categories, or a guess from its title.
@@ -404,7 +417,9 @@ struct TagRecipesWizard: View {
         for type in dishTypes where type != "Main" {
             if labels.contains(where: { $0.caseInsensitiveCompare(type) == .orderedSame }) { return type }
         }
-        if labels.contains(where: { $0.caseInsensitiveCompare("Main") == .orderedSame }) { return "Main" }
+        if labels.contains(where: { label in dinnerLabels.contains { $0.caseInsensitiveCompare(label) == .orderedSame } }) {
+            return "Main"
+        }
         let title = (recipe.name ?? "").lowercased()
         func has(_ words: [String]) -> Bool {
             words.contains { title.range(of: "\\b\($0)\\b", options: .regularExpression) != nil }
