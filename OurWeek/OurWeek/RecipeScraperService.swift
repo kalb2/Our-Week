@@ -980,6 +980,12 @@ final class RecipeScraperService {
         return extractAmount(from: text).0
     }
 
+    /// Leading amount and whatever follows it, e.g. "1½ lbs" → (1.5, "lbs").
+    static func splitAmount(_ text: String) -> (amount: Double, rest: String) {
+        let parts = extractAmount(from: text)
+        return (parts.0, parts.1)
+    }
+
     /// Fraction slashes and spaced `1 / 2` become `1/2` before the amount is read.
     static func normalizeFractionText(_ text: String) -> String {
         var result = text
