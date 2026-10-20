@@ -782,5 +782,6 @@ struct HomeWidget: Widget {
 struct OurWeekWidgetBundle: WidgetBundle {
     var body: some Widget {
         HomeWidget()
+        TonightWidget()
     }
 }

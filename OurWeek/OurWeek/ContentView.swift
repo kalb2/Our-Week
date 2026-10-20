@@ -71,6 +71,7 @@ extension View {
 // MARK: - Main Content View
 struct ContentView: View {
     @State private var selectedTab: Tab = .home
+    @State private var widgetRecipe: Recipe?
     @State private var showSharingSettings = false
     @State private var addFanOpen = false
     @State private var showAddMealSheet = false
@@ -208,6 +209,7 @@ struct ContentView: View {
         .preferredColorScheme(.light)
         .onAppear {
             openSharedImportIfNeeded()
+            openPendingRecipe()
             HomeWidgetStore.startObservingWidgetToggles()
             HomeWidgetStore.applyWidgetTodoEdits()
             GoalsCenter.shared.applyWidgetBumps()
@@ -229,6 +231,14 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenHome)) { _ in
             selectedTab = .home
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RecipeOpenRoute.didArrive)) { _ in
+            openPendingRecipe()
+        }
+        .sheet(item: $widgetRecipe) { recipe in
+            RecipeDetailView(recipe: recipe)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .onReceive(NotificationCenter.default.publisher(for: .ourWeekOpenGoals)) { _ in
             GoalReminderRoute.openGoals = false
@@ -270,6 +280,17 @@ struct ContentView: View {
                 break
             }
         }
+    }
+
+    /// A Tonight widget tap. Opens his recipe over Home; a missing recipe just shows Home.
+    private func openPendingRecipe() {
+        guard let id = RecipeOpenRoute.pendingRecipeID else { return }
+        RecipeOpenRoute.pendingRecipeID = nil
+        selectedTab = .home
+        let request: NSFetchRequest<Recipe> = Recipe.fetchRequest()
+        request.fetchLimit = 1
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        widgetRecipe = try? PersistenceController.shared.container.viewContext.fetch(request).first
     }
 
     private func openSharedImportIfNeeded() {
@@ -787,6 +808,14 @@ private extension UIView {
     }
 }
 
+private struct SwapTarget: Identifiable {
+    var day: Date
+    var lineID: String
+    var dayName: String
+    var current: Recipe?
+    var id: String { "\(day.timeIntervalSince1970)-\(lineID)" }
+}
+
 private struct DinnerLine: Identifiable {
     var id: String
     var mealID: NSManagedObjectID?
@@ -1277,6 +1306,7 @@ struct WeeklyCalendarCard: View {
     @State private var suppressCommit = false
     @State private var mealFocusStamp = 0
     @State private var viewingRecipe: Recipe?
+    @State private var swapTarget: SwapTarget?
     @State private var editingTodo: TodoTask?
     @State private var todoDraft = ""
     @State private var isSubmittingTodo = false
@@ -1535,6 +1565,14 @@ struct WeeklyCalendarCard: View {
             RecipeDetailView(recipe: recipe)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $swapTarget) { target in
+            SwapDinnerSheet(dayName: target.dayName, current: target.current) { recipe in
+                applyRecipe(recipe, on: target.day, lineID: target.lineID)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.bgBase)
         }
         .sheet(item: $editingTodo) { todo in
             EditTodoSheet(
@@ -2052,6 +2090,14 @@ struct WeeklyCalendarCard: View {
                             focusedField = .line(day: day, id: line.id)
                         }
                     }
+                    .contextMenu(line.mealID != nil && !shown.isEmpty && !focused ? ContextMenu {
+                        Button {
+                            dismissMealKeyboard()
+                            swapTarget = SwapTarget(day: day, lineID: line.id, dayName: dayName, current: linked)
+                        } label: {
+                            Label("Swap dinner", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    } : nil)
                     .accessibilityLabel(opensRecipe ? "\(shown), \(dayName)" : "\(dayName) dinner")
                     .accessibilityHint(opensRecipe ? "Opens recipe" : "")
                     .accessibilityAddTraits(opensRecipe ? .isButton : [])

@@ -24,6 +24,7 @@ struct RecipeDetailView: View {
     @State private var checkedSteps: Set<UUID> = []
     @State private var editableNotes: String = ""
     @State private var currentRating: Int = 0
+    @State private var showCookMode = false
     
     // AI Generation State
     @State private var isGeneratingImage = false
@@ -174,6 +175,9 @@ struct RecipeDetailView: View {
             AddRecipeView(recipe: recipe)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showCookMode) {
+            CookModeView(recipe: recipe, servingMultiplier: servingMultiplier)
         }
         .alert("Delete Recipe?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
@@ -377,6 +381,11 @@ struct RecipeDetailView: View {
 
             Menu {
                 Button {
+                    showCookMode = true
+                } label: {
+                    Label("Cook mode", systemImage: "frying.pan")
+                }
+                Button {
                     dataManager.adjustTimesCooked(recipe, by: 1)
                     refreshCooked()
                 } label: {
@@ -460,26 +469,42 @@ struct RecipeDetailView: View {
 
     private var ingredientsTab: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Serving adjuster
+            // Serving adjuster. Only when the recipe says how many it serves, so the scale means something.
+            if recipe.servings > 0 {
             HStack {
-                Text("ADJUST SERVINGS")
-                    .font(.system(size: 10, weight: .regular))
-                    .tracking(1)
-                    .foregroundStyle(.gray)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("SERVINGS")
+                        .font(.system(size: 10, weight: .regular))
+                        .tracking(1)
+                        .foregroundStyle(.gray)
+                    if adjustedServings != Int(recipe.servings) {
+                        Button {
+                            adjustedServings = Int(recipe.servings)
+                        } label: {
+                            Text("Scaled from \(recipe.servings) · Reset")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.terra600)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
 
                 Spacer()
 
                 HStack(spacing: 8) {
-                    Button(action: { if adjustedServings > 1 { adjustedServings -= 1 } }) {
-                        Image(systemName: "minus")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.terra500)
-                            .frame(width: 28, height: 28)
-                            .background(Color.terra100)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.terra200, lineWidth: 1))
+                    if adjustedServings > 1 {
+                        Button(action: { adjustedServings -= 1 }) {
+                            Image(systemName: "minus")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color.terra500)
+                                .frame(width: 28, height: 28)
+                                .background(Color.terra100)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.terra200, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Fewer servings")
                     }
-                    .buttonStyle(.plain)
 
                     Text("\(adjustedServings)")
                         .font(.system(size: 16, weight: .regular, design: .serif))
@@ -495,9 +520,11 @@ struct RecipeDetailView: View {
                             .overlay(Circle().stroke(Color.terra200, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("More servings")
                 }
             }
             .padding(.horizontal, 24)
+            }
 
             // Ingredient list
             VStack(spacing: 0) {
