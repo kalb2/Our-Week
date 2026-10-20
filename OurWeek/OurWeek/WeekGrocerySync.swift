@@ -436,6 +436,15 @@ enum WeekGrocerySync {
         reconcileAgain()
     }
 
+    static func resetStaples() {
+        PantryStaples.reset()
+        reconcileAgain()
+    }
+
+    static var stapleListIsDefault: Bool {
+        PantryStaples.isDefault
+    }
+
     /// One entry per ingredient and meal set, so removals from different weeks don't overwrite each other.
     private static func recordRemoval(
         key: String,
@@ -1112,6 +1121,15 @@ private enum PantryStaples {
         guard !current.contains(where: { GroceryName.key($0) == key }) else { return }
         current.append(display)
         save(current)
+    }
+
+    static func reset() {
+        save(seed)
+        UserDefaults.standard.set(true, forKey: migrationKey)
+    }
+
+    static var isDefault: Bool {
+        names().map { GroceryName.key($0) }.sorted() == seed.map { GroceryName.key($0) }.sorted()
     }
 
     static func remove(_ name: String) {

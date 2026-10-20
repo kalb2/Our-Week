@@ -2183,15 +2183,38 @@ struct ShopListEntryRow: View {
 private struct PantryStaplesSheet: View {
     @State private var names: [String] = []
     @State private var draft = ""
+    @State private var isDefault = true
+    @State private var showReset = false
+    @FocusState private var draftFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Pantry staples")
-                .font(.system(size: 22, weight: .regular, design: .serif))
-                .foregroundStyle(HomeQuiet.ink)
-                .padding(.horizontal, 24)
-                .padding(.top, 28)
-                .padding(.bottom, 12)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Pantry staples")
+                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .foregroundStyle(HomeQuiet.ink)
+                    Text("\(names.count) \(names.count == 1 ? "item" : "items") the grocery list skips")
+                        .font(.system(size: 13))
+                        .foregroundStyle(HomeQuiet.quiet)
+                }
+                Spacer()
+                if !isDefault {
+                    Menu {
+                        Button("Reset to defaults", systemImage: "arrow.counterclockwise") { showReset = true }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                            .frame(width: 40, height: 40)
+                    }
+                    .accessibilityLabel("Pantry options")
+                }
+            }
+            .padding(.leading, 24)
+            .padding(.trailing, 12)
+            .padding(.top, 28)
+            .padding(.bottom, 12)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -2225,9 +2248,10 @@ private struct PantryStaplesSheet: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Add", text: $draft)
+                TextField("Add a staple", text: $draft)
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(HomeQuiet.ink)
+                    .focused($draftFocused)
                     .submitLabel(.done)
                     .onSubmit(commitDraft)
                 if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -2251,12 +2275,23 @@ private struct PantryStaplesSheet: View {
             .padding(.bottom, 20)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.bgBase)
+        .background(Color.bgBase.onTapGesture { draftFocused = false })
+        .scrollDismissesKeyboard(.immediately)
         .onAppear(perform: reload)
+        .confirmationDialog("Reset pantry staples?", isPresented: $showReset, titleVisibility: .visible) {
+            Button("Reset to defaults", role: .destructive) {
+                WeekGrocerySync.resetStaples()
+                reload()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your additions are removed and the built-in list comes back.")
+        }
     }
 
     private func reload() {
         names = WeekGrocerySync.stapleNames()
+        isDefault = WeekGrocerySync.stapleListIsDefault
     }
 
     private func commitDraft() {
