@@ -24,6 +24,7 @@ struct RecipeDetailView: View {
     @State private var checkedSteps: Set<UUID> = []
     @State private var editableNotes: String = ""
     @State private var currentRating: Int = 0
+    @State private var showCookMode = false
     
     // AI Generation State
     @State private var isGeneratingImage = false
@@ -174,6 +175,9 @@ struct RecipeDetailView: View {
             AddRecipeView(recipe: recipe)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showCookMode) {
+            CookModeView(recipe: recipe, servingMultiplier: servingMultiplier)
         }
         .alert("Delete Recipe?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
@@ -376,6 +380,11 @@ struct RecipeDetailView: View {
             Spacer()
 
             Menu {
+                Button {
+                    showCookMode = true
+                } label: {
+                    Label("Cook mode", systemImage: "frying.pan")
+                }
                 Button {
                     dataManager.adjustTimesCooked(recipe, by: 1)
                     refreshCooked()
