@@ -82,6 +82,8 @@ struct PlanWeekWizard: View {
     @State private var showAddRecipe = false
     @State private var showTagNudge = false
     @State private var showTagWizard = false
+    @State private var lastWeekDinners: [Date: [MealPlan]] = [:]
+    @State private var showRepeatConfirm = false
     /// The tagging nudge shows at most once per app session.
     @MainActor private static var tagNudgeHandled = false
     /// Bumped when a night tag is toggled so menu and preview labels re-read the recipe's tags.
@@ -194,6 +196,17 @@ struct PlanWeekWizard: View {
             Text("Replace the dinners already planned, or only fill days that are still open.")
         }
         .confirmationDialog(
+            "This week already has dinners",
+            isPresented: $showRepeatConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Replace planned meals") { repeatLastWeek(replacing: true) }
+            Button("Only fill empty days") { repeatLastWeek(replacing: false) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Copy last week's dinners over the ones already planned, or only into open days.")
+        }
+        .confirmationDialog(
             "Leave without saving?",
             isPresented: $showLeave,
             titleVisibility: .visible
@@ -274,6 +287,24 @@ struct PlanWeekWizard: View {
                 Text("Pick the kinds of night you want.")
                     .font(.system(size: 16))
                     .foregroundStyle(HomeQuiet.quiet)
+                if lastWeekCount > 0 {
+                    Button(action: requestRepeat) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 13))
+                            Text("Repeat last week · \(lastWeekCount) \(lastWeekCount == 1 ? "dinner" : "dinners")")
+                                .font(.system(size: 15))
+                        }
+                        .foregroundStyle(Color.terra600)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.terra100)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.terra200, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 2)
+                }
                 nightCounter
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1060,6 +1091,75 @@ struct PlanWeekWizard: View {
         recipes = dataManager.fetchRecipes(sortBy: .favoritesFirst)
         showTagNudge = !Self.tagNudgeHandled && TagRecipesWizard.needsTagging(recipes)
         refreshExisting()
+        loadLastWeek()
+    }
+
+    // MARK: - Repeat last week
+
+    private var lastWeekCount: Int {
+        lastWeekDinners.values.reduce(0) { $0 + $1.count }
+    }
+
+    /// The same weekdays one week earlier, keyed by this week's day.
+    private func loadLastWeek() {
+        let calendar = Calendar.current
+        guard let first = weekDays.first, let last = weekDays.last,
+              let from = calendar.date(byAdding: .day, value: -7, to: dayKey(first)),
+              let through = calendar.date(byAdding: .day, value: -7, to: dayKey(last)) else {
+            lastWeekDinners = [:]
+            return
+        }
+        let meals = dataManager.fetchMealPlans(from: from, through: through)
+        var map: [Date: [MealPlan]] = [:]
+        for date in weekDays {
+            let key = dayKey(date)
+            guard let source = calendar.date(byAdding: .day, value: -7, to: key) else { continue }
+            let dinners = meals.filter { meal in
+                guard let mealDate = meal.date, calendar.isDate(mealDate, inSameDayAs: source) else { return false }
+                guard (meal.mealType ?? "dinner").lowercased() == "dinner" else { return false }
+                return !(meal.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            if !dinners.isEmpty { map[key] = dinners }
+        }
+        lastWeekDinners = map
+    }
+
+    private func requestRepeat() {
+        refreshExisting()
+        let conflict = lastWeekDinners.keys.contains { !(existingDinners[$0] ?? []).isEmpty }
+        if conflict {
+            showRepeatConfirm = true
+        } else {
+            repeatLastWeek(replacing: true)
+        }
+    }
+
+    private func repeatLastWeek(replacing: Bool) {
+        guard !isSaving else { return }
+        isSaving = true
+        for date in weekDays {
+            let key = dayKey(date)
+            guard let sources = lastWeekDinners[key], !sources.isEmpty else { continue }
+            let existing = existingDinners[key] ?? []
+            if !existing.isEmpty {
+                if !replacing { continue }
+                dataManager.deleteMealPlans(existing)
+            }
+            for source in sources {
+                let recipe = source.recipe
+                _ = dataManager.createMealPlan(
+                    title: recipe.map(displayName) ?? (source.title ?? "Dinner"),
+                    date: key,
+                    mealType: Self.dinnerType,
+                    notes: source.notes,
+                    ingredients: recipe.flatMap(ingredientString(for:)) ?? source.ingredients,
+                    recipe: recipe
+                )
+            }
+        }
+        NotificationCenter.default.post(name: .ourWeekPlansChanged, object: nil)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        dismiss()
     }
 
     private var tagNudge: some View {
