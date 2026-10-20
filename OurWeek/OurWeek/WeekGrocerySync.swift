@@ -112,12 +112,18 @@ enum WeekGrocerySync {
         }
 
         var next: [Line] = []
-        var usedKeys = Set<String>()
         var removals = loadRemovals()
         var removalsChanged = false
+        // Removals live until their meals are gone or re-planned with another recipe,
+        // not just while their week is on screen, so leaving the week can't bring items back.
+        let livePlans = mealRecipes(for: Set(removals.flatMap(\.mealIDs)))
+        let liveRemovals = removals.filter { stillApplies($0, plans: livePlans) }
+        if liveRemovals != removals {
+            removals = liveRemovals
+            removalsChanged = true
+        }
 
         for (key, bucket) in desired {
-            usedKeys.insert(key)
             let meals = Set(bucket.meals.map(\.mealID))
             if let index = ledger.lines.firstIndex(where: { lineKey($0) == key }) {
                 var line = ledger.lines[index]
@@ -130,7 +136,7 @@ enum WeekGrocerySync {
                         next.append(line)
                         continue
                     }
-                    dropRemoval(key: key, from: &removals, changed: &removalsChanged)
+                    dropRemoval(key: key, superseding: meals, from: &removals, changed: &removalsChanged)
                     if let created = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
                         next.append(created)
                         changed = true
@@ -147,7 +153,7 @@ enum WeekGrocerySync {
             } else if removalMatches(key, meals: meals, in: removals) {
                 continue
             } else {
-                dropRemoval(key: key, from: &removals, changed: &removalsChanged)
+                dropRemoval(key: key, superseding: meals, from: &removals, changed: &removalsChanged)
                 if let line = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
                     next.append(line)
                     changed = true
@@ -155,15 +161,6 @@ enum WeekGrocerySync {
             }
         }
 
-        let keptRemovals = removals.compactMap { removal -> Removal? in
-            let name = removalName(removal.key)
-            guard usedKeys.contains(name) else { return nil }
-            return Removal(key: name, mealIDs: removal.mealIDs)
-        }
-        if keptRemovals != removals {
-            removals = keptRemovals
-            removalsChanged = true
-        }
         if removalsChanged {
             saveRemovals(removals)
         }
@@ -358,6 +355,49 @@ enum WeekGrocerySync {
     private struct Removal: Codable, Equatable {
         var key: String
         var mealIDs: [String]
+        /// "mealID=recipeID" for each meal when recorded. Nil on removals saved before build 100.
+        var links: [String]?
+    }
+
+    private static let maxRemovals = 1500
+
+    /// Current recipe id (or "" when the meal has none) for each meal plan id that still exists.
+    private static func mealRecipes(for mealIDs: Set<String>) -> [String: String] {
+        guard !mealIDs.isEmpty else { return [:] }
+        let context = PersistenceController.shared.container.viewContext
+        var result: [String: String] = [:]
+        let uuids = mealIDs.compactMap(UUID.init(uuidString:))
+        if !uuids.isEmpty {
+            let request: NSFetchRequest<MealPlan> = MealPlan.fetchRequest()
+            request.predicate = NSPredicate(format: "id IN %@", uuids)
+            for meal in (try? context.fetch(request)) ?? [] {
+                guard let id = meal.id?.uuidString, mealIDs.contains(id) else { continue }
+                result[id] = recipeToken(meal)
+            }
+        }
+        // Meals without an id are keyed by their object URI.
+        for raw in mealIDs where UUID(uuidString: raw) == nil {
+            guard let url = URL(string: raw),
+                  let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url),
+                  let meal = try? context.existingObject(with: objectID) as? MealPlan,
+                  !meal.isDeleted else { continue }
+            result[raw] = recipeToken(meal)
+        }
+        return result
+    }
+
+    private static func recipeToken(_ meal: MealPlan) -> String {
+        guard let recipe = meal.recipe else { return "" }
+        return recipe.id?.uuidString ?? recipe.objectID.uriRepresentation().absoluteString
+    }
+
+    /// A removal stays while every meal it covers still exists with the same recipe.
+    private static func stillApplies(_ removal: Removal, plans: [String: String]) -> Bool {
+        for mealID in removal.mealIDs {
+            guard let recipe = plans[mealID], !recipe.isEmpty else { return false }
+            if let links = removal.links, !links.contains("\(mealID)=\(recipe)") { return false }
+        }
+        return !removal.mealIDs.isEmpty
     }
 
     private static func removalName(_ key: String) -> String {
@@ -396,28 +436,42 @@ enum WeekGrocerySync {
         reconcileAgain()
     }
 
+    /// One entry per ingredient and meal set, so removals from different weeks don't overwrite each other.
     private static func recordRemoval(
         key: String,
         meals: Set<String>,
         into removals: inout [Removal],
         changed: inout Bool
     ) {
+        let name = removalName(key)
         let sorted = meals.sorted()
-        if let index = removals.firstIndex(where: { $0.key == key }) {
-            if removals[index].mealIDs != sorted {
-                removals[index].mealIDs = sorted
+        let plans = mealRecipes(for: meals)
+        let links = sorted.compactMap { id in plans[id].map { "\(id)=\($0)" } }
+        if let index = removals.firstIndex(where: { removalName($0.key) == name && $0.mealIDs.sorted() == sorted }) {
+            if removals[index].links != links || removals[index].key != name {
+                removals[index].key = name
+                removals[index].links = links
                 changed = true
             }
         } else {
-            removals.append(Removal(key: key, mealIDs: sorted))
+            removals.append(Removal(key: name, mealIDs: sorted, links: links))
+            if removals.count > maxRemovals {
+                removals.removeFirst(removals.count - maxRemovals)
+            }
             changed = true
         }
     }
 
-    private static func dropRemoval(key: String, from removals: inout [Removal], changed: inout Bool) {
-        guard let index = removals.firstIndex(where: { $0.key == key }) else { return }
-        removals.remove(at: index)
-        changed = true
+    /// The ingredient is being added again for a new meal set; forget removals it now covers.
+    private static func dropRemoval(
+        key: String,
+        superseding meals: Set<String>,
+        from removals: inout [Removal],
+        changed: inout Bool
+    ) {
+        let before = removals.count
+        removals.removeAll { removalName($0.key) == key && Set($0.mealIDs).isSubset(of: meals) }
+        if removals.count != before { changed = true }
     }
 
     private static func loadRemovals() -> [Removal] {
