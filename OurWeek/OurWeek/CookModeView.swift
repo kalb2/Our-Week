@@ -193,7 +193,7 @@ struct CookModeView: View {
                         let amount = fixed.amount * servingMultiplier
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             if amount > 0 {
-                                Text(verbatim: CookingAmount.labeled(amount, unit: fixed.unit))
+                                Text(verbatim: CookingAmount.scaledLabel(amount, unit: fixed.unit))
                                     .foregroundStyle(Color.terra600)
                             }
                             Text(fixed.name)

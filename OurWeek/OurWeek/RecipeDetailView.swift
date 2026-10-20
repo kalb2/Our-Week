@@ -562,7 +562,7 @@ struct RecipeDetailView: View {
                             }
 
                             if scaledAmount > 0 {
-                                Text(verbatim: CookingAmount.labeled(scaledAmount, unit: fixed.unit))
+                                Text(verbatim: CookingAmount.scaledLabel(scaledAmount, unit: fixed.unit))
                                     .font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }
