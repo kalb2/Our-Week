@@ -58,9 +58,12 @@ struct RecipeLibraryView: View {
     @State private var manualSeedURL = ""
     @State private var isReadingShare = false
     @State private var librarySheet: RecipeLibrarySheet?
-    @State private var filterCategory: String? = nil
+    @State private var filterNight: String? = nil
+    @State private var filterDish: String? = nil
     @State private var filterDifficulty: String? = nil
     @State private var filterFavoritesOnly = false
+    /// Every recipe before search and filters, for the total and the filter counts.
+    @State private var libraryRecipes: [Recipe] = []
 
     // URL Import
     @State private var showURLImport = false
@@ -108,9 +111,15 @@ struct RecipeLibraryView: View {
                 // Sort & Filter Toolbar. Kept above the grid so card overflow cannot steal taps.
                 filterToolbar
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, isNarrowed ? 10 : 20)
                     .zIndex(1)
                     .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
+
+                if isNarrowed {
+                    activeFilterRow
+                        .padding(.bottom, 16)
+                        .simultaneousGesture(TapGesture().onEnded { isSearchFocused = false })
+                }
 
                 // Content. Taps here dismiss the search keyboard without covering the field.
                 Group {
@@ -190,7 +199,7 @@ struct RecipeLibraryView: View {
             switch sheet {
             case .filter:
                 filterSheet
-                    .presentationDetents([.medium])
+                    .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             case .recipe(let recipe):
                 RecipeDetailView(recipe: recipe)
@@ -520,7 +529,7 @@ struct RecipeLibraryView: View {
                 }
                 Text(isSelectMode
                      ? "\(selectedRecipeIDs.count) SELECTED"
-                     : "\(recipes.count) IN YOUR LIBRARY")
+                     : "\(libraryRecipes.count) IN YOUR LIBRARY")
                     .font(.system(size: 10, weight: .regular))
                     .tracking(1)
                     .foregroundStyle(isSelectMode ? Color.terra500 : .gray.opacity(0.5))
@@ -734,49 +743,47 @@ struct RecipeLibraryView: View {
     // MARK: - Filter Sheet
 
     private var filterSheet: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
+            ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 22) {
             Text("FILTER RECIPES")
                 .font(.system(size: 11, weight: .regular))
                 .tracking(1.5)
                 .foregroundStyle(Color.terra500)
-                .padding(.top, 8)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
 
-            // Category filter
-            VStack(alignment: .leading, spacing: 12) {
-                Text("CATEGORY")
-                    .font(.system(size: 10, weight: .regular))
-                    .tracking(1)
-                    .foregroundStyle(.gray)
-
-                let categoryOptions = RecipeConstants.categories
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        filterChip("All", isSelected: filterCategory == nil) {
-                            filterCategory = nil
-                        }
-                        ForEach(categoryOptions, id: \.self) { cat in
-                            filterChip(cat, isSelected: filterCategory == cat) {
-                                filterCategory = filterCategory == cat ? nil : cat
-                            }
+            let nights = nightOptions
+            if !nights.isEmpty {
+                filterSection("WEEK NIGHT") {
+                    ForEach(nights, id: \.name) { option in
+                        filterChip("\(nightLabel(option.name)) · \(option.count)", isSelected: filterNight == option.name) {
+                            filterNight = filterNight == option.name ? nil : option.name
+                            loadRecipes()
                         }
                     }
                 }
             }
 
-            // Difficulty filter
-            VStack(alignment: .leading, spacing: 12) {
-                Text("DIFFICULTY")
-                    .font(.system(size: 10, weight: .regular))
-                    .tracking(1)
-                    .foregroundStyle(.gray)
-
-                HStack(spacing: 8) {
-                    filterChip("All", isSelected: filterDifficulty == nil) {
-                        filterDifficulty = nil
+            let dishes = dishOptions
+            if !dishes.isEmpty {
+                filterSection("DISH TYPE") {
+                    ForEach(dishes, id: \.name) { option in
+                        filterChip("\(option.name) · \(option.count)", isSelected: filterDish == option.name) {
+                            filterDish = filterDish == option.name ? nil : option.name
+                            loadRecipes()
+                        }
                     }
-                    ForEach(RecipeConstants.difficulties, id: \.self) { diff in
+                }
+            }
+
+            let difficulties = difficultyOptions
+            if !difficulties.isEmpty {
+                filterSection("DIFFICULTY") {
+                    ForEach(difficulties, id: \.self) { diff in
                         filterChip(diff, isSelected: filterDifficulty == diff) {
                             filterDifficulty = filterDifficulty == diff ? nil : diff
+                            loadRecipes()
                         }
                     }
                 }
@@ -792,49 +799,105 @@ struct RecipeLibraryView: View {
                 }
             }
             .tint(Color.terra500)
+            .onChange(of: filterFavoritesOnly) { _, _ in loadRecipes() }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+            }
 
-            Spacer()
-
-            // Apply / Reset
-            HStack(spacing: 12) {
-                Button(action: {
-                    filterCategory = nil
-                    filterDifficulty = nil
-                    filterFavoritesOnly = false
-                    loadRecipes()
-                    librarySheet = nil
-                }) {
-                    Text("RESET")
-                        .font(.system(size: 13, weight: .regular))
-                        .tracking(1)
-                        .foregroundStyle(.gray)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-
-                Button(action: {
-                    loadRecipes()
-                    librarySheet = nil
-                }) {
-                    Text("APPLY")
-                        .font(.system(size: 13, weight: .regular))
-                        .tracking(1)
+            VStack(spacing: 10) {
+                Button(action: { librarySheet = nil }) {
+                    Text("Show \(recipeCountText(recipes.count))")
+                        .font(.system(size: 16, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Color.terra500)
                         .clipShape(Capsule())
-                        .overlay(Capsule().stroke(Color.terra600, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
+
+                if hasActiveFilters {
+                    Button(action: clearFilters) {
+                        Text("Clear filters")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(HomeQuiet.quiet)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .padding(.bottom, 16)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 24)
+        .background(Color.bgBase)
+    }
+
+    // MARK: - Active filters
+
+    /// Result count plus one removable chip per active filter.
+    private var activeFilterRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(searchText.isEmpty && !hasActiveFilters
+                 ? recipeCountText(recipes.count)
+                 : "\(recipeCountText(recipes.count)) of \(libraryRecipes.count)")
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .padding(.horizontal, 24)
+                .accessibilityIdentifier("recipeResultCount")
+
+            if hasActiveFilters {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if let night = filterNight {
+                            removableChip(nightLabel(night)) { filterNight = nil }
+                        }
+                        if let dish = filterDish {
+                            removableChip(dish) { filterDish = nil }
+                        }
+                        if let difficulty = filterDifficulty {
+                            removableChip(difficulty) { filterDifficulty = nil }
+                        }
+                        if filterFavoritesOnly {
+                            removableChip("Favorites") { filterFavoritesOnly = false }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                }
+            }
+        }
+    }
+
+    private func removableChip(_ label: String, remove: @escaping () -> Void) -> some View {
+        Button {
+            remove()
+            loadRecipes()
+        } label: {
+            HStack(spacing: 6) {
+                Text(label)
+                    .font(.system(size: 13, weight: .regular))
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundStyle(Color.terra600)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Color.terra500.opacity(0.1))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Remove \(label) filter")
+    }
+
+    private func filterSection<Content: View>(_ title: String, @ViewBuilder chips: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 10, weight: .regular))
+                .tracking(1)
+                .foregroundStyle(.gray)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) { chips() }
+            }
+        }
     }
 
     @ViewBuilder
@@ -913,7 +976,66 @@ struct RecipeLibraryView: View {
     // MARK: - Helpers
 
     private var hasActiveFilters: Bool {
-        filterCategory != nil || filterDifficulty != nil || filterFavoritesOnly
+        filterNight != nil || filterDish != nil || filterDifficulty != nil || filterFavoritesOnly
+    }
+
+    /// Searching or filtering, so the result count and chips show.
+    private var isNarrowed: Bool {
+        hasActiveFilters || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func recipeCountText(_ count: Int) -> String {
+        count == 1 ? "1 recipe" : "\(count) recipes"
+    }
+
+    private func clearFilters() {
+        filterNight = nil
+        filterDish = nil
+        filterDifficulty = nil
+        filterFavoritesOnly = false
+        loadRecipes()
+    }
+
+    private func nightLabel(_ name: String) -> String {
+        if let night = PlanCategory.recipeNights.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            return "\(night.emoji) \(night.name)"
+        }
+        return name
+    }
+
+    private func recipeTags(_ recipe: Recipe) -> Set<String> {
+        Set(RecipeLabelFormatting.decodeTags(recipe.tags).map { $0.lowercased() })
+    }
+
+    /// Week nights his recipes are tagged with, in the Plan week order.
+    private var nightOptions: [(name: String, count: Int)] {
+        let tagSets = libraryRecipes.map(recipeTags)
+        return PlanCategory.recipeNights.compactMap { night in
+            let key = night.name.lowercased()
+            let count = tagSets.filter { $0.contains(key) }.count
+            return count > 0 ? (night.name, count) : nil
+        }
+    }
+
+    /// Dish types that occur in his library, with counts.
+    private var dishOptions: [(name: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        for recipe in libraryRecipes {
+            counts[TagRecipesWizard.currentDishType(recipe), default: 0] += 1
+        }
+        return TagRecipesWizard.dishTypes.compactMap { type in
+            counts[type].map { (type, $0) }
+        }
+    }
+
+    private var difficultyOptions: [String] {
+        let used = Set(libraryRecipes.compactMap { $0.difficulty })
+        return RecipeConstants.difficulties.filter { used.contains($0) || filterDifficulty == $0 }
+    }
+
+    private func matchesSearch(_ recipe: Recipe, _ query: String) -> Bool {
+        let fields = [recipe.name ?? "", recipe.tags ?? "", recipe.categories ?? ""]
+        return fields.contains { $0.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
     }
 
     private var allVisibleSelected: Bool {
@@ -932,13 +1054,16 @@ struct RecipeLibraryView: View {
     }
 
     private func loadRecipes() {
-        recipes = dataManager.fetchRecipes(
-            searchText: searchText,
-            categories: filterCategory,
-            difficulty: filterDifficulty,
-            favoritesOnly: filterFavoritesOnly,
-            sortBy: selectedSort
-        )
+        libraryRecipes = dataManager.fetchRecipes(sortBy: selectedSort)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        recipes = libraryRecipes.filter { recipe in
+            if !query.isEmpty && !matchesSearch(recipe, query) { return false }
+            if let difficulty = filterDifficulty, recipe.difficulty != difficulty { return false }
+            if filterFavoritesOnly && !recipe.isFavorite { return false }
+            if let night = filterNight, !recipeTags(recipe).contains(night.lowercased()) { return false }
+            if let dish = filterDish, TagRecipesWizard.currentDishType(recipe) != dish { return false }
+            return true
+        }
         let visibleIDs = Set(recipes.map(\.objectID))
         selectedRecipeIDs.formIntersection(visibleIDs)
     }
