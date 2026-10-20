@@ -142,7 +142,7 @@ struct SwapDinnerSheet: View {
         ranked.sort { lhs, rhs in
             if lhs.score != rhs.score { return lhs.score > rhs.score }
             if lhs.tagged != rhs.tagged { return lhs.tagged }
-            if lhs.recipe.isFavorite != rhs.recipe.isFavorite { return lhs.recipe.isFavorite }
+            if let order = RecipeRecency.fresherFirst(lhs.recipe, rhs.recipe, favorites: true) { return order }
             return (lhs.recipe.name ?? "").localizedCaseInsensitiveCompare(rhs.recipe.name ?? "") == .orderedAscending
         }
         return Array(ranked.prefix(limit).map(\.recipe))

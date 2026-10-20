@@ -814,6 +814,23 @@ class DataManager {
         save()
     }
 
+    /// Cook mode reached Done on the last step. Counts once per recipe per day and shares the
+    /// planned-dinner ledger, so a dinner cooked in Cook mode isn't counted again when its day passes.
+    func markCookedToday(_ recipe: Recipe) {
+        guard let id = recipe.id else { return }
+        let today = Calendar.current.startOfDay(for: Date())
+        let token = "\(id.uuidString)|\(Self.cookedDayFormatter.string(from: today))"
+        var ledger = Set(UserDefaults.standard.stringArray(forKey: Self.cookedLedgerKey) ?? [])
+        guard ledger.insert(token).inserted else { return }
+        UserDefaults.standard.set(Array(ledger).sorted(), forKey: Self.cookedLedgerKey)
+        if recipe.timesCooked < Int16.max {
+            recipe.timesCooked += 1
+        }
+        recipe.lastCookedDate = Date()
+        recipe.updatedAt = Date()
+        save()
+    }
+
     private static let cookedLedgerKey = "recipeCookedLedger.v1"
     private static let cookedSealedDaysKey = "recipeCookedSealedDays.v1"
     private static let cookedDayFormatter: DateFormatter = {
