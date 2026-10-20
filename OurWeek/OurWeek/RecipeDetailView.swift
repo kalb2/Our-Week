@@ -37,14 +37,7 @@ struct RecipeDetailView: View {
     private var totalTime: Int16 { recipe.prepTime + recipe.cookTime }
 
     private var cookedLine: String? {
-        guard cookedDisplay > 0 else { return nil }
-        var line = "Cooked \(cookedDisplay)×"
-        if let cookedWhen {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            line += " · \(formatter.string(from: cookedWhen))"
-        }
-        return line
+        RecipeRecency.madeLine(times: cookedDisplay, last: cookedWhen)
     }
 
     private func refreshCooked() {
@@ -176,7 +169,7 @@ struct RecipeDetailView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
-        .fullScreenCover(isPresented: $showCookMode) {
+        .fullScreenCover(isPresented: $showCookMode, onDismiss: refreshCooked) {
             CookModeView(recipe: recipe, servingMultiplier: servingMultiplier)
         }
         .alert("Delete Recipe?", isPresented: $showDeleteConfirm) {
@@ -562,7 +555,7 @@ struct RecipeDetailView: View {
                             }
 
                             if scaledAmount > 0 {
-                                Text(verbatim: CookingAmount.labeled(scaledAmount, unit: fixed.unit))
+                                Text(verbatim: CookingAmount.scaledLabel(scaledAmount, unit: fixed.unit))
                                     .font(.system(size: 14, weight: .regular))
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }

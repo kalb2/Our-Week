@@ -150,7 +150,12 @@ struct CookModeView: View {
                 .buttonStyle(.plain)
             }
             Button {
-                if steps.isEmpty || index >= steps.count - 1 { dismiss() } else { go(1) }
+                if steps.isEmpty || index >= steps.count - 1 {
+                    if !steps.isEmpty { dataManager.markCookedToday(recipe) }
+                    dismiss()
+                } else {
+                    go(1)
+                }
             } label: {
                 Text(steps.isEmpty || index >= steps.count - 1 ? "Done" : "Next")
                     .font(.system(size: 17, weight: .regular, design: .serif))
@@ -193,7 +198,7 @@ struct CookModeView: View {
                         let amount = fixed.amount * servingMultiplier
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             if amount > 0 {
-                                Text(verbatim: CookingAmount.labeled(amount, unit: fixed.unit))
+                                Text(verbatim: CookingAmount.scaledLabel(amount, unit: fixed.unit))
                                     .foregroundStyle(Color.terra600)
                             }
                             Text(fixed.name)

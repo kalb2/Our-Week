@@ -50,6 +50,9 @@ enum WeekGrocerySync {
         var originalQuantity: String
         var handAmount: Double
         var meals: [MealShare]
+        /// True when recipe amounts are summed into a row the person typed with the exact
+        /// same name. Nil on lines saved before build 102 and on separate rows.
+        var mergesHand: Bool?
     }
 
     struct Ledger: Codable {
@@ -117,32 +120,30 @@ enum WeekGrocerySync {
         // Removals live until their meals are gone or re-planned with another recipe,
         // not just while their week is on screen, so leaving the week can't bring items back.
         let livePlans = mealRecipes(for: Set(removals.flatMap(\.mealIDs)))
-        let liveRemovals = removals.filter { stillApplies($0, plans: livePlans) }
+        let liveRemovals = removals.compactMap { trimmed($0, plans: livePlans) }
         if liveRemovals != removals {
             removals = liveRemovals
             removalsChanged = true
         }
 
-        for (key, bucket) in desired {
-            let meals = Set(bucket.meals.map(\.mealID))
-            if let index = ledger.lines.firstIndex(where: { lineKey($0) == key }) {
-                var line = ledger.lines[index]
-                if dataManager.shoppingItem(id: line.itemID) == nil {
-                    let sameMeals = Set(line.meals.map(\.mealID)) == meals
-                    if sameMeals {
-                        // The row is gone and the meals have not changed. Remember that
-                        // instead of creating the ingredient again.
-                        recordRemoval(key: key, meals: meals, into: &removals, changed: &removalsChanged)
-                        next.append(line)
-                        continue
-                    }
-                    dropRemoval(key: key, superseding: meals, from: &removals, changed: &removalsChanged)
-                    if let created = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
-                        next.append(created)
-                        changed = true
-                    }
-                    continue
+        for (key, full) in desired {
+            let index = ledger.lines.firstIndex(where: { lineKey($0) == key })
+            if let index, dataManager.shoppingItem(id: ledger.lines[index].itemID) == nil {
+                // The person deleted this row. Every meal it covered stays removed,
+                // even when one of them is later cleared or another meal is added.
+                let gone = Set(ledger.lines[index].meals.map(\.mealID))
+                if !gone.isEmpty {
+                    recordRemoval(key: key, meals: gone, into: &removals, changed: &removalsChanged)
                 }
+            }
+            let removed = removedMeals(key, in: removals)
+            var bucket = full
+            bucket.meals = full.meals.filter { !removed.contains($0.mealID) }
+            guard !bucket.meals.isEmpty else { continue }
+
+            if let index, dataManager.shoppingItem(id: ledger.lines[index].itemID) != nil {
+                var line = ledger.lines[index]
+                upgradeHandLink(&line, bucket: bucket, dataManager: dataManager)
                 if apply(bucket, to: &line, dataManager: dataManager) {
                     changed = true
                 }
@@ -150,14 +151,9 @@ enum WeekGrocerySync {
                 line.displayName = bucket.row().name
                 line.nameKey = key
                 next.append(line)
-            } else if removalMatches(key, meals: meals, in: removals) {
-                continue
-            } else {
-                dropRemoval(key: key, superseding: meals, from: &removals, changed: &removalsChanged)
-                if let line = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
-                    next.append(line)
-                    changed = true
-                }
+            } else if let line = createLine(bucket: bucket, lists: lists, dataManager: dataManager) {
+                next.append(line)
+                changed = true
             }
         }
 
@@ -218,7 +214,7 @@ enum WeekGrocerySync {
         guard let item = dataManager.shoppingItem(id: line.itemID) else {
             return false
         }
-        if item.isChecked || !line.createdBySync { return false }
+        if item.isChecked || !(line.createdBySync || line.mergesHand == true) { return false }
         let row = bucket.row(handAmount: line.handAmount, handUnit: line.unitKey)
         var changed = false
         if (item.name ?? "") != row.name {
@@ -246,19 +242,23 @@ enum WeekGrocerySync {
         let owned = Set(load().lines.map(\.itemID))
         if let existing = items.first(where: { item in
             guard let id = item.id, !owned.contains(id), !item.isChecked else { return false }
-            return GroceryName.key(item.name ?? "") == key
-        }), let itemID = existing.id {
-            // A hand-added row with this food stays as the person typed it.
-            return Line(
+            return GroceryName.key(item.name ?? "") == key && sameTypedName(item.name ?? "", bucket: bucket)
+        }), let itemID = existing.id, let hand = handQuantity(existing.quantity ?? "") {
+            // A typed row with exactly this name: the recipe amounts are added to it,
+            // and the typed amount comes back when the meals leave the week.
+            var line = Line(
                 itemID: itemID,
                 nameKey: key,
-                unitKey: "",
+                unitKey: hand.unit,
                 displayName: existing.name ?? row.name,
                 createdBySync: false,
                 originalQuantity: existing.quantity ?? "",
-                handAmount: 0,
-                meals: bucket.meals
+                handAmount: hand.amount,
+                meals: bucket.meals,
+                mergesHand: true
             )
+            _ = apply(bucket, to: &line, dataManager: dataManager)
+            return line
         }
 
         if let checked = items.first(where: { item in
@@ -309,6 +309,50 @@ enum WeekGrocerySync {
             return true
         }
         return false
+    }
+
+    /// Lines linked to a typed row before build 102 start merging once the names match exactly
+    /// and the typed amount is still untouched.
+    private static func upgradeHandLink(_ line: inout Line, bucket: Desired, dataManager: DataManager) {
+        guard !line.createdBySync, line.mergesHand == nil,
+              let item = dataManager.shoppingItem(id: line.itemID), !item.isChecked,
+              (item.quantity ?? "") == line.originalQuantity,
+              sameTypedName(item.name ?? "", bucket: bucket),
+              let hand = handQuantity(line.originalQuantity) else { return }
+        line.mergesHand = true
+        line.handAmount = hand.amount
+        line.unitKey = hand.unit
+    }
+
+    /// Names match apart from case, spacing and a plural ending ("Onions" and "onion").
+    private static func sameTypedName(_ typed: String, bucket: Desired) -> Bool {
+        let mine = looseName(typed)
+        guard !mine.isEmpty else { return false }
+        return mine == looseName(bucket.singular) || mine == looseName(bucket.row().name)
+    }
+
+    private static func looseName(_ name: String) -> String {
+        var text = name.lowercased()
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+        for ending in ["ies", "es", "s"] where text.hasSuffix(ending) && text.count > ending.count + 2 {
+            text.removeLast(ending.count)
+            if ending == "ies" { text += "y" }
+            break
+        }
+        return text
+    }
+
+    /// The typed amount as a number and unit. Empty counts as nothing typed.
+    /// Nil when it is not a plain amount ("a few", "for the party"), so that row stays separate.
+    static func handQuantity(_ quantity: String) -> (amount: Double, unit: String)? {
+        let text = quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { return (0, "") }
+        let split = RecipeScraperService.splitAmount(text)
+        guard split.amount > 0 else { return nil }
+        let rest = split.rest.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard rest.split(separator: " ").count <= 2, rest.rangeOfCharacter(from: .decimalDigits) == nil else { return nil }
+        return (split.amount, GroceryPlanner.normalizeUnit(rest))
     }
 
     private static func list(for section: String, lists: [ShoppingList]) -> ShoppingList? {
@@ -391,13 +435,20 @@ enum WeekGrocerySync {
         return recipe.id?.uuidString ?? recipe.objectID.uriRepresentation().absoluteString
     }
 
-    /// A removal stays while every meal it covers still exists with the same recipe.
-    private static func stillApplies(_ removal: Removal, plans: [String: String]) -> Bool {
-        for mealID in removal.mealIDs {
+    /// Keeps the meals of a removal that still exist with the same recipe; nil when none do.
+    private static func trimmed(_ removal: Removal, plans: [String: String]) -> Removal? {
+        var kept = removal
+        kept.mealIDs = removal.mealIDs.filter { mealID in
             guard let recipe = plans[mealID], !recipe.isEmpty else { return false }
-            if let links = removal.links, !links.contains("\(mealID)=\(recipe)") { return false }
+            if let links = removal.links { return links.contains("\(mealID)=\(recipe)") }
+            return true
         }
-        return !removal.mealIDs.isEmpty
+        guard !kept.mealIDs.isEmpty else { return nil }
+        if let links = removal.links {
+            let ids = Set(kept.mealIDs)
+            kept.links = links.filter { ids.contains(String($0.split(separator: "=", maxSplits: 1).first ?? "")) }
+        }
+        return kept
     }
 
     private static func removalName(_ key: String) -> String {
@@ -406,10 +457,13 @@ enum WeekGrocerySync {
         return normalized.isEmpty ? name : normalized
     }
 
-    private static func removalMatches(_ key: String, meals: Set<String>, in removals: [Removal]) -> Bool {
-        removals.contains { removal in
-            removalName(removal.key) == key && Set(removal.mealIDs) == meals
+    /// Meals whose share of this ingredient the person deleted.
+    private static func removedMeals(_ key: String, in removals: [Removal]) -> Set<String> {
+        var meals: Set<String> = []
+        for removal in removals where removalName(removal.key) == key {
+            meals.formUnion(removal.mealIDs)
         }
+        return meals
     }
 
     /// Runs the last week reconcile again after a pantry change.
@@ -445,7 +499,7 @@ enum WeekGrocerySync {
         PantryStaples.isDefault
     }
 
-    /// One entry per ingredient and meal set, so removals from different weeks don't overwrite each other.
+    /// One entry per ingredient holding every meal whose share was deleted.
     private static func recordRemoval(
         key: String,
         meals: Set<String>,
@@ -453,34 +507,25 @@ enum WeekGrocerySync {
         changed: inout Bool
     ) {
         let name = removalName(key)
-        let sorted = meals.sorted()
-        let plans = mealRecipes(for: meals)
-        let links = sorted.compactMap { id in plans[id].map { "\(id)=\($0)" } }
-        if let index = removals.firstIndex(where: { removalName($0.key) == name && $0.mealIDs.sorted() == sorted }) {
-            if removals[index].links != links || removals[index].key != name {
-                removals[index].key = name
-                removals[index].links = links
-                changed = true
-            }
-        } else {
-            removals.append(Removal(key: name, mealIDs: sorted, links: links))
-            if removals.count > maxRemovals {
-                removals.removeFirst(removals.count - maxRemovals)
-            }
-            changed = true
+        let matching = removals.indices.filter { removalName(removals[$0].key) == name }
+        var mealIDs = Set(meals)
+        var allLinks: Set<String> = []
+        for index in matching {
+            mealIDs.formUnion(removals[index].mealIDs)
+            allLinks.formUnion(removals[index].links ?? [])
         }
-    }
-
-    /// The ingredient is being added again for a new meal set; forget removals it now covers.
-    private static func dropRemoval(
-        key: String,
-        superseding meals: Set<String>,
-        from removals: inout [Removal],
-        changed: inout Bool
-    ) {
-        let before = removals.count
-        removals.removeAll { removalName($0.key) == key && Set($0.mealIDs).isSubset(of: meals) }
-        if removals.count != before { changed = true }
+        // Meals without a recorded link get today's recipe, so older removals keep working.
+        let linked = Set(allLinks.compactMap { $0.split(separator: "=", maxSplits: 1).first.map(String.init) })
+        let plans = mealRecipes(for: mealIDs.subtracting(linked))
+        for (id, recipe) in plans { allLinks.insert("\(id)=\(recipe)") }
+        let merged = Removal(key: name, mealIDs: mealIDs.sorted(), links: allLinks.sorted())
+        if matching.count == 1, removals[matching[0]] == merged { return }
+        for index in matching.reversed() { removals.remove(at: index) }
+        removals.append(merged)
+        if removals.count > maxRemovals {
+            removals.removeFirst(removals.count - maxRemovals)
+        }
+        changed = true
     }
 
     private static func loadRemovals() -> [Removal] {

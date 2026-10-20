@@ -55,6 +55,41 @@ enum CookingAmount {
         return decimalText(amount)
     }
 
+    /// The six fractions a cook reads at a glance. Scaled amounts snap to these.
+    private static let commonSteps: [(value: Double, glyph: String)] = [
+        (1.0 / 8.0, "⅛"), (1.0 / 4.0, "¼"), (1.0 / 3.0, "⅓"),
+        (1.0 / 2.0, "½"), (2.0 / 3.0, "⅔"), (3.0 / 4.0, "¾")
+    ]
+
+    /// A servings-scaled amount with its unit. Kitchen measures and lb/oz weights read as
+    /// fractions (1½ lbs, ¾ lb); grams and millilitres stay whole; kg and litres stay decimal.
+    static func scaledLabel(_ amount: Double, unit: String) -> String {
+        guard amount > 0 else { return "" }
+        let canonical = canonicalUnit(unit).lowercased()
+        let text: String
+        switch canonical {
+        case "g", "gram", "grams", "mg", "ml", "milliliter", "milliliters", "millilitre", "millilitres":
+            text = "\(max(1, Int(amount.rounded())))"
+        case "kg", "l", "liter", "liters", "litre", "litres":
+            text = decimalText(amount)
+        default:
+            text = commonFractionText(amount)
+        }
+        let unitText = displayUnit(for: amount, unit: unit)
+        return [text, unitText].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    static func commonFractionText(_ amount: Double) -> String {
+        var whole = Int(amount.rounded(.towardZero))
+        let remainder = amount - Double(whole)
+        var candidates: [(value: Double, glyph: String)] = [(0, "")] + commonSteps + [(1, "")]
+        if whole == 0 { candidates.removeFirst() }
+        let best = candidates.min { abs($0.value - remainder) < abs($1.value - remainder) } ?? (0, "")
+        if best.value >= 1 { whole += 1 }
+        if best.glyph.isEmpty { return "\(max(whole, 0))" }
+        return whole > 0 ? "\(whole)\(best.glyph)" : best.glyph
+    }
+
     /// Amount and unit together, e.g. "½ tsp" or "2 cups". Empty when there is no amount.
     /// The unit is plural when the amount is greater than 1. Abbreviations such as tsp stay as they are.
     static func labeled(_ amount: Double, unit: String, fractionsOnly: Bool = false) -> String {

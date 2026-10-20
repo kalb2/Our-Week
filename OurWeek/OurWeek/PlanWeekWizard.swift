@@ -1525,7 +1525,7 @@ struct PlanWeekWizard: View {
 
     private func recipeComesBefore(_ lhs: (recipe: Recipe, score: Int), _ rhs: (recipe: Recipe, score: Int)) -> Bool {
         if lhs.score != rhs.score { return lhs.score > rhs.score }
-        if lhs.recipe.isFavorite != rhs.recipe.isFavorite { return lhs.recipe.isFavorite && !rhs.recipe.isFavorite }
+        if let order = RecipeRecency.fresherFirst(lhs.recipe, rhs.recipe, favorites: true) { return order }
         return displayName(lhs.recipe).localizedCaseInsensitiveCompare(displayName(rhs.recipe)) == .orderedAscending
     }
 
