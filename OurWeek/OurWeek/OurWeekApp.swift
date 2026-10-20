@@ -67,7 +67,10 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     private static func route(_ url: URL) {
         if url.scheme?.lowercased() == "ourweek" {
             let host = url.host?.lowercased()
-            if host == "home" || host == "todo" {
+            if host == "recipe", let id = UUID(uuidString: url.lastPathComponent) {
+                RecipeOpenRoute.pendingRecipeID = id
+                NotificationCenter.default.post(name: RecipeOpenRoute.didArrive, object: nil)
+            } else if host == "home" || host == "todo" {
                 NotificationCenter.default.post(name: .ourWeekOpenHome, object: nil)
             } else if host == "goals" {
                 GoalReminderRoute.openGoals = true

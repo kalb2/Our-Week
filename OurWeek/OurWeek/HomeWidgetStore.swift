@@ -247,6 +247,7 @@ enum HomeWidgetStore {
         lastTodoRaw = raw
         saveTodosRaw(raw)
 
+        TonightWidgetStore.write(meals: meals, start: start)
         let reset = GoalsCenter.shared.settings.resetMinutes
         var days: [Day] = []
         let offsets = reset > 0 ? [-1, 0, 1] : [0, 1]
