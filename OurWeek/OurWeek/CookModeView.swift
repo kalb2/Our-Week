@@ -201,7 +201,7 @@ struct CookModeView: View {
                                 Text(verbatim: CookingAmount.scaledLabel(amount, unit: fixed.unit))
                                     .foregroundStyle(Color.terra600)
                             }
-                            Text(fixed.name)
+                            Text(CountNoun.name(fixed.name, amount: amount, unit: fixed.unit))
                                 .foregroundStyle(HomeQuiet.ink)
                             Spacer(minLength: 0)
                         }

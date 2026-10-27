@@ -560,7 +560,7 @@ struct RecipeDetailView: View {
                                     .foregroundStyle(isChecked ? .gray : Color.terra500)
                             }
 
-                            Text(fixed.name)
+                            Text(CountNoun.name(fixed.name, amount: scaledAmount, unit: fixed.unit))
                                 .font(.system(size: 14, weight: .regular))
                                 .foregroundStyle(isChecked ? .gray : .black)
                                 .strikethrough(isChecked, color: .gray)
