@@ -1,0 +1,104 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/DataDeletion.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Delete all my data",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 304
+        }
+      },
+      {
+        "comment": "",
+        "key": "This permanently deletes everything Our Week keeps for you, on this iPhone and in your iCloud. It can't be undone.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 357
+        }
+      },
+      {
+        "comment": "",
+        "key": "Events you added to Apple Calendar yourself stay in Apple Calendar.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 379
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete all my data",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 340
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type DELETE to confirm",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 398
+        }
+      },
+      {
+        "comment": "",
+        "key": "DELETE",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 401
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type DELETE to confirm",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 415
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deleting…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 428
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete my data and the household",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 436
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete all my data",
+        "location": {
+          "startingColumn": 94,
+          "startingLine": 436
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your data was deleted",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 508
+        }
+      }
+    ]
+  },
+  "version": 1
+}

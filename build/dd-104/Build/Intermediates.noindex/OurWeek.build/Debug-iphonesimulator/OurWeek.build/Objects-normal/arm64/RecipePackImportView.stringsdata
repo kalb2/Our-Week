@@ -1,0 +1,128 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipePackImportView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "RECIPE PACK",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "REVIEW · THEN IMPORT",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "IMPORT COMPLETE",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "RECIPES",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld DUP",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld recipe%@ in this pack",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "SKIP",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld already in your library will be skipped",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pack imported",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing new to add",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "COULDN'T IMPORT",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "DONE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 286
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Importing recipes…",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 332
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld of %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 336
+        }
+      }
+    ]
+  },
+  "version": 1
+}

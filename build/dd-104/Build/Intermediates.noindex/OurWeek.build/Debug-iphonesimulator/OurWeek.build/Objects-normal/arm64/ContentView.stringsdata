@@ -1,0 +1,696 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Close add menu",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 114
+        }
+      },
+      {
+        "comment": "",
+        "key": "Back to week",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 497
+        }
+      },
+      {
+        "comment": "",
+        "key": "Home display",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 522
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@,",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 581
+        }
+      },
+      {
+        "comment": "",
+        "key": "TODAY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 919
+        }
+      },
+      {
+        "comment": "",
+        "key": "HOME",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1071
+        }
+      },
+      {
+        "comment": "",
+        "key": "Display",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1075
+        }
+      },
+      {
+        "comment": "",
+        "key": "THIS WEEK",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1081
+        }
+      },
+      {
+        "comment": "",
+        "key": "THIS DAY",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple Reminders",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple Reminders",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders list",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1212
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose calendars",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 1634
+        }
+      },
+      {
+        "comment": "",
+        "key": "Back to this week",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 1727
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1722
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share week",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 1760
+        }
+      },
+      {
+        "comment": "",
+        "key": "Home display",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 1779
+        }
+      },
+      {
+        "comment": "",
+        "key": "TODAY",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 1854
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open today",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 1910
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open %@ %@",
+        "location": {
+          "startingColumn": 58,
+          "startingLine": 1910
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open today",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 1945
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open %@ %@",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 1945
+        }
+      },
+      {
+        "comment": "",
+        "key": "DINNER",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2051
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, %@",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 2113
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ dinner",
+        "location": {
+          "startingColumn": 80,
+          "startingLine": 2113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens recipe",
+        "location": {
+          "startingColumn": 54,
+          "startingLine": 2114
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 71,
+          "startingLine": 2114
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear dinner",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 2146
+        }
+      },
+      {
+        "comment": "",
+        "key": "Swap dinner",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2110
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2118
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark not done, %@",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 2462
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark done, %@",
+        "location": {
+          "startingColumn": 79,
+          "startingLine": 2462
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 2368
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a to-do",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 2386
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear this week?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2531
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meals on this week will be removed. Events stay.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2537
+        }
+      },
+      {
+        "comment": "",
+        "key": "Keep meals",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2547
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2560
+        }
+      },
+      {
+        "comment": "",
+        "key": "DATE",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2961
+        }
+      },
+      {
+        "comment": "",
+        "key": "MEALS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2964
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVENTS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2967
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Meal",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 3060
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Meal",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 3091
+        }
+      },
+      {
+        "comment": "",
+        "key": "+%lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 3099
+        }
+      },
+      {
+        "comment": "",
+        "key": "+%lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 3161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add task",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 3408
+        }
+      },
+      {
+        "comment": "",
+        "key": "TO-DO",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3384
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3388
+        }
+      },
+      {
+        "comment": "",
+        "key": "No tasks yet",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3413
+        }
+      },
+      {
+        "comment": "",
+        "key": "New task",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 3446
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark not done, %@",
+        "location": {
+          "startingColumn": 54,
+          "startingLine": 3591
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark done, %@",
+        "location": {
+          "startingColumn": 87,
+          "startingLine": 3591
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit task",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3850
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 3919
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 3953
+        }
+      },
+      {
+        "comment": "",
+        "key": "TITLE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3868
+        }
+      },
+      {
+        "comment": "",
+        "key": "What needs to be done?",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 3873
+        }
+      },
+      {
+        "comment": "",
+        "key": "NOTE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3885
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. 7:30 AM • Studio",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 3890
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4000
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 4063
+        }
+      },
+      {
+        "comment": "",
+        "key": "TAP TO LOG",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4165
+        }
+      },
+      {
+        "comment": "",
+        "key": "GOALS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4158
+        }
+      },
+      {
+        "comment": "",
+        "key": "New goal",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 4199
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4328
+        }
+      },
+      {
+        "comment": "",
+        "key": "k",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 4344
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit goal",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4385
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4484
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4493
+        }
+      },
+      {
+        "comment": "",
+        "key": "New goal",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4680
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4542
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. Reading",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 4547
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily Target",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 4557
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. 30",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4562
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unit",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 4572
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. mins",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4577
+        }
+      },
+      {
+        "comment": "",
+        "key": "Short Unit (Optional)",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4587
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. m",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 4592
+        }
+      },
+      {
+        "comment": "",
+        "key": "Icon",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4602
+        }
+      },
+      {
+        "comment": "",
+        "key": "Color",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4625
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add goal",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4668
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 4684
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 4738
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 4738
+        }
+      }
+    ]
+  },
+  "version": 1
+}

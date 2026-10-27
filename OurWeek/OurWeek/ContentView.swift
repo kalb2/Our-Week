@@ -609,7 +609,7 @@ struct GreetingHeader: View {
                 onSharingTapped: { showSharingSettings = true },
                 onCalendarTapped: { showCalendarSettings = true }
             )
-            .presentationDetents([.height(480)])
+            .presentationDetents([.height(570)])
             .presentationDragIndicator(.visible)
         }
     }

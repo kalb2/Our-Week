@@ -320,7 +320,7 @@ struct RecipeLibraryView: View {
             ProfileMenuSheet(
                 onSharingTapped: { showSharingSettings = true }
             )
-            .presentationDetents([.height(200)])
+            .presentationDetents([.height(470)])
             .presentationDragIndicator(.visible)
         }
         .fileImporter(

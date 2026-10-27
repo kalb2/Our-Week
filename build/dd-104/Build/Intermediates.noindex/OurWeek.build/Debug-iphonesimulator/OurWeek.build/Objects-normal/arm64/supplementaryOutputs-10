@@ -1,0 +1,37 @@
+{
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipeTextParser.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeTextParser.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeTextParser.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeTextParser.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeTextParser.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeTextParser.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RemindersSync.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RemindersSync.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RemindersSync.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RemindersSync.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RemindersSync.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RemindersSync.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/ShareImportStore.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ShareImportStore.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ShareImportStore.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ShareImportStore.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ShareImportStore.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ShareImportStore.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/SharingManager.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingManager.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingManager.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingManager.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingManager.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingManager.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/SharingSettingsView.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingSettingsView.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingSettingsView.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingSettingsView.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingSettingsView.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/SharingSettingsView.swiftdeps"
+  }
+}

@@ -82,6 +82,13 @@ enum WeekGrocerySync {
     private static var lastDataManager: DataManager?
     private static var didCheckMerge = false
 
+    /// Drops references to deleted meals after "Delete all my data".
+    static func resetAfterDataDeletion() {
+        lastMeals = []
+        lastDays = []
+        lastDataManager = nil
+    }
+
     static func reconcile(meals: [MealPlan], visibleDays: [Date], dataManager: DataManager) {
         if !didCheckMerge {
             didCheckMerge = true

@@ -1,0 +1,37 @@
+{
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipePack.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePack.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePack.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePack.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePack.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePack.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipePackImportView.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImportView.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImportView.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImportView.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImportView.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImportView.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipePackImporter.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImporter.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImporter.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImporter.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImporter.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipePackImporter.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipeRecency.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeRecency.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeRecency.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeRecency.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeRecency.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeRecency.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipeScraperService.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeScraperService.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeScraperService.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeScraperService.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeScraperService.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeScraperService.swiftdeps"
+  }
+}

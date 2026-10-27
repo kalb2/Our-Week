@@ -22,6 +22,11 @@ enum TonightWidgetStore {
 
     private static var lastWritten: [Night]?
 
+    /// Forgets the last write after "Delete all my data" so the next plan writes fresh.
+    static func resetAfterDataDeletion() {
+        lastWritten = nil
+    }
+
     /// Today and tomorrow, so the midnight timeline entry is already right.
     @MainActor
     static func write(meals: [MealPlan], start: Date) {

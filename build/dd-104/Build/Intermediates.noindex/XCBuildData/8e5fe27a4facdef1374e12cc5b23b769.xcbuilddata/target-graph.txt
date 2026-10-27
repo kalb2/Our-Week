@@ -1,0 +1,6 @@
+Target dependency graph (3 targets)
+Target 'OurWeek' in project 'OurWeek'
+➜ Explicit dependency on target 'OurWeekShare' in project 'OurWeek'
+➜ Explicit dependency on target 'OurWeekWidget' in project 'OurWeek'
+Target 'OurWeekWidget' in project 'OurWeek' (no dependencies)
+Target 'OurWeekShare' in project 'OurWeek' (no dependencies)

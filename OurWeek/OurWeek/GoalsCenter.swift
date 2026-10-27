@@ -393,6 +393,14 @@ final class GoalsCenter {
         GoalReminderScheduler.reschedule(goals: goals)
     }
 
+    /// Empties memory after "Delete all my data". goals.json is deleted by the caller.
+    func resetAfterDataDeletion() {
+        goals = []
+        settings = GoalSettings()
+        appliedBumps = []
+        undoAction = nil
+    }
+
     private static func readFile() -> GoalsFile {
         guard let data = try? Data(contentsOf: fileURL),
               let file = try? JSONDecoder().decode(GoalsFile.self, from: data) else {

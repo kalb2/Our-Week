@@ -1,0 +1,37 @@
+{
+  "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/Recipe+CoreDataProperties.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/Recipe+CoreDataProperties.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/Recipe+CoreDataProperties.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/Recipe+CoreDataProperties.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/Recipe+CoreDataProperties.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/Recipe+CoreDataProperties.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataClass.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataClass.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataClass.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataClass.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataClass.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataClass.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeIngredient+CoreDataProperties.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataProperties.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataProperties.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataProperties.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataProperties.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeIngredient+CoreDataProperties.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataClass.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataClass.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataClass.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataClass.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataClass.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataClass.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/DerivedSources/CoreDataGenerated/OurWeek/RecipeInstruction+CoreDataProperties.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataProperties.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataProperties.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataProperties.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataProperties.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/RecipeInstruction+CoreDataProperties.swiftdeps"
+  }
+}

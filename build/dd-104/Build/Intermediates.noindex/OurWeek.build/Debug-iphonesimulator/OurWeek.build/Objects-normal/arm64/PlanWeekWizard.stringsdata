@@ -1,0 +1,440 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/PlanWeekWizard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Some days already have dinner",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 188
+        }
+      },
+      {
+        "comment": "",
+        "key": "This week already has dinners",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 199
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave without saving?",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "Replace planned meals",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Only fill empty days",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 193
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Replace the dinners already planned, or only fill days that are still open.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "Replace planned meals",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 203
+        }
+      },
+      {
+        "comment": "",
+        "key": "Only fill empty days",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy last week's dinners over the ones already planned, or only into open days.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 214
+        }
+      },
+      {
+        "comment": "",
+        "key": "Keep planning",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "The meals you picked stay off the week until you save.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "What kind of week?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 284
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pick the kinds of night you want.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 287
+        }
+      },
+      {
+        "comment": "",
+        "key": "Repeat last week · %lld %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "or swipe through recipes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 323
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remove",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 375
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your category",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 405
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 422
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag onto a day, or tap one and then the day.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 443
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap a day for %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 443
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag onto a day, or tap one and then the day.",
+        "location": {
+          "startingColumn": 66,
+          "startingLine": 443
+        }
+      },
+      {
+        "comment": "",
+        "key": "All set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 465
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap, then double tap a day. You can also drag it onto a day.",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 590
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 533
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 524
+        }
+      },
+      {
+        "comment": "",
+        "key": "Places %@ on this day",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 557
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drop a category here",
+        "location": {
+          "startingColumn": 77,
+          "startingLine": 557
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leaves this day open and moves on",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 675
+        }
+      },
+      {
+        "comment": "",
+        "key": "Skip this day",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 662
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 703
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@  %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 723
+        }
+      },
+      {
+        "comment": "",
+        "key": "No main dishes in your recipe book yet.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 736
+        }
+      },
+      {
+        "comment": "",
+        "key": "Other recipes",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 747
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tag recipes as %@ to see them here.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 766
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your recipe book is empty.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 776
+        }
+      },
+      {
+        "comment": "",
+        "key": "Restaurant name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 827
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@  %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 794
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preview %@",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 884
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pick for %@",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 862
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open recipe",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 867
+        }
+      },
+      {
+        "comment": "",
+        "key": "The week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 967
+        }
+      },
+      {
+        "comment": "",
+        "key": "Replaces %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1015
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1031
+        }
+      },
+      {
+        "comment": "",
+        "key": "Already planned",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1027
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tag your recipes first so each night has good picks.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1167
+        }
+      },
+      {
+        "comment": "",
+        "key": "It takes a minute. Obvious matches are already checked.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1170
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tag recipes",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Skip for now",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1191
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pick for %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1638
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open recipe",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1661
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 1827
+        }
+      }
+    ]
+  },
+  "version": 1
+}

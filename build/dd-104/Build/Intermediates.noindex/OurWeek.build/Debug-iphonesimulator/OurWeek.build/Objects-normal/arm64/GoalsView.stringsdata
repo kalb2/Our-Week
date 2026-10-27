@@ -1,0 +1,480 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/GoalsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Goals",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "New goal",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "Goal options",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 96
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archived",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 97
+        }
+      },
+      {
+        "comment": "",
+        "key": "Logged",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "Undo",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 115
+        }
+      },
+      {
+        "comment": "",
+        "key": "Options for %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not today",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 263
+        }
+      },
+      {
+        "comment": "",
+        "key": "Week",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 266
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archive",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 269
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear %@",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check %@",
+        "location": {
+          "startingColumn": 70,
+          "startingLine": 326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Decrease %@",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 289
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add %@ to %@",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 292
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, %@ %@",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 399
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing for today",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 482
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing on %@",
+        "location": {
+          "startingColumn": 82,
+          "startingLine": 482
+        }
+      },
+      {
+        "comment": "",
+        "key": "GOALS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 454
+        }
+      },
+      {
+        "comment": "",
+        "key": "Logged",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 465
+        }
+      },
+      {
+        "comment": "",
+        "key": "Undo",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 469
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld of %lld",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 551
+        }
+      },
+      {
+        "comment": "",
+        "key": "1-week streak",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 699
+        }
+      },
+      {
+        "comment": "",
+        "key": "1-day streak",
+        "location": {
+          "startingColumn": 70,
+          "startingLine": 699
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld-week streak",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 700
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld-day streak",
+        "location": {
+          "startingColumn": 78,
+          "startingLine": 700
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 639
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archive",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 640
+        }
+      },
+      {
+        "comment": "",
+        "key": "Decrease",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 664
+        }
+      },
+      {
+        "comment": "",
+        "key": "Increase",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 688
+        }
+      },
+      {
+        "comment": "",
+        "key": "of %@%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 673
+        }
+      },
+      {
+        "comment": "",
+        "key": "This week",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 731
+        }
+      },
+      {
+        "comment": "",
+        "key": "New goal",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 892
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit goal",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 892
+        }
+      },
+      {
+        "comment": "",
+        "key": "Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 768
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unit name",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 791
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today on Home",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 861
+        }
+      },
+      {
+        "comment": "",
+        "key": "On the widget",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 867
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 875
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 896
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 901
+        }
+      },
+      {
+        "comment": "",
+        "key": "Goals",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1017
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day resets",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 1047
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show goals on widget",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1022
+        }
+      },
+      {
+        "comment": "",
+        "key": "Week starts",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1029
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archived",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1146
+        }
+      },
+      {
+        "comment": "",
+        "key": "None",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1150
+        }
+      },
+      {
+        "comment": "",
+        "key": "Restore",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 1160
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 1166
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notifications are off in Settings.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Until needs to be later than from.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1283
+        }
+      },
+      {
+        "comment": "",
+        "key": "From",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1275
+        }
+      },
+      {
+        "comment": "",
+        "key": "Until",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resume",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 1288
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pause today",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 1288
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminders",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1233
+        }
+      }
+    ]
+  },
+  "version": 1
+}

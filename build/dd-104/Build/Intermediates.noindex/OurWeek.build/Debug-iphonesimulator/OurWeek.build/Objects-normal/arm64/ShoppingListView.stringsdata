@@ -1,0 +1,928 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/ShoppingListView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag sections or use the arrows",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 201
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag sections or use arrows to reorder",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 226
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 229
+        }
+      },
+      {
+        "comment": "",
+        "key": "No lists yet",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a section to start a store list.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 263
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Shopping Lists Yet",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use the Add Section button above to create a store list.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync with meal plan",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 343
+        }
+      },
+      {
+        "comment": "",
+        "key": "SYNC WITH MEAL PLAN",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 355
+        }
+      },
+      {
+        "comment": "",
+        "key": "SHOPPING",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 493
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select none",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 471
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select all",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 471
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 483
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 506
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 512
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reorder",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 512
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add section",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 518
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 519
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 520
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pantry staples",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 521
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear checked",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 523
+        }
+      },
+      {
+        "comment": "",
+        "key": "Uncheck all",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 524
+        }
+      },
+      {
+        "comment": "",
+        "key": "Undo",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 527
+        }
+      },
+      {
+        "comment": "",
+        "key": "Redo",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 530
+        }
+      },
+      {
+        "comment": "",
+        "key": "SHOP",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 670
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shopping",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 674
+        }
+      },
+      {
+        "comment": "",
+        "key": "GROUPED BY STORE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 677
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select none",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 1008
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select all",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 1008
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 1054
+        }
+      },
+      {
+        "comment": "",
+        "key": "Have it",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 1058
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Section?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 1371
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 1372
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 1373
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Item?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 2042
+        }
+      },
+      {
+        "comment": "",
+        "key": "UPDATE DETAILS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1899
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit item",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1896
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit Item",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 1896
+        }
+      },
+      {
+        "comment": "",
+        "key": "ITEM NAME",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1929
+        }
+      },
+      {
+        "comment": "",
+        "key": "Item name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1934
+        }
+      },
+      {
+        "comment": "",
+        "key": "QUANTITY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1950
+        }
+      },
+      {
+        "comment": "",
+        "key": "OPTIONAL",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1955
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. 5 tomatoes, 2 lbs...",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1962
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1994
+        }
+      },
+      {
+        "comment": "",
+        "key": "SAVE CHANGES",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2002
+        }
+      },
+      {
+        "comment": "",
+        "key": "DELETE ITEM",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2025
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2043
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2044
+        }
+      },
+      {
+        "comment": "",
+        "key": "\"%@\" will be removed from the list.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2049
+        }
+      },
+      {
+        "comment": "",
+        "key": "Details",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2146
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset pantry staples?",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 2281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pantry options",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 2211
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pantry staples",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2194
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld %@ the grocery list skips",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset to defaults",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 2204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remove %@",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 2238
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a staple",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 2251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset to defaults",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2282
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2286
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your additions are removed and the built-in list comes back.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2288
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move to section",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete item",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2364
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete %lld items",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 2364
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2373
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2385
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sort Items",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2429
+        }
+      },
+      {
+        "comment": "",
+        "key": "CHOOSE SORT ORDER",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2431
+        }
+      },
+      {
+        "comment": "",
+        "key": "APPLY SORT",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2497
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEW STORE OR CATEGORY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2543
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add section",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 2540
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Section",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 2540
+        }
+      },
+      {
+        "comment": "",
+        "key": "SECTION NAME",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2573
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. Whole Foods, Target...",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 2578
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACCENT COLOR",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2594
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add section",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2635
+        }
+      },
+      {
+        "comment": "",
+        "key": "ADD SECTION",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2646
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear All Sections?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 2866
+        }
+      },
+      {
+        "comment": "",
+        "key": "MANAGE YOUR ITEMS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2781
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit list",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 2778
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit List",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 2778
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2867
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear All",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2868
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will remove all items from every shopping list section. This action can't be undone.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2882
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Section?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 3059
+        }
+      },
+      {
+        "comment": "",
+        "key": "No items in this section.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3031
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear section",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 3014
+        }
+      },
+      {
+        "comment": "",
+        "key": "SECTION NAME",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2907
+        }
+      },
+      {
+        "comment": "",
+        "key": "Store or Section",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2913
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save section name",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 2944
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel rename",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 2962
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 2929
+        }
+      },
+      {
+        "comment": "",
+        "key": "SAVE",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 2929
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 2947
+        }
+      },
+      {
+        "comment": "",
+        "key": "CANCEL",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 2947
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename section",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 2987
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 2972
+        }
+      },
+      {
+        "comment": "",
+        "key": "RENAME",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 2972
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLEAR",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 3003
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 3060
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 3061
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will remove all items from %@. Cannot be undone.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3069
+        }
+      },
+      {
+        "comment": "",
+        "key": "Item name",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 3120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3204
+        }
+      },
+      {
+        "comment": "",
+        "key": "MEAL PLAN INTEGRATION",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last synced: Today, 2:30 PM",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Syncing...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 3253
+        }
+      },
+      {
+        "comment": "",
+        "key": "All Synced!",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 3253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ready to Sync",
+        "location": {
+          "startingColumn": 81,
+          "startingLine": 3253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Syncing",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 3299
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync now",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 3299
+        }
+      },
+      {
+        "comment": "",
+        "key": "SYNC NOW",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 3310
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 3365
+        }
+      }
+    ]
+  },
+  "version": 1
+}

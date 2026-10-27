@@ -1,0 +1,440 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/SharingSettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Merge Households?",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 126
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave Household?",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "SHARING",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Household",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Calendars, meals, recipes, and lists",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connection Doctor",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Merge & Delete",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will copy all recipes, meals, events, and lists from the selected household into your active household. The selected household will then be deleted. This cannot be undone.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "How to Leave",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 138
+        }
+      },
+      {
+        "comment": "",
+        "key": "To safely leave this shared household, we will switch you to it and open the 'Manage Sharing' menu. From there, select your name and tap 'Remove Me'.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 148
+        }
+      },
+      {
+        "comment": "",
+        "key": "Partner connected",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "This is how your partner will see you.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Profile",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter your name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Picture",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remove",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 233
+        }
+      },
+      {
+        "comment": "",
+        "key": "Created by %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invite Partner",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage Sharing",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "MEMBERS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 340
+        }
+      },
+      {
+        "comment": "",
+        "key": "Synced",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 400
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pending",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 408
+        }
+      },
+      {
+        "comment": "",
+        "key": "Private",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 416
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create Your Household",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set up a household to start sharing data with your partner.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 434
+        }
+      },
+      {
+        "comment": "",
+        "key": "Household Name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 440
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set your profile name above first",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 450
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create Household",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 463
+        }
+      },
+      {
+        "comment": "",
+        "key": "WHAT GETS SHARED",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 515
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Features",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 583
+        }
+      },
+      {
+        "comment": "",
+        "key": "Powered by Google Gemini",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 587
+        }
+      },
+      {
+        "comment": "",
+        "key": "YOUR HOUSEHOLDS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 623
+        }
+      },
+      {
+        "comment": "",
+        "key": "You are a member of multiple households. Select one to make it active. Long-press to delete an unused one.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 628
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shared with you",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 650
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shared by you",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 653
+        }
+      },
+      {
+        "comment": "",
+        "key": "Private Account",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 656
+        }
+      },
+      {
+        "comment": "",
+        "key": "• By %@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 661
+        }
+      },
+      {
+        "comment": "",
+        "key": "Merge into Active Household",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 696
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Household",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 710
+        }
+      },
+      {
+        "comment": "",
+        "key": "Leave Household",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 717
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connection Doctor",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 845
+        }
+      },
+      {
+        "comment": "",
+        "key": "Diagnosing Connection...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 833
+        }
+      },
+      {
+        "comment": "",
+        "key": "Diagnostics logged at %@",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 1009
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 849
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your app is %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 892
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connection Healthy",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 889
+        }
+      },
+      {
+        "comment": "",
+        "key": "Issues Detected",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 889
+        }
+      },
+      {
+        "comment": "",
+        "key": "ERRORS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 902
+        }
+      },
+      {
+        "comment": "",
+        "key": "CURRENT SHARE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 950
+        }
+      },
+      {
+        "comment": "",
+        "key": "Owner",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 964
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connected",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 988
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pending",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 988
+        }
+      }
+    ]
+  },
+  "version": 1
+}

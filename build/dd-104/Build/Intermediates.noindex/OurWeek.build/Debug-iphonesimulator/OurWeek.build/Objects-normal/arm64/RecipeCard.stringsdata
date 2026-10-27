@@ -1,0 +1,96 @@
+{
+  "source": "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/RecipeCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Selected",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not selected",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Recipe?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cooked %d×",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "%d min",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 96
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unfavorite",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Favorite",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 139
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 146
+        }
+      },
+      {
+        "comment": "",
+        "key": "This recipe will be permanently deleted.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 148
+        }
+      }
+    ]
+  },
+  "version": 1
+}

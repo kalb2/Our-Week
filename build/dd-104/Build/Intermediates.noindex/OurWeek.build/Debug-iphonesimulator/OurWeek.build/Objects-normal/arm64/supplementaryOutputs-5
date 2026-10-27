@@ -1,0 +1,37 @@
+{
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/GoalsCenter.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsCenter.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsCenter.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsCenter.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsCenter.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsCenter.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/GoalsView.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsView.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsView.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsView.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsView.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/GoalsView.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/HomeWidgetStore.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/HomeWidgetStore.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/HomeWidgetStore.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/HomeWidgetStore.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/HomeWidgetStore.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/HomeWidgetStore.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/ImportPreviewView.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ImportPreviewView.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ImportPreviewView.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ImportPreviewView.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ImportPreviewView.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/ImportPreviewView.swiftdeps"
+  },
+  "/Users/kaleb/Developer/Our-Week-104/OurWeek/OurWeek/KeychainManager.swift" : {
+    "const-values" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/KeychainManager.swiftconstvalues",
+    "dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/KeychainManager.d",
+    "diagnostics" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/KeychainManager.dia",
+    "object" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/KeychainManager.o",
+    "swift-dependencies" : "/Users/kaleb/Developer/Our-Week-104/build/dd-104/Build/Intermediates.noindex/OurWeek.build/Debug-iphonesimulator/OurWeek.build/Objects-normal/arm64/KeychainManager.swiftdeps"
+  }
+}
