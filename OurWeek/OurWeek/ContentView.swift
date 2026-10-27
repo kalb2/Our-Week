@@ -214,6 +214,7 @@ struct ContentView: View {
             HomeWidgetStore.applyWidgetTodoEdits()
             GoalsCenter.shared.applyWidgetBumps()
             GoalsCenter.shared.refreshReminders()
+            PrepAheadScheduler.reschedule(dataManager: dataManager)
             if GoalReminderRoute.openGoals {
                 GoalReminderRoute.openGoals = false
                 selectedTab = .goals
@@ -254,6 +255,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: HomeWidgetStore.needsRefresh)) { _ in
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+            PrepAheadScheduler.reschedule(dataManager: dataManager, mayAsk: true)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -262,6 +264,7 @@ struct ContentView: View {
                 HomeWidgetStore.applyWidgetTodoEdits()
                 GoalsCenter.shared.applyWidgetBumps()
                 GoalsCenter.shared.refreshReminders()
+                PrepAheadScheduler.reschedule(dataManager: dataManager)
                 if GoalReminderRoute.openGoals {
                     GoalReminderRoute.openGoals = false
                     selectedTab = .goals
@@ -596,7 +599,7 @@ struct GreetingHeader: View {
                 onSharingTapped: { showSharingSettings = true },
                 onCalendarTapped: { showCalendarSettings = true }
             )
-            .presentationDetents([.height(290)])
+            .presentationDetents([.height(480)])
             .presentationDragIndicator(.visible)
         }
     }
