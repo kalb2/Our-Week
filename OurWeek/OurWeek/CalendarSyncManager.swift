@@ -263,7 +263,7 @@ class CalendarSyncManager {
             let stamp = String(ev.startDate.timeIntervalSince1970)
             let rawID = ev.eventIdentifier
             return AppleCalendarEvent(
-                id: rawID.isEmpty ? stamp : "\(rawID)-\(stamp)",
+                id: rawID.map { "\($0)-\(stamp)" } ?? stamp,
                 title: ev.title ?? "Untitled",
                 startDate: ev.startDate,
                 endDate: ev.endDate,
@@ -445,7 +445,7 @@ nonisolated enum EventKitBackgroundReader {
                 alpha = 1
             }
             return Record(
-                id: rawID.isEmpty ? stamp : "\(rawID)-\(stamp)",
+                id: rawID.map { "\($0)-\(stamp)" } ?? stamp,
                 title: event.title ?? "Untitled",
                 startDate: event.startDate,
                 endDate: event.endDate,
