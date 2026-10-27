@@ -87,7 +87,7 @@ struct AddEventSheet: View {
                     }
                     .font(.system(size: 16, weight: .regular, design: .serif))
                     .foregroundStyle(Color.terra600)
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .shown(!title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

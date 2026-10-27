@@ -159,7 +159,7 @@ struct AISettingsView: View {
                             .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
-                        .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .shown(!apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                         Button(action: {
                             if let url = URL(string: "https://ai.google.dev/") {

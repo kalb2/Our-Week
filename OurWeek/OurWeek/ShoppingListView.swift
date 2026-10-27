@@ -1027,7 +1027,7 @@ struct StoreSection: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
         }
-        .disabled(!enabled)
+        .hiddenKeepingSlot(!enabled)
         .buttonStyle(.plain)
     }
 
@@ -1213,7 +1213,7 @@ struct StoreSection: View {
                                         .stroke(accentColor.opacity(isFirst ? 0.1 : 0.3), lineWidth: 1)
                                 )
                         }
-                        .disabled(isFirst)
+                        .hiddenKeepingSlot(isFirst)
                         .buttonStyle(.plain)
 
                         Button(action: onMoveDown) {
@@ -1228,7 +1228,7 @@ struct StoreSection: View {
                                         .stroke(accentColor.opacity(isLast ? 0.1 : 0.3), lineWidth: 1)
                                 )
                         }
-                        .disabled(isLast)
+                        .hiddenKeepingSlot(isLast)
                         .buttonStyle(.plain)
                         
                         Button(action: { showDeleteSectionConfirm = true }) {
@@ -2015,7 +2015,7 @@ struct EditItemSheet: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .disabled(editName.isEmpty)
+                .shown(!editName.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 // Delete button
                 Button(action: { showDeleteConfirm = true }) {
@@ -2667,7 +2667,7 @@ struct AddSectionModal: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(sectionName.isEmpty)
+            .shown(!sectionName.trimmingCharacters(in: .whitespaces).isEmpty)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }

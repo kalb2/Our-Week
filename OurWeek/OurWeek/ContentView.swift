@@ -214,6 +214,8 @@ struct ContentView: View {
             HomeWidgetStore.applyWidgetTodoEdits()
             GoalsCenter.shared.applyWidgetBumps()
             GoalsCenter.shared.refreshReminders()
+            PrepAheadScheduler.reschedule(dataManager: dataManager)
+            TapAwayKeyboard.install()
             if GoalReminderRoute.openGoals {
                 GoalReminderRoute.openGoals = false
                 selectedTab = .goals
@@ -254,6 +256,7 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: HomeWidgetStore.needsRefresh)) { _ in
             HomeWidgetStore.schedule(dataManager: dataManager, appleEvents: calendarSyncManager.widgetEvents)
+            PrepAheadScheduler.reschedule(dataManager: dataManager, mayAsk: true)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -262,6 +265,8 @@ struct ContentView: View {
                 HomeWidgetStore.applyWidgetTodoEdits()
                 GoalsCenter.shared.applyWidgetBumps()
                 GoalsCenter.shared.refreshReminders()
+                PrepAheadScheduler.reschedule(dataManager: dataManager)
+                TapAwayKeyboard.install()
                 if GoalReminderRoute.openGoals {
                     GoalReminderRoute.openGoals = false
                     selectedTab = .goals
@@ -560,17 +565,25 @@ struct GreetingHeader: View {
         return nil
     }
 
+    /// Follows the clock instead of always saying morning.
+    static var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "Good morning" }
+        if hour < 17 { return "Good afternoon" }
+        return "Good evening"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     if greetingName != nil {
-                        Text("GOOD MORNING,")
+                        Text("\(Self.greeting.uppercased()),")
                             .font(.system(size: 12, weight: .regular))
                             .tracking(1.8)
                             .foregroundStyle(Self.headerQuiet)
                     }
-                    Text(greetingName ?? "Good morning")
+                    Text(greetingName ?? Self.greeting)
                         .font(.system(size: 40, weight: .regular, design: .serif))
                         .foregroundStyle(Self.headerInk)
                         .lineLimit(1)
@@ -596,7 +609,7 @@ struct GreetingHeader: View {
                 onSharingTapped: { showSharingSettings = true },
                 onCalendarTapped: { showCalendarSettings = true }
             )
-            .presentationDetents([.height(290)])
+            .presentationDetents([.height(480)])
             .presentationDragIndicator(.visible)
         }
     }
@@ -1788,8 +1801,7 @@ struct WeeklyCalendarCard: View {
                 .overlay(Capsule().stroke(Color.terra200, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.35)
+        .shown(enabled)
     }
 
     /// Renders the week card off-screen and opens the system share sheet.
@@ -2158,7 +2170,8 @@ struct WeeklyCalendarCard: View {
                                 Text(recipe.name ?? "")
                                     .font(.system(size: 16, weight: .regular, design: .serif))
                                     .foregroundStyle(Self.weekInk)
-                                    .lineLimit(1)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
                             }
                             .padding(.horizontal, 10)
@@ -4659,8 +4672,7 @@ struct AddGoalSheet: View {
                             .padding(.vertical, 12)
                             .background(Capsule().fill(Color.terra500))
                     }
-                    .disabled(title.isEmpty || target.isEmpty || unit.isEmpty)
-                    .opacity((title.isEmpty || target.isEmpty || unit.isEmpty) ? 0.5 : 1)
+                    .shown(!(title.isEmpty || target.isEmpty || unit.isEmpty))
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)

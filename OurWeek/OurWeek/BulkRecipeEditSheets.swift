@@ -183,7 +183,7 @@ struct BulkTagsSheet: View {
                             .overlay(Capsule().stroke(hasTags ? Color.terra200 : Color.gray.opacity(0.2), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
-                    .disabled(!hasTags)
+                    .shown(hasTags)
                 }
 
                 Button(action: { dismiss() }) {

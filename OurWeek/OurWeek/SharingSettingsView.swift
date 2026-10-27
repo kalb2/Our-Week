@@ -473,8 +473,7 @@ struct SharingSettingsView: View {
                         .stroke(Color.terra600, lineWidth: 1)
                 )
             }
-            .disabled(householdName.isEmpty || profileName.isEmpty)
-            .opacity(householdName.isEmpty || profileName.isEmpty ? 0.5 : 1.0)
+            .shown(!(householdName.isEmpty || profileName.isEmpty))
             .boldShadow(Color.terra500, radius: 12)
         }
         .padding(20)

@@ -72,6 +72,8 @@ struct ProfileMenuSheet: View {
                         .homeQuietCard()
                     }
                 }
+
+                PrepAheadSettingsRow()
             }
             .padding(.horizontal, 24)
             
