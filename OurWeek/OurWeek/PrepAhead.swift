@@ -96,6 +96,11 @@ enum PrepAheadScheduler {
     private static var generation = 0
     private static let launchedAt = Date()
 
+    /// Cancels any reschedule in flight. Pending requests are removed by the caller.
+    static func cancelForDataDeletion() {
+        generation += 1
+    }
+
     static var isEnabled: Bool {
         UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
     }

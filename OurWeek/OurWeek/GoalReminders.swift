@@ -17,6 +17,11 @@ enum GoalReminderScheduler {
     static let prefix = "ourweek.goal."
     private static var generation = 0
 
+    /// Cancels any reschedule in flight. Pending requests are removed by the caller.
+    static func cancelForDataDeletion() {
+        generation += 1
+    }
+
     static func requestAccess() async -> Bool {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()

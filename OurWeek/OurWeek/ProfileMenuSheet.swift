@@ -7,6 +7,7 @@ struct ProfileMenuSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 24) {
             // Header
             HStack {
@@ -74,11 +75,15 @@ struct ProfileMenuSheet: View {
                 }
 
                 PrepAheadSettingsRow()
+
+                DeleteAllDataRow()
             }
             .padding(.horizontal, 24)
+            .padding(.bottom, 24)
             
-            Spacer()
         }
+        }
+        .scrollBounceBehavior(.basedOnSize)
         .background(Color.bgBase.ignoresSafeArea())
     }
 }

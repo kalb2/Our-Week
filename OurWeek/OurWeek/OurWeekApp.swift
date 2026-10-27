@@ -16,15 +16,35 @@ struct OurWeekApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var calendarSyncManager = CalendarSyncManager()
     @State private var remindersSync = RemindersSync()
+    /// Changes after "Delete all my data" so every view starts fresh.
+    @State private var resetID = UUID()
+    @State private var showDataDeleted = false
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .id(resetID)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environment(SharingManager(persistenceController: persistenceController))
                 .environment(DataManager(persistenceController: persistenceController))
                 .environment(calendarSyncManager)
                 .environment(remindersSync)
+                .overlay(alignment: .top) {
+                    if showDataDeleted {
+                        DataDeletedBanner()
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .ourWeekDataDeleted)) { _ in
+                    calendarSyncManager = CalendarSyncManager()
+                    remindersSync = RemindersSync()
+                    resetID = UUID()
+                    withAnimation(.easeOut(duration: 0.25)) { showDataDeleted = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation(.easeIn(duration: 0.25)) { showDataDeleted = false }
+                    }
+                }
         }
     }
 }

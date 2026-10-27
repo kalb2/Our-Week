@@ -119,6 +119,17 @@ enum HomeWidgetStore {
     private static var debounce: Task<Void, Never>?
     private static var observingWidgetToggles = false
 
+    /// Forgets every cached snapshot after "Delete all my data". The files are already gone.
+    @MainActor
+    static func resetAfterDataDeletion() {
+        debounce?.cancel()
+        debounce = nil
+        lastTodoRaw = nil
+        lastWritten = nil
+        dataManager = nil
+        appleEvents = []
+    }
+
     /// Copies checkbox taps from the widget into the to-do list. Safe to call on every foreground.
     @MainActor
     static func applyWidgetTodoEdits() {
