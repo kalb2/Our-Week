@@ -339,26 +339,31 @@ struct DeleteAllDataSheet: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Text("Delete all my data")
-                        .font(.system(size: 28, weight: .regular, design: .serif))
-                        .foregroundStyle(HomeQuiet.ink)
-                    Spacer()
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 32, height: 32)
-                            .background(Color.cardWhite)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
-                    }
-                    .accessibilityLabel("Close")
-                    .disabled(isDeleting)
+        VStack(spacing: 0) {
+            // Fixed header: clear of the grabber, like the Account sheet.
+            HStack(alignment: .center) {
+                Text("Delete all my data")
+                    .font(.system(size: 28, weight: .regular, design: .serif))
+                    .foregroundStyle(HomeQuiet.ink)
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 32, height: 32)
+                        .background(Color.cardWhite)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.black.opacity(0.08), lineWidth: 1))
                 }
+                .accessibilityLabel("Close")
+                .disabled(isDeleting)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 36)
+            .padding(.bottom, 16)
 
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
                 Text("This permanently deletes everything Our Week keeps for you, on this iPhone and in your iCloud. It can't be undone.")
                     .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(HomeQuiet.ink)
@@ -385,6 +390,8 @@ struct DeleteAllDataSheet: View {
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(HomeQuiet.quiet)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4)
+                    .padding(.top, -12)
 
                 if role.ownsSharedHousehold {
                     note(
@@ -416,6 +423,8 @@ struct DeleteAllDataSheet: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .stroke(HomeQuiet.buttonStroke, lineWidth: 1)
                         )
+                        .submitLabel(.done)
+                        .onSubmit { fieldFocused = false }
                         .disabled(isDeleting)
                         .accessibilityLabel("Type DELETE to confirm")
                 }
@@ -449,10 +458,15 @@ struct DeleteAllDataSheet: View {
                     .transition(.opacity)
                 }
             }
-            .padding(24)
+            .padding(.horizontal, 24)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
             .animation(.easeOut(duration: 0.2), value: confirmed)
         }
         .scrollDismissesKeyboard(.interactively)
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        }
         .background(Color.bgBase.ignoresSafeArea())
         .interactiveDismissDisabled(isDeleting)
         .onAppear { role = HouseholdSharingRole.current() }
