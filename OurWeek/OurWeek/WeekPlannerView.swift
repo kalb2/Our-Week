@@ -240,6 +240,12 @@ struct WeekPlannerView: View {
             Text("No recipes to plan")
                 .font(.system(size: 22, weight: .regular, design: .serif))
                 .foregroundStyle(HomeQuiet.ink)
+            Text("Add a few recipes in Recipes, then plan the week here.")
+                .font(.system(size: 14, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .multilineTextAlignment(.center)
+                .padding(.top, 6)
+                .padding(.horizontal, 32)
             Spacer()
         }
     }

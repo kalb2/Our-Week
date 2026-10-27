@@ -185,6 +185,9 @@ struct MealPlanDayCard: View {
                     Text("Nothing planned")
                         .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(HomeQuiet.quiet)
+                    Text("Tap + to add a meal.")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(HomeQuiet.quiet)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -202,7 +205,8 @@ struct MealPlanDayCard: View {
                             }) {
                                 Text(meal.title ?? "Untitled")
                                     .font(.system(size: 14, weight: .regular, design: .serif))
-                                    .lineLimit(1)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
                                     .foregroundStyle(HomeQuiet.ink)
                             }
                             .buttonStyle(.plain)
@@ -507,8 +511,7 @@ struct MealEditSheet: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(title.isEmpty)
-                .opacity(title.isEmpty ? 0.6 : 1.0)
+                .shown(!title.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)

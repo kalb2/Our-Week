@@ -641,7 +641,7 @@ struct RecipeLibraryView: View {
                         .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .disabled(recipes.isEmpty)
+                .shown(!recipes.isEmpty)
             } else {
                 Button(action: enterSelectMode) {
                     HStack(spacing: 6) {
@@ -658,7 +658,7 @@ struct RecipeLibraryView: View {
                     .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .disabled(recipes.isEmpty)
+                .shown(!recipes.isEmpty)
             }
 
             Spacer()
@@ -917,7 +917,20 @@ struct RecipeLibraryView: View {
 
     // MARK: - Bulk Action Bar
 
+    @ViewBuilder
     private var bulkActionBar: some View {
+        if selectedRecipeIDs.isEmpty {
+            Text("Tap recipes to select them")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(HomeQuiet.quiet)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        } else {
+            bulkActionButtons
+        }
+    }
+
+    private var bulkActionButtons: some View {
         let hasSelection = !selectedRecipeIDs.isEmpty
         return HStack(spacing: 10) {
             Button(action: { showBulkDeleteConfirm = true }) {
@@ -935,7 +948,6 @@ struct RecipeLibraryView: View {
                 .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .disabled(!hasSelection)
 
             Button(action: { showBulkCategories = true }) {
                 HStack(spacing: 6) {
@@ -952,7 +964,6 @@ struct RecipeLibraryView: View {
                 .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .disabled(!hasSelection)
 
             Button(action: { showBulkTags = true }) {
                 HStack(spacing: 6) {
@@ -969,7 +980,6 @@ struct RecipeLibraryView: View {
                 .overlay(Capsule().stroke(HomeQuiet.buttonStroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .disabled(!hasSelection)
         }
     }
 

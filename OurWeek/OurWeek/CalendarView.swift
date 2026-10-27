@@ -73,10 +73,15 @@ struct CalendarView: View {
                             .padding(.horizontal)
                         
                         if events.isEmpty && meals.isEmpty && appleEvents.isEmpty && dayTodos.isEmpty {
-                            Text("No events or meals")
-                                .font(.system(size: 15, weight: .regular, design: .serif))
-                                .foregroundStyle(HomeQuiet.quiet)
-                                .padding(.horizontal)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("No events or meals")
+                                    .font(.system(size: 15, weight: .regular, design: .serif))
+                                    .foregroundStyle(HomeQuiet.quiet)
+                                Text("Tap + to add a meal, event, or to-do.")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundStyle(HomeQuiet.quiet)
+                            }
+                            .padding(.horizontal)
                         } else {
                             ForEach(meals, id: \.objectID) { meal in
                                 MealListItem(meal: meal)

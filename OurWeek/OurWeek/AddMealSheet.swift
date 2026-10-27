@@ -287,7 +287,8 @@ struct AddMealSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recipe.name ?? "Untitled")
                         .font(.system(size: 12, weight: .regular))
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                         .foregroundStyle(.black)
                     
                     if recipe.isFavorite {
